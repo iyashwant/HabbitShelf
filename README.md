@@ -4,7 +4,7 @@ A native **iOS 27** habit tracker built in SwiftUI, with HabitKit's public scree
 
 Implemented: Card / Compact / Month overviews, contribution grids, calendar backfill, yes/no / count / measure tracking, build and quit modes, historical goal rules, daily / weekly / monthly streaks, notes, colors / icons / emoji, categories, ordering, statistics, local reminders, PNG sharing, year review, archive / restore, JSON import / export, automatic snapshots, four widget size/layout combinations, and seven Shortcut actions.
 
-This is ready for a first Mac build and device review. Exact screenshot parity and native behavior must be checked on iOS; see [the feature and verification matrix](docs/PARITY.md) for the remaining differences. No iOS binary was built in the Linux workspace.
+The app and widget extension passed an unsigned simulator build on GitHub's Mac runner. Exact screenshot parity and native behavior must be checked on iOS; see [the feature and verification matrix](docs/PARITY.md) for the remaining differences. The runner used Xcode 26.6 / iOS 26.5 SDK with a CI-only deployment override; iOS 27 remains the project target and needs Xcode 27 validation.
 
 ## Run on your Mac
 
@@ -30,7 +30,7 @@ python3 scripts/check-project.py
 bash scripts/check-ios.sh  # Mac + Xcode 27
 ```
 
-The standalone Swift package tests the actual engine used by the app and widgets. The Linux run passed 41 tests; native simulator and device checks are tracked separately. GitHub Actions also runs the package checks and an unsigned simulator build. If its runner lacks SDK 27, it explicitly reports a source compilation check against the installed SDK while leaving iOS 27 validation pending.
+The standalone Swift package tests the actual engine used by the app and widgets. All 41 tests passed on Linux and on the Mac runner. [GitHub Actions run 37073838015](https://github.com/iyashwant/habbit-buddy/actions/runs/37073838015) also passed the project/research checks and built the app and widgets for both simulator architectures. See [the validation record](docs/VALIDATION.md) for SDK details and pending runtime checks.
 
 ## Project map
 
