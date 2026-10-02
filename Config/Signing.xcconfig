@@ -1,0 +1,4 @@
+// Set these three values for device signing on your Mac.
+BUDDY_BUNDLE_ID = com.iyashwant.habbitbuddy
+BUDDY_APP_GROUP = group.com.iyashwant.habbitbuddy
+DEVELOPMENT_TEAM =

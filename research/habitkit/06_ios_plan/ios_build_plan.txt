@@ -1,0 +1,91 @@
+IOS BUILD PLAN — ORIGINAL IMPLEMENTATION PROPOSAL
+Prepared 3 October 2026. This is a proposed architecture, not HabitKit's source or internal stack.
+
+1. PRODUCT TARGET
+Build an offline iPhone habit tracker whose primary interaction is a one-tap check-in and a contribution-style calendar. Start with an original name, app icon, text and visual system. Use the collected HabitKit images to understand the flows. No backend or login is necessary for the first release.
+
+Suggested initial deployment target: iOS 17 or later to simplify a SwiftData-based app and interactive WidgetKit/App Intents work. The reference app supports iOS 15; supporting that range in your app is a separate scope decision. Native iOS compilation, simulator runs, signing and device tests require a macOS/Xcode environment. This Linux research workspace has not built or tested an iOS binary.
+
+2. RECOMMENDED STACK
+Swift + SwiftUI for the native interface. SwiftData behind a repository abstraction for local persistence, with explicit schema migration. Core Data is an alternative if an older iOS deployment target or existing persistence experience makes it preferable.
+WidgetKit for home-screen widgets and App Intents for configuration, widget actions and Siri/Shortcuts. Use an App Group for shared data or a compact shared widget snapshot. Treat widget updates as eventually refreshed: persist writes first, publish a new snapshot, then request timeline reload. Never rely on a widget being a continuously running process.
+UserNotifications for local reminders. Define a scheduler that accounts for permissions, multiple habits, pending-request capacity, local time zones and completion suppression. Choose/test either recurring calendar triggers or a rolling queue; do not copy a fragile behavior solely for parity.
+Swift Charts for aggregate visualizations. A custom lightweight SwiftUI Canvas or optimized view renderer for heatmap tiles. ShareLink/ImageRenderer or an appropriate system share-sheet wrapper for exported image cards.
+StoreKit 2 for purchases if you monetize. RevenueCat is optional for entitlement operations; it is not required for a local MVP. Keep purchase code separate from habit data and never delete records when access expires.
+
+3. APPLICATION SHAPE
+Main screens: Onboarding, Overview, Habit Editor, Habit Detail, Day/Amount Editor, Categories, Statistics, Share Preview, Settings, Archive, Backups and optional Pro screen.
+Overview supports Card, Compact and Month layouts over the same model. A view switch changes presentation, not the stored habits. Keep category filtering separate from sorting.
+Route detail/editor sheets with stable habit identifiers. Distinguish taps on a completion indicator from taps that open detail. Empty states should expose one clear Create Habit action. Every failed save should leave the user able to retry with their draft intact.
+
+4. MODULES AND TARGETS
+App target: app entry, navigation, SwiftUI screens and settings.
+Shared domain module: habit types, date keys, goal versions, validation, success evaluator, streak engine and repository protocols.
+Persistence module: SwiftData models/adapters, transactions, schema migrations, export/import and backups.
+Services: reminders, widget snapshot publisher, entitlements, share rendering, diagnostics.
+Widget extension: compact and grid families with intent-backed actions.
+App Intents: named actions that call the same domain write operations as the app.
+Unit test target: calendar/goal/streak/import rules. UI tests should cover creation and the core logging path; device checks cover widget and notification integration.
+
+5. MODEL CONTRACT
+Habit stores identity, title, description, appearance, display order and archive state.
+HabitModePeriod stores build/quit periods separately so converting the current mode does not reinterpret earlier history.
+GoalVersion stores effectiveFromDay, daily target or quit threshold and cadence. Keep one effective version per date; a second edit today replaces today's rule without modifying earlier days.
+DayRecord is unique by (habitId, localDay). It stores the amount and optional note. Store a local YYYY-MM-DD day key plus original time-zone metadata; do not recalculate existing keys after travel.
+LogEvent is optional but useful for time-of-day statistics and audit/recovery. Event timestamps and aggregated day records serve different purposes. If you want only day totals, explicitly omit or redefine the time-of-day chart.
+Category and HabitCategoryMembership support multiple memberships. Reminder stores a local time plus weekdays. AppSettings is separate from portable habit data. Backup manifests carry schema version, timestamp and integrity information.
+The accompanying proposed_data_model.json is your own model, not the private HabitKit JSON schema.
+
+6. CORE WRITE TRANSACTION
+Validate habit state, day, mode and input -> resolve the historical goal -> write the day amount/note atomically -> invalidate affected stats/streak caches -> regenerate the widget snapshot -> update reminder suppression -> refresh UI.
+Use one write service for app, widget and Shortcut actions. Retries must not duplicate increments. Set/complete/clear are naturally idempotent; increment needs careful intent execution semantics.
+Avoid creating one database record for every clean quit day. Derive clean dates from mode periods plus recorded slips/amounts, and materialize only actual input or notes.
+
+7. SUCCESS AND STREAK RULES
+Build Yes/No succeeds on a check-in. Build Count/Measure succeeds when amount >= the historical target. Numeric quit success uses amount < the historical threshold. Quit Yes/No succeeds when no slip is recorded within an active quit period. Future dates are never considered achieved.
+For parity, unfinished today must not reset a build daily streak. Weekly/monthly streaks count successful dates, not periods. Reevaluate reachability in the current period using the selected week start. Keep the daily-goal and cadence-goal calculations separate.
+Store Decimal or a fixed three-decimal representation for measured values so 0.1 + 0.2 does not unexpectedly miss a target. Never compare success using the color-rendering bucket.
+Agree on completion-rate denominator, aggregate streak meaning, monthly targets beyond a short month's length, conversion carry-over and yearly statistics boundaries before claiming exact parity. The website does not fully specify every edge case.
+
+8. HEATMAP RENDERING
+Rows map to weekdays; columns map to complete calendar weeks. Align the first column to the selected week-start day. Distinguish unavailable/pre-tracking, future, empty, partial, full, slip and locked-conversion states. Consider a marker/accessible label so color is not the only signal.
+Overview grids should be responsive and avoid drawing every historical cell on every state change. Cache derived layouts by habit, date window, week-start and goal-version revision. Detail can scroll to older history.
+For an initial version, use a clear recent-year window. Long-history display matching the reference can come later; document any simplification.
+
+9. REMINDERS
+Ask for notification permission when the user requests a reminder. Surface denied permission and link to system settings. Preserve a draft when the user leaves to grant access.
+Allocate scheduled requests fairly across habits; one habit with three reminders must not silently starve another. Reconcile on launch, settings changes, significant time changes and successful logging. Suppression differs for build success versus quit failure.
+Test phone restart, DST, travel, disabled permission, Focus behavior and many scheduled habits. An accurate due time does not guarantee the OS will display a banner immediately.
+
+10. DATA SAFETY
+Write versioned JSON using a format you control. Validate before replacing a database. Reject invalid types, negative amounts, future dates and inconsistent IDs; preserve unknown optional fields only if your schema permits them.
+Before import, create a recoverable snapshot. Build and validate replacement data separately, commit atomically, and verify a post-import invariant check. Cancellation is not success. Give the user an explicit choice if you later add merge imports.
+Maintain seven daily on-device snapshots plus a pre-import snapshot, subject to a defined storage policy. Test restore on real data and migrations. A backup on the same phone does not protect against device loss; make manual export available or decide on a separate cloud-backup feature.
+
+11. ENTITLEMENTS AND PRICING
+Monetization is optional and does not need to match HabitKit. If adopted, define capability gates centrally and support restore, offline cached access, renewal/expiry and lifetime ownership. Use store-localized prices; do not hardcode scraped US prices.
+When access lapses, preserve data and provide a route to archive/export/recover it according to your chosen policy. Free backups should remain a reliability feature. Set your own active-habit limit, prices and upsell behavior.
+
+12. VISUAL AND ACCESSIBILITY NOTES
+Observed reference style: near-black canvas, rounded charcoal cards, thin separators, vivid per-habit accents, small rounded grid tiles, circular icons and compact metric chips. Exact native font, spacing tokens and animation curves are not confirmed by the website.
+Use native typography and Dynamic Type, sufficient contrast, VoiceOver day labels and appropriately sized interaction targets. Keep long-press actions available through accessible menus. Test light/dark mode, reduced motion, right-to-left layouts, long habit names and decimal separators.
+
+13. BUILD ORDER
+MVP: original identity/design tokens; domain/date model; persisted habit CRUD; three tracking types; one-tap logging; calendar correction and notes; heatmap; basic streaks; archive; reliable local backups; one reminder per habit.
+Parity release: quit periods/conversions; categories; Compact/Month overviews; interactive widgets; seven Shortcut actions; charts; image sharing; portable export/import; optional entitlements.
+Polish: configurable cards, searchable appearance pickers, language selection, reorder settings, year-in-review, advanced widget appearance and large-history performance.
+Expansion choices: iCloud sync, dedicated iPad UI, Apple Watch app, CSV migration, customizable day boundary or quit-habit charts. These are proposed differentiators, not existing HabitKit features.
+
+14. DEFINITION OF DONE
+Core logging works offline and survives app termination. Grid, calendar, streak and widget show consistent results. Goal edits preserve earlier scoring. DST/travel never duplicate or move existing day records. Import failure cannot destroy the only usable data. Restore is verified. Entitlement loss does not delete history. App Intents and notification/widget refresh behavior are tested on an actual iPhone. UI behavior and exports remain accessible with large text and VoiceOver.
+
+OFFICIAL APPLE REFERENCES
+SwiftUI: https://developer.apple.com/xcode/swiftui/
+SwiftData: https://developer.apple.com/documentation/swiftdata
+WidgetKit: https://developer.apple.com/documentation/widgetkit
+Interactive widgets: https://developer.apple.com/documentation/widgetkit/adding-interactivity-to-widgets-and-live-activities
+App Intents: https://developer.apple.com/app-intents/
+UserNotifications: https://developer.apple.com/documentation/usernotifications
+Swift Charts: https://developer.apple.com/documentation/charts
+StoreKit 2: https://developer.apple.com/storekit/
+These are framework entry points for implementation; no Apple source code has been copied into this dossier.

@@ -1,0 +1,12 @@
+PROPOSED BUILD ROADMAP
+
+Stage 1 — Original app identity, SwiftUI shell, date keys and persistent schema.
+Stage 2 — Habit CRUD, yes/no/count/measure logging, calendar correction and notes.
+Stage 3 — Heatmap, historical goal versions, streak engine and archive.
+Stage 4 — Reminders, local backups and destructive-operation recovery.
+Stage 5 — Quit habits/conversions, categories and three overview layouts.
+Stage 6 — Widget extension, App Group snapshot and App Intents.
+Stage 7 — Charts, share images, portable export/import and optional purchases.
+Stage 8 — Accessibility, localization, device testing and release preparation.
+
+Each stage should finish with its behavior verified before the next starts. Estimates depend on original design decisions and the scope of exact parity. No app implementation was requested or performed in this research task.

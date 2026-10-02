@@ -1,0 +1,33 @@
+{
+  "skills": [
+    {
+      "skill": "frontend-design",
+      "repository": "https://github.com/anthropics/skills",
+      "revision": "8a1541c4a3ffa5a20a5a91de0dcf3f0bab1d1ef4",
+      "skill_path": "skills/frontend-design/SKILL.md",
+      "read_in_full": true
+    },
+    {
+      "skill": "ui-ux-pro-max",
+      "repository": "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill",
+      "revision": "09170eec67eefd46a7ae85de61b40c194020f997",
+      "skill_path": ".claude/skills/ui-ux-pro-max/SKILL.md",
+      "read_in_full": true
+    },
+    {
+      "skill": "design-taste-frontend",
+      "repository": "https://github.com/Leonxlnx/taste-skill",
+      "revision": "ce26fc25c0e5e8cab638f883de62d9a86ee5e45b",
+      "skill_path": "skills/taste-skill/SKILL.md",
+      "read_in_full": true
+    },
+    {
+      "skill": "interface-design",
+      "repository": "https://github.com/Dammyjay93/interface-design",
+      "revision": "2f9be3206855bcb2d1d0af262c8bae25cba6658d",
+      "skill_path": ".claude/skills/interface-design/SKILL.md",
+      "read_in_full": true
+    }
+  ],
+  "usage": "HabitKit reference and native SwiftUI requirements take priority over web defaults."
+}

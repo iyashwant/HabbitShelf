@@ -1,0 +1,867 @@
+[
+  {
+    "url": "https://habitkit.app/images/habitkit-icon.png",
+    "alt": "",
+    "found_on": [
+      "https://habitkit.app/",
+      "https://habitkit.app",
+      "https://habitkit.app/help",
+      "https://habitkit.app/changelog",
+      "https://habitkit.app/support",
+      "https://habitkit.app/about",
+      "https://habitkit.app/privacy",
+      "https://habitkit.app/terms",
+      "https://habitkit.app/help/getting-started",
+      "https://habitkit.app/help/habits-and-streaks",
+      "https://habitkit.app/help/widgets",
+      "https://habitkit.app/help/data-backup-and-sync",
+      "https://habitkit.app/help/billing-and-premium",
+      "https://habitkit.app/help/troubleshooting",
+      "https://habitkit.app/help/troubleshooting/notifications-arrive-late-or-not-at-all",
+      "https://habitkit.app/help/habits-and-streaks/how-streaks-are-counted",
+      "https://habitkit.app/help/getting-started/install-habitkit-and-create-your-first-habit",
+      "https://habitkit.app/help/getting-started/how-the-grid-works",
+      "https://habitkit.app/help/getting-started/log-a-completion-and-fix-a-past-day",
+      "https://habitkit.app/help/getting-started/set-a-reminder-for-a-habit",
+      "https://habitkit.app/help/habits-and-streaks/take-a-day-off-without-breaking-your-streak",
+      "https://habitkit.app/help/habits-and-streaks/set-daily-goals-and-multiple-completions",
+      "https://habitkit.app/help/habits-and-streaks/track-a-habit-you-want-to-quit",
+      "https://habitkit.app/help/widgets/add-a-habitkit-widget-to-your-home-screen",
+      "https://habitkit.app/help/data-backup-and-sync/move-your-habits-to-a-new-phone",
+      "https://habitkit.app/help/billing-and-premium/what-habitkit-pro-unlocks",
+      "https://habitkit.app/help/troubleshooting/a-day-you-completed-looks-empty",
+      "https://habitkit.app/help/widgets/complete-habits-with-siri-and-ios-shortcuts",
+      "https://habitkit.app/help/data-backup-and-sync/automatic-backups-and-recovery",
+      "https://habitkit.app/help/widgets/choose-which-habits-a-widget-shows",
+      "https://habitkit.app/help/widgets/widgets-are-not-updating",
+      "https://habitkit.app/help/data-backup-and-sync/export-and-import-your-data",
+      "https://habitkit.app/help/billing-and-premium/restore-a-pro-purchase",
+      "https://habitkit.app/help/troubleshooting/habitkit-will-not-open-or-shows-an-error"
+    ],
+    "local_path": "05_other_assets/habitkit-icon.png",
+    "final_url": "https://habitkit.app/images/habitkit-icon.png",
+    "mime_type": "image/png",
+    "bytes": 11540,
+    "sha256": "9464ad58721026bcd2fb265d8a028eb9bd7a8e05d305c327851cbc03582571ee",
+    "dimensions": {
+      "width": 128,
+      "height": 128,
+      "format": "PNG"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/images/badges/app-store.svg",
+    "alt": "Download on the App Store",
+    "found_on": [
+      "https://habitkit.app/",
+      "https://habitkit.app"
+    ],
+    "local_path": "05_other_assets/app-store.svg",
+    "final_url": "https://habitkit.app/images/badges/app-store.svg",
+    "mime_type": "image/svg+xml",
+    "bytes": 6316,
+    "sha256": "af70635f47dc9cf892ad9b1ef3a5e76ff0d33f00f562c832dae5aa824bc96b91",
+    "dimensions": null,
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/images/badges/google-play.svg",
+    "alt": "Get it on Google Play",
+    "found_on": [
+      "https://habitkit.app/",
+      "https://habitkit.app"
+    ],
+    "local_path": "05_other_assets/google-play.svg",
+    "final_url": "https://habitkit.app/images/badges/google-play.svg",
+    "mime_type": "image/svg+xml",
+    "bytes": 9459,
+    "sha256": "df7ee84d3932b9e4b81364ac274499863a0262996f59ec91df036d40f8fa786a",
+    "dimensions": null,
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/images/qr/app-store.webp",
+    "alt": "QR code linking to HabitKit on the App Store",
+    "found_on": [
+      "https://habitkit.app/",
+      "https://habitkit.app"
+    ],
+    "local_path": "05_other_assets/app-store.webp",
+    "final_url": "https://habitkit.app/images/qr/app-store.webp",
+    "mime_type": "image/webp",
+    "bytes": 9944,
+    "sha256": "b480087859b9f6b6be8d116f86cbb132e27383f4baf26dcdf0269c18a47eb42d",
+    "dimensions": {
+      "width": 640,
+      "height": 640,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/images/qr/google-play.webp",
+    "alt": "QR code linking to HabitKit on the Google Play",
+    "found_on": [
+      "https://habitkit.app/",
+      "https://habitkit.app"
+    ],
+    "local_path": "05_other_assets/google-play.webp",
+    "final_url": "https://habitkit.app/images/qr/google-play.webp",
+    "mime_type": "image/webp",
+    "bytes": 15084,
+    "sha256": "95dc25a288e9f3fd5fa3bc2273e03fc673d5afab803fb3fccef0f716009ac4cd",
+    "dimensions": {
+      "width": 640,
+      "height": 640,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/images/app/phone-fan.webp",
+    "alt": "Three HabitKit screens fanned out on iPhones: the edit-habit view with its colour palette, the habit overview with colourful tile grids, and yearly stats with charts",
+    "found_on": [
+      "https://habitkit.app/",
+      "https://habitkit.app"
+    ],
+    "local_path": "02_app_screenshots/phone-fan.webp",
+    "final_url": "https://habitkit.app/images/app/phone-fan.webp",
+    "mime_type": "image/webp",
+    "bytes": 132618,
+    "sha256": "dc12219d738370640c535d79cf2e471e1aed730fbb19ca3ed7d0a5843737e04d",
+    "dimensions": {
+      "width": 1672,
+      "height": 941,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/images/logos/subclub.webp",
+    "alt": "Sub Club",
+    "found_on": [
+      "https://habitkit.app/",
+      "https://habitkit.app"
+    ],
+    "local_path": "05_other_assets/subclub.webp",
+    "final_url": "https://habitkit.app/images/logos/subclub.webp",
+    "mime_type": "image/webp",
+    "bytes": 4248,
+    "sha256": "15b9b0d5eda648fb46f5ce5fb0f83a0e760264f82369fa734727e5f1cd277631",
+    "dimensions": {
+      "width": 289,
+      "height": 84,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/images/logos/the-studio.webp",
+    "alt": "",
+    "found_on": [
+      "https://habitkit.app/",
+      "https://habitkit.app"
+    ],
+    "local_path": "05_other_assets/the-studio.webp",
+    "final_url": "https://habitkit.app/images/logos/the-studio.webp",
+    "mime_type": "image/webp",
+    "bytes": 1794,
+    "sha256": "6ecc394421a1a4759fc76a3572c930cff42d43c9edbc32ead37e0bb4cbdcc931",
+    "dimensions": {
+      "width": 65,
+      "height": 72,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/images/logos/indie-hackers.webp",
+    "alt": "Indie Hackers",
+    "found_on": [
+      "https://habitkit.app/",
+      "https://habitkit.app"
+    ],
+    "local_path": "05_other_assets/indie-hackers.webp",
+    "final_url": "https://habitkit.app/images/logos/indie-hackers.webp",
+    "mime_type": "image/webp",
+    "bytes": 4408,
+    "sha256": "156aecbc7bb0458e933c4625715ec69568291b0596c52cb55a208594ac166528",
+    "dimensions": {
+      "width": 277,
+      "height": 84,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/images/logos/launched.webp",
+    "alt": "Launched",
+    "found_on": [
+      "https://habitkit.app/",
+      "https://habitkit.app"
+    ],
+    "local_path": "05_other_assets/launched.webp",
+    "final_url": "https://habitkit.app/images/logos/launched.webp",
+    "mime_type": "image/webp",
+    "bytes": 5586,
+    "sha256": "59c2e5f27bba9d8cf780534951f79727664c359664f52bb820dcfe397b2c7ee6",
+    "dimensions": {
+      "width": 612,
+      "height": 72,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/images/logos/starter-story.webp",
+    "alt": "",
+    "found_on": [
+      "https://habitkit.app/",
+      "https://habitkit.app"
+    ],
+    "local_path": "05_other_assets/starter-story.webp",
+    "final_url": "https://habitkit.app/images/logos/starter-story.webp",
+    "mime_type": "image/webp",
+    "bytes": 308,
+    "sha256": "c8a6d21ca5f96febcd7065a66b774f6c54facd10cfd687b5d0af3c15b674fda7",
+    "dimensions": {
+      "width": 56,
+      "height": 55,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/images/app/slide-widgets.webp",
+    "alt": "iPhone home screen with HabitKit widgets: a cyan Reading grid, an amber Coding habit and a compact multi-habit widget",
+    "found_on": [
+      "https://habitkit.app/",
+      "https://habitkit.app"
+    ],
+    "local_path": "02_app_screenshots/slide-widgets.webp",
+    "final_url": "https://habitkit.app/images/app/slide-widgets.webp",
+    "mime_type": "image/webp",
+    "bytes": 81164,
+    "sha256": "8c5dd6cc5dbf333be79b2a3158a2cdb2587f3d49d8520ec2b3e2748b877bcf14",
+    "dimensions": {
+      "width": 680,
+      "height": 1402,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/images/app/slide-views.webp",
+    "alt": "HabitKit compact view listing nine habits with their last five days of tiles",
+    "found_on": [
+      "https://habitkit.app/",
+      "https://habitkit.app"
+    ],
+    "local_path": "02_app_screenshots/slide-views.webp",
+    "final_url": "https://habitkit.app/images/app/slide-views.webp",
+    "mime_type": "image/webp",
+    "bytes": 45022,
+    "sha256": "7c176b94d8709d9d12c89ea3c2191a6fb52d07eb4cef227d3ac9135390e7905c",
+    "dimensions": {
+      "width": 680,
+      "height": 1402,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/images/app/slide-detail.webp",
+    "alt": "HabitKit habit detail screen with a year grid, streak chips and a monthly calendar",
+    "found_on": [
+      "https://habitkit.app/",
+      "https://habitkit.app"
+    ],
+    "local_path": "02_app_screenshots/slide-detail.webp",
+    "final_url": "https://habitkit.app/images/app/slide-detail.webp",
+    "mime_type": "image/webp",
+    "bytes": 50520,
+    "sha256": "35a1a4010c88664de71c7724981191cce58822c41f5acf446cded9235bdd3086",
+    "dimensions": {
+      "width": 680,
+      "height": 1402,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/images/app/slide-edit.webp",
+    "alt": "HabitKit edit habit screen with an icon picker, name and description fields and a colour palette",
+    "found_on": [
+      "https://habitkit.app/",
+      "https://habitkit.app"
+    ],
+    "local_path": "02_app_screenshots/slide-edit.webp",
+    "final_url": "https://habitkit.app/images/app/slide-edit.webp",
+    "mime_type": "image/webp",
+    "bytes": 45330,
+    "sha256": "be5545af83ed1b3def0732e15dccef55cfcbbfa13ccd351c4f5b142cecb94067",
+    "dimensions": {
+      "width": 680,
+      "height": 1402,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/images/app/slide-stats.webp",
+    "alt": "HabitKit stats screen with completion counts and a completions-per-month chart",
+    "found_on": [
+      "https://habitkit.app/",
+      "https://habitkit.app"
+    ],
+    "local_path": "02_app_screenshots/slide-stats.webp",
+    "final_url": "https://habitkit.app/images/app/slide-stats.webp",
+    "mime_type": "image/webp",
+    "bytes": 64210,
+    "sha256": "06825ff5c0d045a6d3a906ab8d69d2892b862da05df87e09456e03d41ebd391c",
+    "dimensions": {
+      "width": 680,
+      "height": 1402,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/images/app/slide-goals.webp",
+    "alt": "HabitKit card overview with large year grids and 3-per-week and 20-per-month goal chips",
+    "found_on": [
+      "https://habitkit.app/",
+      "https://habitkit.app"
+    ],
+    "local_path": "02_app_screenshots/slide-goals.webp",
+    "final_url": "https://habitkit.app/images/app/slide-goals.webp",
+    "mime_type": "image/webp",
+    "bytes": 86326,
+    "sha256": "752645fe1afd032774dde2d019e33a3dba3533be1b45d816d0590b9b0946a4ad",
+    "dimensions": {
+      "width": 680,
+      "height": 1402,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/images/app/slide-share.webp",
+    "alt": "HabitKit share sheet with a green share card, theme toggle and colour picker",
+    "found_on": [
+      "https://habitkit.app/",
+      "https://habitkit.app"
+    ],
+    "local_path": "02_app_screenshots/slide-share.webp",
+    "final_url": "https://habitkit.app/images/app/slide-share.webp",
+    "mime_type": "image/webp",
+    "bytes": 55184,
+    "sha256": "ddbc5a448d4dde2c6e9ee2c07e5153dd73e7f1db9481d746c6fc9b9ebc29b05a",
+    "dimensions": {
+      "width": 680,
+      "height": 1402,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/images/app/slide-grid.webp",
+    "alt": "HabitKit grid overview showing ten habits with mini month grids",
+    "found_on": [
+      "https://habitkit.app/",
+      "https://habitkit.app"
+    ],
+    "local_path": "02_app_screenshots/slide-grid.webp",
+    "final_url": "https://habitkit.app/images/app/slide-grid.webp",
+    "mime_type": "image/webp",
+    "bytes": 57302,
+    "sha256": "8c7069dc87fdeade770f5d7763d72677d60880fc12d2feb8418a67b69cbe2a1c",
+    "dimensions": {
+      "width": 680,
+      "height": 1402,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/blog-assets/title/ai-habits-that-make-you-sharper-ai-tiles.webp",
+    "alt": "A grid of rounded charcoal tiles with mint-green tiles spelling AI in the centre",
+    "found_on": [
+      "https://habitkit.app/",
+      "https://habitkit.app",
+      "https://habitkit.app/help"
+    ],
+    "local_path": "05_other_assets/ai-habits-that-make-you-sharper-ai-tiles.webp",
+    "final_url": "https://habitkit.app/blog-assets/title/ai-habits-that-make-you-sharper-ai-tiles.webp",
+    "mime_type": "image/webp",
+    "bytes": 29392,
+    "sha256": "f07c5c061d5b0f1215c515ca82d98209129921884a855c89946317490d9786e6",
+    "dimensions": {
+      "width": 1600,
+      "height": 900,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/blog-assets/title/a-streak-is-not-a-consistency-score.webp",
+    "alt": "A long row of glowing amber tiles with one dark gap near the end and three tiles raised after it",
+    "found_on": [
+      "https://habitkit.app/",
+      "https://habitkit.app",
+      "https://habitkit.app/help"
+    ],
+    "local_path": "05_other_assets/a-streak-is-not-a-consistency-score.webp",
+    "final_url": "https://habitkit.app/blog-assets/title/a-streak-is-not-a-consistency-score.webp",
+    "mime_type": "image/webp",
+    "bytes": 38932,
+    "sha256": "bbd8c498d5dc639acd82ad633ddc870e8d3627332c372d5ac17013b4bc6c1f1e",
+    "dimensions": {
+      "width": 1600,
+      "height": 900,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/blog-assets/title/choosing-a-cue-you-will-actually-notice.webp",
+    "alt": "Two identical green tiles, one resting on a dark block and one floating above a thin ring",
+    "found_on": [
+      "https://habitkit.app/",
+      "https://habitkit.app",
+      "https://habitkit.app/help"
+    ],
+    "local_path": "05_other_assets/choosing-a-cue-you-will-actually-notice.webp",
+    "final_url": "https://habitkit.app/blog-assets/title/choosing-a-cue-you-will-actually-notice.webp",
+    "mime_type": "image/webp",
+    "bytes": 11158,
+    "sha256": "64b741489f687da108a5bc72e6948aed2e48658781e9c544c1b0011448444d11",
+    "dimensions": {
+      "width": 1600,
+      "height": 900,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/images/sebastian.webp",
+    "alt": "Sebastian R\u00f6hl, the developer of HabitKit",
+    "found_on": [
+      "https://habitkit.app/support"
+    ],
+    "local_path": "05_other_assets/sebastian.webp",
+    "final_url": "https://habitkit.app/images/sebastian.webp",
+    "mime_type": "image/webp",
+    "bytes": 16850,
+    "sha256": "4c0a77f244f3990f925900c14de325ac1fc1fe5806fedb496e27628c537440b1",
+    "dimensions": {
+      "width": 400,
+      "height": 400,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/help-assets/charcoal-data-transfer.webp",
+    "alt": "HabitKit Data Import/Export screen with an enlarged Export card on a charcoal background",
+    "found_on": [
+      "https://habitkit.app/help/data-backup-and-sync",
+      "https://habitkit.app/help/data-backup-and-sync/move-your-habits-to-a-new-phone",
+      "https://habitkit.app/help/data-backup-and-sync/automatic-backups-and-recovery",
+      "https://habitkit.app/help/data-backup-and-sync/export-and-import-your-data"
+    ],
+    "local_path": "02_app_screenshots/charcoal-data-transfer.webp",
+    "final_url": "https://habitkit.app/help-assets/charcoal-data-transfer.webp",
+    "mime_type": "image/webp",
+    "bytes": 47918,
+    "sha256": "d109f758c9dd4d3445b7ca9c3a65e5dd044ef1dd1982087ad3d9f21b92863a6f",
+    "dimensions": {
+      "width": 1600,
+      "height": 900,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/blog-assets/charcoal-reminders.webp",
+    "alt": "HabitKit reminder page showing Missing permission and the Give permission button",
+    "found_on": [
+      "https://habitkit.app/help/troubleshooting/notifications-arrive-late-or-not-at-all",
+      "https://habitkit.app/help/getting-started/set-a-reminder-for-a-habit"
+    ],
+    "local_path": "02_app_screenshots/charcoal-reminders.webp",
+    "final_url": "https://habitkit.app/blog-assets/charcoal-reminders.webp",
+    "mime_type": "image/webp",
+    "bytes": 50992,
+    "sha256": "59b1ff18eaa85f6a7ecaddb931337a8fc72c745f70d3828659379c04b51ae70d",
+    "dimensions": {
+      "width": 1600,
+      "height": 900,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/blog-assets/charcoal-weekly-goal.webp",
+    "alt": "HabitKit Streak Goal screen with Week selected and a target of three successful days",
+    "found_on": [
+      "https://habitkit.app/help/habits-and-streaks/how-streaks-are-counted",
+      "https://habitkit.app/help/habits-and-streaks/take-a-day-off-without-breaking-your-streak"
+    ],
+    "local_path": "02_app_screenshots/charcoal-weekly-goal.webp",
+    "final_url": "https://habitkit.app/blog-assets/charcoal-weekly-goal.webp",
+    "mime_type": "image/webp",
+    "bytes": 31918,
+    "sha256": "feecacaec0c6174b811e490e428ca59717589c8a9b9110cd132379f5de53929e",
+    "dimensions": {
+      "width": 1600,
+      "height": 900,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/blog-assets/charcoal-new-habit.webp",
+    "alt": "HabitKit New Habit screen with Name, Description, colour choices and the Build A Habit and Quit A Habit options",
+    "found_on": [
+      "https://habitkit.app/help/getting-started/install-habitkit-and-create-your-first-habit"
+    ],
+    "local_path": "02_app_screenshots/charcoal-new-habit.webp",
+    "final_url": "https://habitkit.app/blog-assets/charcoal-new-habit.webp",
+    "mime_type": "image/webp",
+    "bytes": 32524,
+    "sha256": "a88630f02a1cce62572ee09ede9e85ef8b57e81de6e14e1b7840c14e5da2ff06",
+    "dimensions": {
+      "width": 1600,
+      "height": 900,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/help-assets/charcoal-grid-reading.webp",
+    "alt": "Diagram showing six weeks as columns, Monday to Sunday as rows, and one outlined tile representing one day",
+    "found_on": [
+      "https://habitkit.app/help/getting-started/how-the-grid-works"
+    ],
+    "local_path": "02_app_screenshots/charcoal-grid-reading.webp",
+    "final_url": "https://habitkit.app/help-assets/charcoal-grid-reading.webp",
+    "mime_type": "image/webp",
+    "bytes": 37810,
+    "sha256": "0bdf678f50d75323a91e92673518524640492a2a96e1081aba0f26be2243340a",
+    "dimensions": {
+      "width": 1600,
+      "height": 900,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/help-assets/charcoal-tile-shades.webp",
+    "alt": "Seven tiles showing zero through six completions, including five increasingly bright partial shades",
+    "found_on": [
+      "https://habitkit.app/help/getting-started/how-the-grid-works",
+      "https://habitkit.app/help/troubleshooting/a-day-you-completed-looks-empty"
+    ],
+    "local_path": "02_app_screenshots/charcoal-tile-shades.webp",
+    "final_url": "https://habitkit.app/help-assets/charcoal-tile-shades.webp",
+    "mime_type": "image/webp",
+    "bytes": 25856,
+    "sha256": "37d7416acc0e7be2ae2578f59ffc4168c0f8986f16b601f58de91e8e5d6b7726",
+    "dimensions": {
+      "width": 1600,
+      "height": 900,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/blog-assets/charcoal-day-note.webp",
+    "alt": "HabitKit day editor showing a completed Sport entry for yesterday and a note field",
+    "found_on": [
+      "https://habitkit.app/help/getting-started/log-a-completion-and-fix-a-past-day"
+    ],
+    "local_path": "02_app_screenshots/charcoal-day-note.webp",
+    "final_url": "https://habitkit.app/blog-assets/charcoal-day-note.webp",
+    "mime_type": "image/webp",
+    "bytes": 55698,
+    "sha256": "b0b0099019b284c4761b6aa2fecae15e71f1f690ea6d6166b73e4e66b397ff91",
+    "dimensions": {
+      "width": 1600,
+      "height": 900,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/help-assets/charcoal-daily-goal.webp",
+    "alt": "HabitKit Tracking control with Count selected and an inline Daily Goal of eight per day",
+    "found_on": [
+      "https://habitkit.app/help/habits-and-streaks/set-daily-goals-and-multiple-completions"
+    ],
+    "local_path": "02_app_screenshots/charcoal-daily-goal.webp",
+    "final_url": "https://habitkit.app/help-assets/charcoal-daily-goal.webp",
+    "mime_type": "image/webp",
+    "bytes": 29736,
+    "sha256": "0aef0a1498722adc0a8856e54be091a031e2eca4c53d2e8721545326fbab23cf",
+    "dimensions": {
+      "width": 1600,
+      "height": 900,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/help-assets/charcoal-quit-grid.webp",
+    "alt": "Illustrated Yes / No quit habit grid with 54 green clean days and two dark logged slips across eight weeks",
+    "found_on": [
+      "https://habitkit.app/help/habits-and-streaks/track-a-habit-you-want-to-quit"
+    ],
+    "local_path": "02_app_screenshots/charcoal-quit-grid.webp",
+    "final_url": "https://habitkit.app/help-assets/charcoal-quit-grid.webp",
+    "mime_type": "image/webp",
+    "bytes": 56488,
+    "sha256": "3e4af24464ef181bfae28ccb84104fe0c1f8a76d833c30ce7b4cf0108a01a416",
+    "dimensions": {
+      "width": 1600,
+      "height": 900,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/help-assets/charcoal-ios-widgets.webp",
+    "alt": "iOS home screen panels showing HabitKit widgets, including a multi-habit grid and a smaller Coding widget",
+    "found_on": [
+      "https://habitkit.app/help/widgets/add-a-habitkit-widget-to-your-home-screen"
+    ],
+    "local_path": "02_app_screenshots/charcoal-ios-widgets.webp",
+    "final_url": "https://habitkit.app/help-assets/charcoal-ios-widgets.webp",
+    "mime_type": "image/webp",
+    "bytes": 81282,
+    "sha256": "82ca7cd9e7ebe440e52416c4d08b1ddb83616a7a912b7c47036dda905c27b0c1",
+    "dimensions": {
+      "width": 1600,
+      "height": 900,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/help-assets/charcoal-ios-widget-search.webp",
+    "alt": "A Meditation widget on the left beside the iOS widget search sheet showing HabitKit as the only result",
+    "found_on": [
+      "https://habitkit.app/help/widgets/add-a-habitkit-widget-to-your-home-screen"
+    ],
+    "local_path": "02_app_screenshots/charcoal-ios-widget-search.webp",
+    "final_url": "https://habitkit.app/help-assets/charcoal-ios-widget-search.webp",
+    "mime_type": "image/webp",
+    "bytes": 54556,
+    "sha256": "becbc4a92d685218e2d1d28103ee5cfe3eae6c4736be42697cb5c3026a1d95ec",
+    "dimensions": {
+      "width": 1600,
+      "height": 900,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/help-assets/charcoal-ios-widget-gallery.webp",
+    "alt": "The Medium Habit Widget preview in the iOS widget gallery, above the Add Widget button",
+    "found_on": [
+      "https://habitkit.app/help/widgets/add-a-habitkit-widget-to-your-home-screen"
+    ],
+    "local_path": "02_app_screenshots/charcoal-ios-widget-gallery.webp",
+    "final_url": "https://habitkit.app/help-assets/charcoal-ios-widget-gallery.webp",
+    "mime_type": "image/webp",
+    "bytes": 48048,
+    "sha256": "ea26a22798d10f5735286d0ec47cf293f8fa3e6088fadaaaba7f32a050c82116",
+    "dimensions": {
+      "width": 1600,
+      "height": 900,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/help-assets/charcoal-android-widgets.webp",
+    "alt": "Android home screen showing HabitKit grids for Side Hustle and Limit Coffee Intake above a Compact Habit List widget",
+    "found_on": [
+      "https://habitkit.app/help/widgets/add-a-habitkit-widget-to-your-home-screen"
+    ],
+    "local_path": "02_app_screenshots/charcoal-android-widgets.webp",
+    "final_url": "https://habitkit.app/help-assets/charcoal-android-widgets.webp",
+    "mime_type": "image/webp",
+    "bytes": 114682,
+    "sha256": "5319d41d0701d70f33f0ccfcbb80f9345a7d3e43a905952d7b951c9327d5729b",
+    "dimensions": {
+      "width": 1600,
+      "height": 900,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/help-assets/charcoal-charts.webp",
+    "alt": "HabitKit Charts screen showing a yearly grid, completion totals, completion rate and streak statistics",
+    "found_on": [
+      "https://habitkit.app/help/billing-and-premium/what-habitkit-pro-unlocks"
+    ],
+    "local_path": "02_app_screenshots/charcoal-charts.webp",
+    "final_url": "https://habitkit.app/help-assets/charcoal-charts.webp",
+    "mime_type": "image/webp",
+    "bytes": 67564,
+    "sha256": "0978060589ac4ebee28996cfc6b9cb0213978e74a081ed2962082487e2682001",
+    "dimensions": {
+      "width": 1600,
+      "height": 900,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/help-assets/charcoal-ios-shortcuts.webp",
+    "alt": "Shortcuts app panels showing HabitKit shortcuts and workout automations",
+    "found_on": [
+      "https://habitkit.app/help/widgets/complete-habits-with-siri-and-ios-shortcuts"
+    ],
+    "local_path": "02_app_screenshots/charcoal-ios-shortcuts.webp",
+    "final_url": "https://habitkit.app/help-assets/charcoal-ios-shortcuts.webp",
+    "mime_type": "image/webp",
+    "bytes": 54332,
+    "sha256": "1c1f5c51f468826201bf538f1c8868b6ce23a1ce1a842b62aa5cec0b7acc9a03",
+    "dimensions": {
+      "width": 1600,
+      "height": 900,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/help-assets/charcoal-ios-shortcut-new.webp",
+    "alt": "The Shortcuts screen offering New Blank Automation under Get Started",
+    "found_on": [
+      "https://habitkit.app/help/widgets/complete-habits-with-siri-and-ios-shortcuts"
+    ],
+    "local_path": "02_app_screenshots/charcoal-ios-shortcut-new.webp",
+    "final_url": "https://habitkit.app/help-assets/charcoal-ios-shortcut-new.webp",
+    "mime_type": "image/webp",
+    "bytes": 58160,
+    "sha256": "d92b20017a325078cf80352e08fccd8c6955f4dcbd46c69010805b830ad64450",
+    "dimensions": {
+      "width": 1600,
+      "height": 900,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/help-assets/charcoal-ios-shortcut-action.webp",
+    "alt": "The finished automation holding Mark Habit As Completed with the Habit field set to Sport",
+    "found_on": [
+      "https://habitkit.app/help/widgets/complete-habits-with-siri-and-ios-shortcuts"
+    ],
+    "local_path": "02_app_screenshots/charcoal-ios-shortcut-action.webp",
+    "final_url": "https://habitkit.app/help-assets/charcoal-ios-shortcut-action.webp",
+    "mime_type": "image/webp",
+    "bytes": 46256,
+    "sha256": "1f9efb30ec1b9d37e22ef42eff778083bf6826b46a0d224af93b020bfbde7555",
+    "dimensions": {
+      "width": 1600,
+      "height": 900,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/help-assets/charcoal-ios-widget-menu.webp",
+    "alt": "The iOS long-press menu on a HabitKit widget, showing Edit Widget",
+    "found_on": [
+      "https://habitkit.app/help/widgets/choose-which-habits-a-widget-shows"
+    ],
+    "local_path": "02_app_screenshots/charcoal-ios-widget-menu.webp",
+    "final_url": "https://habitkit.app/help-assets/charcoal-ios-widget-menu.webp",
+    "mime_type": "image/webp",
+    "bytes": 52230,
+    "sha256": "5cd875ba96ae8de8b5ce71a44f08e15d67cd2da091e8c1c4dbdabd0d7d49bfe9",
+    "dimensions": {
+      "width": 1600,
+      "height": 900,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/help-assets/charcoal-ios-widget-selection.webp",
+    "alt": "The Edit Widget sheet for the Medium Habit Widget, with a Habit field",
+    "found_on": [
+      "https://habitkit.app/help/widgets/choose-which-habits-a-widget-shows"
+    ],
+    "local_path": "02_app_screenshots/charcoal-ios-widget-selection.webp",
+    "final_url": "https://habitkit.app/help-assets/charcoal-ios-widget-selection.webp",
+    "mime_type": "image/webp",
+    "bytes": 40020,
+    "sha256": "1508d153d4342e7cb1ac4e5ecded1c49159b6d106353066b6b33672f0fb8f641",
+    "dimensions": {
+      "width": 1600,
+      "height": 900,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/help-assets/charcoal-android-widget-legacy.webp",
+    "alt": "Android General settings with the Home Screen Widgets heading and Legacy Performance Mode switched off",
+    "found_on": [
+      "https://habitkit.app/help/widgets/widgets-are-not-updating"
+    ],
+    "local_path": "02_app_screenshots/charcoal-android-widget-legacy.webp",
+    "final_url": "https://habitkit.app/help-assets/charcoal-android-widget-legacy.webp",
+    "mime_type": "image/webp",
+    "bytes": 24126,
+    "sha256": "7d6671688b475f936c85e6cf9d26e792d99ea7b972d134309dd26b544999b5e2",
+    "dimensions": {
+      "width": 1600,
+      "height": 900,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/help-assets/charcoal-restore-purchase.webp",
+    "alt": "Focused excerpt of the HabitKit Pro screen showing the Restore purchase link above its policy footer",
+    "found_on": [
+      "https://habitkit.app/help/billing-and-premium/restore-a-pro-purchase"
+    ],
+    "local_path": "02_app_screenshots/charcoal-restore-purchase.webp",
+    "final_url": "https://habitkit.app/help-assets/charcoal-restore-purchase.webp",
+    "mime_type": "image/webp",
+    "bytes": 26300,
+    "sha256": "68b3413aac526834b5117fb451f365e3e28b83a7dd9b077474ebf0ef690cf5cf",
+    "dimensions": {
+      "width": 1600,
+      "height": 900,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  },
+  {
+    "url": "https://habitkit.app/help-assets/charcoal-recovery.webp",
+    "alt": "Recovery diagram: try reopening the database first, then restore the latest backup if retrying fails, keeping the unreadable file",
+    "found_on": [
+      "https://habitkit.app/help/troubleshooting/habitkit-will-not-open-or-shows-an-error"
+    ],
+    "local_path": "02_app_screenshots/charcoal-recovery.webp",
+    "final_url": "https://habitkit.app/help-assets/charcoal-recovery.webp",
+    "mime_type": "image/webp",
+    "bytes": 47038,
+    "sha256": "b0b364aaf217de8950e8e4ef7ee172778ccd5f95b8b3cf3a35f05942d2a07cb9",
+    "dimensions": {
+      "width": 1600,
+      "height": 900,
+      "format": "WEBP"
+    },
+    "status": "downloaded"
+  }
+]

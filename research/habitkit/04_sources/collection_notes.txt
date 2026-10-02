@@ -1,0 +1,10 @@
+COLLECTION NOTES
+
+Collected 2026-10-03 in Asia/Calcutta (UTC capture timestamps in manifests).
+33 unique public site pages parsed (34 URL captures): 20 product-help articles, six topic pages, homepage, help index, changelog, about, support, privacy and terms.
+45 original public image assets downloaded: 31 app/help visuals and 14 other assets. No download failed.
+Two cloud-browser JPEG captures: homepage hero and full homepage.
+Original image files preserve their downloaded bytes; SHA-256 hashes, dimensions, alt descriptions and source-page URLs are recorded.
+Full HTML and full third-party article text were temporary research inputs and are not included in the deliverable. The organized scrape output is the feature inventory, screen inventory and provenance manifests.
+The iOS app was not installed, its private storage format was not reverse engineered and an iOS app binary was not built.
+Screenshots and other reference assets retain their original owners. Use original branding and artwork for a released app.

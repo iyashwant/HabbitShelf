@@ -1,0 +1,106 @@
+ACCEPTANCE CHECKLIST — planned tests, not executed tests
+
+T01 — Yes/No repeated tap
+Expected: First tap completes today; second clears it. Both survive restart.
+
+T02 — Count below/equal/above target
+Expected: Below stays partial; equality succeeds; above remains saved but qualifies once.
+
+T03 — Decimal precision
+Expected: 0.1 plus 0.2 meets a 0.3 target using exact decimal storage.
+
+T04 — Goal changed today
+Expected: Earlier dates keep historical thresholds; today uses the newest version.
+
+T05 — Weekly distinct days
+Expected: Twelve increments on one date yield one qualifying date for a 4/week goal.
+
+T06 — Weekly streak meaning
+Expected: Two completed 3-day weeks contribute six successful dates, not two periods.
+
+T07 — Current-week reachability
+Expected: If only two days remain and three successes are still needed, behavior matches the specified reset rule.
+
+T08 — Unfinished today
+Expected: Build streak from yesterday stays intact until today becomes an actual missed past day.
+
+T09 — Week-start change
+Expected: Recompute weekly boundaries while preserving local dates and amounts.
+
+T10 — Month boundary / February
+Expected: Specify and verify how target 31 behaves in a 28-day month before shipping.
+
+T11 — Future date
+Expected: App and Shortcut reject future edits consistently.
+
+T12 — Note with zero progress
+Expected: Note persists and displays; no build success or quit slip is created.
+
+T13 — Quit default
+Expected: Within a quit period, unlogged dates derive as clean; no huge daily-record expansion.
+
+T14 — Quit exact threshold
+Expected: Amount 2 with threshold 3 is clean; amount 3 is a slip.
+
+T15 — Build-to-quit conversion
+Expected: Old dates retain build meaning; current-day data follows a documented transition policy.
+
+T16 — Quit-to-build locked history
+Expected: Preserving a period locks only its amount semantics; notes remain independently editable.
+
+T17 — Travel east/west
+Expected: Existing local dates do not shift or merge; today resolves in the current time zone.
+
+T18 — DST
+Expected: Reminder wall-clock intent and calendar cells remain correct across both transitions.
+
+T19 — Widget rapid taps
+Expected: No lost/duplicated increments; final app and widget totals converge.
+
+T20 — Shortcut complete already over goal
+Expected: Complete leaves a saved over-goal amount unchanged.
+
+T21 — Shortcut clear with note
+Expected: Amount becomes zero; the note remains.
+
+T22 — Archived habit references
+Expected: Unavailable widget/Shortcut shows a clear fallback without recreating the habit.
+
+T23 — Permission denied
+Expected: Reminder draft stays saved and a system-settings route is offered.
+
+T24 — Notification budget
+Expected: Many habits/reminders use a fair schedule; unscheduled coverage is measurable.
+
+T25 — Canceled export/import
+Expected: No success message, entitlement charge or destructive replacement.
+
+T26 — Corrupt/empty import
+Expected: Reject before replacement; existing history is unchanged.
+
+T27 — Storage fails mid-import
+Expected: Usable original or validated snapshot remains recoverable.
+
+T28 — Restore old schema
+Expected: Migration and invariant checks preserve notes, mode periods and goal history.
+
+T29 — Pro expires
+Expected: Data survives; free recovery works and archive reduces the active count.
+
+T30 — Restore or purchase canceled
+Expected: Canceled transaction is distinct from failure; restoring access does not change habits.
+
+T31 — Category deleted
+Expected: Memberships are removed while habits and history remain.
+
+T32 — Large history and accessibility
+Expected: 100 habits, long history, large text, VoiceOver and RTL remain usable.
+
+T33 — App termination during logging
+Expected: Committed amount is consistent across all representations after reopening.
+
+T34 — Settings versus export
+Expected: Portable export and full local backup include precisely their documented fields.
+
+T35 — Stats denominator
+Expected: Rate/streak/year filtering matches the agreed formula for empty, partial and quit periods.

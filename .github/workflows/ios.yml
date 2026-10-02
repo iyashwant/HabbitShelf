@@ -1,0 +1,36 @@
+name: iOS checks
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test-and-build:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test shared habit engine
+        run: swift test
+      - name: Check project and research
+        run: python3 scripts/check-project.py
+      - name: Select SDK and build app and widgets
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d /Applications/Xcode_27.app ]; then
+            sudo xcode-select -s /Applications/Xcode_27.app/Contents/Developer
+          fi
+          xcodebuild -version
+          sdk_major="$(xcrun --sdk iphonesimulator --show-sdk-version | cut -d. -f1)"
+          deployment=27.0
+          if [ "$sdk_major" -lt 27 ]; then
+            deployment="$sdk_major.0"
+            echo "::warning::Runner lacks the iOS 27 SDK. This verifies source compilation against SDK $deployment; iOS 27 runtime validation remains pending."
+          fi
+          xcodebuild -project HabitBuddy.xcodeproj -scheme HabitBuddy \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO \
+            IPHONEOS_DEPLOYMENT_TARGET="$deployment" build

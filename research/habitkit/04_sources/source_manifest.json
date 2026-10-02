@@ -1,0 +1,366 @@
+{
+  "captured_at_utc": "2026-10-02T21:18:14.055387+00:00",
+  "scope": "Public product website, help categories and product documentation. Editorial guides were excluded. Full article text is retained only as temporary working material; deliverables contain summarized facts and source links.",
+  "pages": [
+    {
+      "source_id": "S01",
+      "url": "https://habitkit.app/",
+      "final_url": "https://habitkit.app/",
+      "title": "HabitKit · Free Habit Tracker App For iPhone And Android",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:14:37.369075+00:00",
+      "html_bytes": 211966,
+      "html_sha256": "75a01c37b06651ff7f42d625d375bbd70ff412d990237da86bc56bbe18b0be09"
+    },
+    {
+      "source_id": "S03",
+      "url": "https://habitkit.app/help",
+      "final_url": "https://habitkit.app/help",
+      "title": "HabitKit Guides · Habit Tracker For iOS And Android",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:14:58.210977+00:00",
+      "html_bytes": 97048,
+      "html_sha256": "723a9474b3a75b6036231b1002da025a6a472ae78c951a85c30d672849a6b639"
+    },
+    {
+      "source_id": "S04",
+      "url": "https://habitkit.app/changelog",
+      "final_url": "https://habitkit.app/changelog",
+      "title": "Changelog · HabitKit",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:14:58.215230+00:00",
+      "html_bytes": 67478,
+      "html_sha256": "6384b1ad639f671b2d4530cdf15cafaba31b82fb0a743701e6384ce26a989a2a"
+    },
+    {
+      "source_id": "S05",
+      "url": "https://habitkit.app/support",
+      "final_url": "https://habitkit.app/support",
+      "title": "Support · HabitKit",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:14:58.217011+00:00",
+      "html_bytes": 27340,
+      "html_sha256": "00f46aa5f5d4f146496e8be64b2a55de2b430af4fa7bda0f909b94d73a7da09b"
+    },
+    {
+      "source_id": "S06",
+      "url": "https://habitkit.app/about",
+      "final_url": "https://habitkit.app/about",
+      "title": "About HabitKit · Made By One Person",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:14:58.218807+00:00",
+      "html_bytes": 30363,
+      "html_sha256": "b420b21c07f6b86a887483305cda4577e0bdb911f7322629ec8615a97bf4668c"
+    },
+    {
+      "source_id": "S07",
+      "url": "https://habitkit.app/privacy",
+      "final_url": "https://habitkit.app/privacy",
+      "title": "Privacy Policy · HabitKit",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:14:58.221173+00:00",
+      "html_bytes": 39188,
+      "html_sha256": "9f48ac5172a951bf67cc9de1c0205b1604d05b5c1229eccb9ec02434e64de325"
+    },
+    {
+      "source_id": "S08",
+      "url": "https://habitkit.app/terms",
+      "final_url": "https://habitkit.app/terms",
+      "title": "Terms Of Use · HabitKit",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:14:58.223267+00:00",
+      "html_bytes": 37074,
+      "html_sha256": "f435bcd61d06d24e20d40b4fc13ffa09493910938aab31ea44685923c0176466"
+    },
+    {
+      "source_id": "S09",
+      "url": "https://habitkit.app/help/getting-started",
+      "final_url": "https://habitkit.app/help/getting-started",
+      "title": "Getting Started · HabitKit Help",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:15:19.515012+00:00",
+      "html_bytes": 35851,
+      "html_sha256": "7b9498271aea4866342e8a8470a239f9022d1ea483bf3fdc2a9da8f83b22f1dc"
+    },
+    {
+      "source_id": "S10",
+      "url": "https://habitkit.app/help/habits-and-streaks",
+      "final_url": "https://habitkit.app/help/habits-and-streaks",
+      "title": "Habits & Streaks · HabitKit Help",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:15:19.517101+00:00",
+      "html_bytes": 35943,
+      "html_sha256": "90e21ca6ecf12d01780ff23a22adf49c7d67f915fbc511dcdcd18a543ef17120"
+    },
+    {
+      "source_id": "S11",
+      "url": "https://habitkit.app/help/widgets",
+      "final_url": "https://habitkit.app/help/widgets",
+      "title": "Widgets & Shortcuts · HabitKit Help",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:15:19.518985+00:00",
+      "html_bytes": 35800,
+      "html_sha256": "905d934b10e5f90e29a5b5cdc4f49f531b98a4542ef62c3d2b447b373239acd1"
+    },
+    {
+      "source_id": "S12",
+      "url": "https://habitkit.app/help/data-backup-and-sync",
+      "final_url": "https://habitkit.app/help/data-backup-and-sync",
+      "title": "Data, Backup & Sync · HabitKit Help",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:15:19.520773+00:00",
+      "html_bytes": 35157,
+      "html_sha256": "df1561f83e68a286ecb9a05dcf2c3baa12a56645f32f0d97d3dffbc78366b9ee"
+    },
+    {
+      "source_id": "S13",
+      "url": "https://habitkit.app/help/billing-and-premium",
+      "final_url": "https://habitkit.app/help/billing-and-premium",
+      "title": "Billing & Pro · HabitKit Help",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:15:19.522514+00:00",
+      "html_bytes": 33056,
+      "html_sha256": "52d17d8b7c1dfe60bb15329835647305e25517f3370e652db66397f72910b8be"
+    },
+    {
+      "source_id": "S14",
+      "url": "https://habitkit.app/help/troubleshooting",
+      "final_url": "https://habitkit.app/help/troubleshooting",
+      "title": "Troubleshooting · HabitKit Help",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:15:19.524438+00:00",
+      "html_bytes": 34477,
+      "html_sha256": "119d6575a96c566b738ec29f16d954672de6d6186f525681fb7474b97b96b247"
+    },
+    {
+      "source_id": "S15",
+      "url": "https://habitkit.app/help/troubleshooting/notifications-arrive-late-or-not-at-all",
+      "final_url": "https://habitkit.app/help/troubleshooting/notifications-arrive-late-or-not-at-all",
+      "title": "Reminder Notifications Arrive Late Or Not At All · HabitKit Help",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:15:19.527919+00:00",
+      "html_bytes": 54280,
+      "html_sha256": "95addd93664e22ddc5de66799758e3b6be0e934dcc70be116256b8afe962d7dc"
+    },
+    {
+      "source_id": "S16",
+      "url": "https://habitkit.app/help/habits-and-streaks/how-streaks-are-counted",
+      "final_url": "https://habitkit.app/help/habits-and-streaks/how-streaks-are-counted",
+      "title": "How HabitKit Streaks Work And Why Yours Shows Zero · HabitKit Help",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:15:19.531329+00:00",
+      "html_bytes": 54419,
+      "html_sha256": "626f5f8adf5d8a73339ec69b9700a37cf6f9590ab5b3413c3d97b0bd22d1e742"
+    },
+    {
+      "source_id": "S17",
+      "url": "https://habitkit.app/help/getting-started/install-habitkit-and-create-your-first-habit",
+      "final_url": "https://habitkit.app/help/getting-started/install-habitkit-and-create-your-first-habit",
+      "title": "Install HabitKit And Create Your First Habit · HabitKit Help",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:15:41.403508+00:00",
+      "html_bytes": 52833,
+      "html_sha256": "703ac0e770d1961664f0c38acadd1236b0680fb0bf1f5a720c7a85dbbc86390d"
+    },
+    {
+      "source_id": "S18",
+      "url": "https://habitkit.app/help/getting-started/how-the-grid-works",
+      "final_url": "https://habitkit.app/help/getting-started/how-the-grid-works",
+      "title": "How The Habit Grid Works · HabitKit Help",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:15:41.407870+00:00",
+      "html_bytes": 50570,
+      "html_sha256": "cb903768e2c0334e4fd98e44206d5c3914c1ba55bb3b7d2f111a9c83f71baf3d"
+    },
+    {
+      "source_id": "S19",
+      "url": "https://habitkit.app/help/getting-started/log-a-completion-and-fix-a-past-day",
+      "final_url": "https://habitkit.app/help/getting-started/log-a-completion-and-fix-a-past-day",
+      "title": "Log A Completion, And Fill In A Day You Missed · HabitKit Help",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:15:41.411213+00:00",
+      "html_bytes": 51215,
+      "html_sha256": "a475d768e222dae9f211dae319d44694c15a98ceb9cca106ea9450b2fd50bb7a"
+    },
+    {
+      "source_id": "S20",
+      "url": "https://habitkit.app/help/getting-started/set-a-reminder-for-a-habit",
+      "final_url": "https://habitkit.app/help/getting-started/set-a-reminder-for-a-habit",
+      "title": "Set A Reminder For A Habit · HabitKit Help",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:15:41.414458+00:00",
+      "html_bytes": 51048,
+      "html_sha256": "602f371f0c00a81b7e7de6c5900a8f8267535d3af8d573d33a672a45fbbf0f58"
+    },
+    {
+      "source_id": "S21",
+      "url": "https://habitkit.app/help/habits-and-streaks/take-a-day-off-without-breaking-your-streak",
+      "final_url": "https://habitkit.app/help/habits-and-streaks/take-a-day-off-without-breaking-your-streak",
+      "title": "Take A Day Off Without Breaking Your Streak · HabitKit Help",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:15:41.417600+00:00",
+      "html_bytes": 52366,
+      "html_sha256": "c1020e06f67351e5adf17b31155b67d862ac12f6f0967b3be40eecdabab2d186"
+    },
+    {
+      "source_id": "S22",
+      "url": "https://habitkit.app/help/habits-and-streaks/set-daily-goals-and-multiple-completions",
+      "final_url": "https://habitkit.app/help/habits-and-streaks/set-daily-goals-and-multiple-completions",
+      "title": "Set Daily Goals And Track Counts Or Measured Amounts · HabitKit Help",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:15:41.420601+00:00",
+      "html_bytes": 51653,
+      "html_sha256": "62e08ae0ebeada60603bb3b0048232000b939e8ae5f82d3dc0606c696fd1b4b9"
+    },
+    {
+      "source_id": "S23",
+      "url": "https://habitkit.app/help/habits-and-streaks/track-a-habit-you-want-to-quit",
+      "final_url": "https://habitkit.app/help/habits-and-streaks/track-a-habit-you-want-to-quit",
+      "title": "Track A Bad Habit You Want To Quit · HabitKit Help",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:15:41.424017+00:00",
+      "html_bytes": 54358,
+      "html_sha256": "a772f66cc631fec819573f82ec53435d275e857a767c25ac36f3bfaca3f87b81"
+    },
+    {
+      "source_id": "S24",
+      "url": "https://habitkit.app/help/widgets/add-a-habitkit-widget-to-your-home-screen",
+      "final_url": "https://habitkit.app/help/widgets/add-a-habitkit-widget-to-your-home-screen",
+      "title": "Add A Habit Tracker Widget To Your Home Screen · HabitKit Help",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:15:41.427292+00:00",
+      "html_bytes": 52811,
+      "html_sha256": "aad4d162298d61b7829d3392a4a8063786c7d576b64ca5b9360cfb2d9f86ac3d"
+    },
+    {
+      "source_id": "S25",
+      "url": "https://habitkit.app/help/data-backup-and-sync/move-your-habits-to-a-new-phone",
+      "final_url": "https://habitkit.app/help/data-backup-and-sync/move-your-habits-to-a-new-phone",
+      "title": "Transfer HabitKit To A New iPhone Or Android Phone · HabitKit Help",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:16:00.997126+00:00",
+      "html_bytes": 52624,
+      "html_sha256": "6c420278842958add7a66dcca7cd2b6615952ed4d48efb59ca99400e722148ae"
+    },
+    {
+      "source_id": "S26",
+      "url": "https://habitkit.app/help/billing-and-premium/what-habitkit-pro-unlocks",
+      "final_url": "https://habitkit.app/help/billing-and-premium/what-habitkit-pro-unlocks",
+      "title": "HabitKit Free Vs Pro: Features, Plans And Cancellation · HabitKit Help",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:16:01.001586+00:00",
+      "html_bytes": 59743,
+      "html_sha256": "2b3d27de22b70ba2c780ebfa39ef0ce4d7a2abe35b99fd935d70ddf10cc52ebf"
+    },
+    {
+      "source_id": "S27",
+      "url": "https://habitkit.app/help/troubleshooting/a-day-you-completed-looks-empty",
+      "final_url": "https://habitkit.app/help/troubleshooting/a-day-you-completed-looks-empty",
+      "title": "A Day You Completed Looks Empty Or Missing · HabitKit Help",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:16:01.008524+00:00",
+      "html_bytes": 54456,
+      "html_sha256": "a23840f75cdaab8186ec5bab1736aedc2496a98ef418c4cfb4863db2513f2f8a"
+    },
+    {
+      "source_id": "S28",
+      "url": "https://habitkit.app/help/widgets/complete-habits-with-siri-and-ios-shortcuts",
+      "final_url": "https://habitkit.app/help/widgets/complete-habits-with-siri-and-ios-shortcuts",
+      "title": "Complete Habits With Siri And iOS Shortcuts · HabitKit Help",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:16:01.013328+00:00",
+      "html_bytes": 55071,
+      "html_sha256": "4667e46c81c04755585a5c66131658033c409db14024f8d0048ab953f2bf0ea6"
+    },
+    {
+      "source_id": "S29",
+      "url": "https://habitkit.app/help/data-backup-and-sync/automatic-backups-and-recovery",
+      "final_url": "https://habitkit.app/help/data-backup-and-sync/automatic-backups-and-recovery",
+      "title": "HabitKit Backups: How To Restore Your Data · HabitKit Help",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:16:01.019035+00:00",
+      "html_bytes": 52011,
+      "html_sha256": "171f2c98450331d4f696b428517b3fbb66ad9e8ac6430f77f993b6373ebf2542"
+    },
+    {
+      "source_id": "S30",
+      "url": "https://habitkit.app/help/widgets/choose-which-habits-a-widget-shows",
+      "final_url": "https://habitkit.app/help/widgets/choose-which-habits-a-widget-shows",
+      "title": "Choose Which Habits A Widget Shows · HabitKit Help",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:16:01.023691+00:00",
+      "html_bytes": 50861,
+      "html_sha256": "e3b152ece5b051cbd2cbeffc63aad81423b08e33ac67b364c8e7e4a1ff6e15ac"
+    },
+    {
+      "source_id": "S31",
+      "url": "https://habitkit.app/help/widgets/widgets-are-not-updating",
+      "final_url": "https://habitkit.app/help/widgets/widgets-are-not-updating",
+      "title": "Widget Not Updating: How To Refresh It · HabitKit Help",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:16:01.027168+00:00",
+      "html_bytes": 52121,
+      "html_sha256": "0073381e2be6411c8706a2e8ca00d370501042270fabb44b459f4e6d6bf4eb01"
+    },
+    {
+      "source_id": "S32",
+      "url": "https://habitkit.app/help/data-backup-and-sync/export-and-import-your-data",
+      "final_url": "https://habitkit.app/help/data-backup-and-sync/export-and-import-your-data",
+      "title": "Export And Import Your Habit Data · HabitKit Help",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:16:12.463878+00:00",
+      "html_bytes": 52931,
+      "html_sha256": "0d05e7fb158e83e66f294e28a383e575777990a91e06b99d1fa21f036235d21a"
+    },
+    {
+      "source_id": "S33",
+      "url": "https://habitkit.app/help/billing-and-premium/restore-a-pro-purchase",
+      "final_url": "https://habitkit.app/help/billing-and-premium/restore-a-pro-purchase",
+      "title": "Restore A Pro Purchase · HabitKit Help",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:16:12.467073+00:00",
+      "html_bytes": 51741,
+      "html_sha256": "6ee5b9d282a42017ec7531859c0f59cbafd399d73f2c0395a9e770b359f39b40"
+    },
+    {
+      "source_id": "S34",
+      "url": "https://habitkit.app/help/troubleshooting/habitkit-will-not-open-or-shows-an-error",
+      "final_url": "https://habitkit.app/help/troubleshooting/habitkit-will-not-open-or-shows-an-error",
+      "title": "HabitKit Will Not Open, Or Shows An Error · HabitKit Help",
+      "http_status": 200,
+      "retrieved_at": "2026-10-02T21:16:12.470061+00:00",
+      "html_bytes": 51604,
+      "html_sha256": "f46ba1907037a291848816f71852e75c5135afde60b9704b286cc016552ba0f8"
+    }
+  ],
+  "external_references": [
+    {
+      "source_id": "E01",
+      "title": "HabitKit US App Store listing",
+      "url": "https://apps.apple.com/us/app/habit-tracker-habitkit/id6443918070",
+      "observed_version": "1.18.0",
+      "observed_version_date": "September 21",
+      "minimum_ios": "15.0",
+      "note": "Multiple price listings; current live offer not confirmed. Viewed 2026-10-03 Asia/Calcutta."
+    },
+    {
+      "source_id": "E02",
+      "title": "Apple StoreKit 2",
+      "url": "https://developer.apple.com/storekit/",
+      "note": "Official framework reference opened during research."
+    },
+    {
+      "source_id": "E03",
+      "title": "Apple SwiftData",
+      "url": "https://developer.apple.com/documentation/swiftdata",
+      "note": "Official framework entry point. HTML requires JavaScript; Markdown fetch did not complete via the search reader."
+    },
+    {
+      "source_id": "E04",
+      "title": "Apple interactive widgets",
+      "url": "https://developer.apple.com/documentation/widgetkit/adding-interactivity-to-widgets-and-live-activities",
+      "note": "Official framework entry point. HTML requires JavaScript; Markdown fetch did not complete via the search reader."
+    }
+  ],
+  "capture_note": "34 URL captures represent 33 unique pages; one homepage trailing-slash variant was deduplicated."
+}

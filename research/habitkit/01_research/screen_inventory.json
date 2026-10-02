@@ -1,0 +1,69 @@
+{
+  "evidence": "Visual observations of the eight website slideshow assets. Tap flows are proposed from documentation, not live app tests.",
+  "screens": [
+    {
+      "id": "01",
+      "screen": "Widgets",
+      "image": "slide-widgets.webp",
+      "visual_observation": "Single-habit contribution grids and a compact multi-habit widget.",
+      "interaction_to_build": "Widget selection, completion action and midnight refresh.",
+      "implementation_note": "WidgetKit plus App Intents and shared app storage."
+    },
+    {
+      "id": "02",
+      "screen": "Compact overview",
+      "image": "slide-views.webp",
+      "visual_observation": "Dense rows: colored leading icon, title and recent-day squares.",
+      "interaction_to_build": "Tap today or a recent date; open detail separately.",
+      "implementation_note": "Accessible targets around small squares; consistent day-key calculations."
+    },
+    {
+      "id": "03",
+      "screen": "Habit detail",
+      "image": "slide-detail.webp",
+      "visual_observation": "Large grid, goal/streak chips and a navigable monthly calendar.",
+      "interaction_to_build": "Edit past days, open day notes and inspect the habit.",
+      "implementation_note": "One history model should feed calendar and heatmap."
+    },
+    {
+      "id": "04",
+      "screen": "Habit editor",
+      "image": "slide-edit.webp",
+      "visual_observation": "Icon area, name/description fields and a palette.",
+      "interaction_to_build": "Select identity; configure build/quit, tracking and goals.",
+      "implementation_note": "Keep creation short and optional controls progressive."
+    },
+    {
+      "id": "05",
+      "screen": "Statistics",
+      "image": "slide-stats.webp",
+      "visual_observation": "Year navigation, metric cards and a monthly completions chart.",
+      "interaction_to_build": "Choose year/habits and inspect progress.",
+      "implementation_note": "Specify completion-rate denominator before implementation."
+    },
+    {
+      "id": "06",
+      "screen": "Card overview / goals",
+      "image": "slide-goals.webp",
+      "visual_observation": "Stacked cards with full grids and colored schedule chips.",
+      "interaction_to_build": "Quick check-in, detail navigation and context actions.",
+      "implementation_note": "Virtualize/cache grids when many habits are present."
+    },
+    {
+      "id": "07",
+      "screen": "Share card",
+      "image": "slide-share.webp",
+      "visual_observation": "Image preview, light/dark toggle, palette and share button.",
+      "interaction_to_build": "Configure image appearance and open system sharing.",
+      "implementation_note": "Generate original artwork using an independent app identity."
+    },
+    {
+      "id": "08",
+      "screen": "Month overview",
+      "image": "slide-grid.webp",
+      "visual_observation": "Three-column collection of mini monthly calendars.",
+      "interaction_to_build": "Browse months and check progress across many habits.",
+      "implementation_note": "Handle narrow screens, Dynamic Type and large habit collections."
+    }
+  ]
+}

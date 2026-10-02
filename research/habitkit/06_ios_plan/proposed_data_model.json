@@ -1,0 +1,108 @@
+{
+  "status": "Proposed original schema; not HabitKit internals",
+  "models": {
+    "Habit": {
+      "id": "UUID",
+      "name": "non-empty String",
+      "description": "String?",
+      "appearance": "icon/emoji plus original palette token",
+      "createdAt": "UTC timestamp",
+      "displayOrder": "Int",
+      "archivedAt": "UTC timestamp?"
+    },
+    "HabitModePeriod": {
+      "id": "UUID",
+      "habitId": "UUID",
+      "mode": "build | quit",
+      "startDay": "local YYYY-MM-DD",
+      "endDay": "local YYYY-MM-DD?",
+      "conversionPolicy": "preserve | clear | none",
+      "historyLocked": "Bool"
+    },
+    "GoalVersion": {
+      "id": "UUID",
+      "habitId": "UUID",
+      "effectiveFromDay": "local YYYY-MM-DD",
+      "tracking": "yesNo | count | measure",
+      "unit": "String?",
+      "dailyTarget": "Decimal?",
+      "stayBelow": "Decimal?",
+      "cadence": "none | daily | week | month",
+      "targetSuccessfulDays": "Int?",
+      "onTap": "toggle | addOne | enterTotal"
+    },
+    "DayRecord": {
+      "id": "UUID",
+      "habitId": "UUID",
+      "localDay": "YYYY-MM-DD; unique with habitId",
+      "amount": "Decimal; non-negative; max 3 decimals for measure",
+      "note": "String?",
+      "originalTimeZone": "IANA time-zone identifier",
+      "updatedAt": "UTC timestamp"
+    },
+    "LogEvent": {
+      "id": "UUID",
+      "habitId": "UUID",
+      "localDay": "YYYY-MM-DD",
+      "operation": "set | increment | clear | note",
+      "amountBefore": "Decimal",
+      "amountAfter": "Decimal",
+      "timestamp": "UTC timestamp",
+      "source": "app | widget | shortcut"
+    },
+    "Category": {
+      "id": "UUID",
+      "name": "String",
+      "symbol": "String",
+      "displayOrder": "Int"
+    },
+    "HabitCategoryMembership": {
+      "habitId": "UUID",
+      "categoryId": "UUID",
+      "uniqueness": "habitId + categoryId"
+    },
+    "Reminder": {
+      "id": "UUID",
+      "habitId": "UUID?; nil for app check-in",
+      "hour": "0–23",
+      "minute": "0–59",
+      "weekdays": "array of ISO weekday 1–7",
+      "enabled": "Bool",
+      "timeZonePolicy": "follow local clock; explicit product policy"
+    },
+    "AppSettings": {
+      "theme": "system | light | dark",
+      "weekStart": "ISO weekday 1–7",
+      "preferredView": "card | compact | month",
+      "showTodayOutline": "Bool",
+      "notesEnabled": "Bool",
+      "hapticsEnabled": "Bool",
+      "language": "system | locale",
+      "dailyCheckIn": "separate reminder settings"
+    },
+    "BackupManifest": {
+      "schemaVersion": "Int",
+      "createdAt": "UTC timestamp",
+      "contentHash": "SHA-256",
+      "scope": "local full snapshot | portable export",
+      "restoreValidated": "Bool"
+    },
+    "EntitlementSnapshot": {
+      "isPro": "Bool",
+      "source": "StoreKit or optional purchase provider",
+      "verifiedAt": "UTC timestamp",
+      "expirationAt": "UTC timestamp?",
+      "productId": "String?"
+    }
+  },
+  "constraints": [
+    "Unique record for each habit/local-day pair",
+    "Non-overlapping mode periods",
+    "Historical goal lookup by effective date",
+    "No future logged days",
+    "Count values are integers; measured values use exact decimal arithmetic",
+    "Notes do not imply completion",
+    "Stable identifiers for new-app widget and Shortcut references",
+    "Imports validate fully before replacement"
+  ]
+}
