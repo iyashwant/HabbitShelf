@@ -30,10 +30,9 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Appearance") {
+                Section("General") {
                     Picker("Theme", selection: setting(\.theme)) { ForEach(Theme.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) } }
                     Picker("First day of week", selection: setting(\.weekStart)) { ForEach(1...7, id: \.self) { Text(Calendar.current.weekdaySymbols[$0 - 1]).tag($0) } }
-                    Stepper("Compact view: \(store.data.settings.recentDays) days", value: setting(\.recentDays), in: 1...7)
                     Toggle("Outline Today", isOn: setting(\.showToday))
                     Toggle("Day Notes", isOn: setting(\.notes))
                     Toggle("Haptic Feedback", isOn: setting(\.haptics))
@@ -44,7 +43,16 @@ struct SettingsView: View {
                     }
                     HStack { TextField("New category", text: $categoryName); Button("Add") { let name = categoryName.trimmingCharacters(in: .whitespacesAndNewlines); if store.change({ $0.categories.append(Category(name: name)) }) { categoryName = "" } }.disabled(categoryName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }
                 }
-                Section("Habit Cards") {
+                Section("Overview") {
+                    Picker("Default View",selection:setting(\.layout)){Text("Classic").tag(Layout.cards);Text("Compact").tag(Layout.compact);Text("Month").tag(Layout.month)}
+                    Stepper("Compact view: \(store.data.settings.recentDays) days", value: setting(\.recentDays), in: 1...7)
+                    Toggle("Compact Habit Names",isOn:setting(\.compactNames))
+                    Toggle("Layout Switcher",isOn:setting(\.showLayoutSwitcher))
+                    Toggle("Category Filter",isOn:setting(\.showCategoryFilter))
+                    Toggle("Drag to Reorder",isOn:setting(\.dragToReorder))
+                    Toggle("Month Labels",isOn:setting(\.showMonthLabels))
+                    Toggle("Weekday Labels",isOn:setting(\.showWeekdayLabels))
+                    Toggle("Category Icons",isOn:setting(\.showCategoryIcons))
                     Toggle("Show Descriptions", isOn: setting(\.showDescriptions))
                     Toggle("Show Streak", isOn: setting(\.showStreak))
                     Toggle("Show Goal", isOn: setting(\.showGoal))

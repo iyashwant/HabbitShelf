@@ -4,6 +4,9 @@ import UserNotifications
 
 enum AppEnvironment {
     static var repository: BuddyRepository {
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["BUDDY_VISUAL_SCREEN"] != nil { return BuddyRepository(directory:FileManager.default.urls(for:.applicationSupportDirectory,in:.userDomainMask)[0].appendingPathComponent("VisualAudit")) }
+        #endif
         let group = Bundle.main.object(forInfoDictionaryKey: "BuddyAppGroup") as? String ?? "group.com.iyashwant.habbitbuddy"
         guard let root = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group) else {
             // Never silently split app and widget into unrelated databases.
@@ -16,6 +19,9 @@ enum AppEnvironment {
         return FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group) != nil
     }
     static func changed(_ data: BuddyData) async {
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["BUDDY_VISUAL_SCREEN"] != nil{return}
+        #endif
         WidgetCenter.shared.reloadAllTimelines()
         await NotificationService.reconcile(data)
     }

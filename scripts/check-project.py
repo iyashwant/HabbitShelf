@@ -14,7 +14,7 @@ before = project.read_bytes()
 subprocess.run(["python3", str(ROOT / "scripts/generate-project.py")], check=True)
 assert project.read_bytes() == before, "Project is stale; regenerate and commit it."
 source = project.read_text()
-for folder in ["HabitBuddy", "Shared", "Widgets"]:
+for folder in ["HabitBuddy", "Shared", "Widgets", "UITests"]:
     for path in (ROOT / folder).rglob("*.swift"):
         assert str(path.relative_to(ROOT)) in source, f"Source missing from project: {path}"
 for extension in ["*.plist", "*.entitlements", "*.xcprivacy"]:

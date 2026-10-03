@@ -54,6 +54,22 @@ final class BuddyCoreTests: XCTestCase {
     func testDeleteCategoryPreservesHabitAndHistory() { var (data, h) = fixture(); let category = Category(name: "Health"); data.categories = [category]; h.categories = [category.id]; data.habits[0] = h; Engine.deleteCategory(category.id, data: &data); XCTAssertEqual(data.habits.count, 1); XCTAssertTrue(data.habits[0].categories.isEmpty) }
     func testValidationRejectsDuplicateIDsAndFutureLogs() throws { var (data, h) = fixture(); data.habits.append(h); XCTAssertThrowsError(try DataValidation.validate(data, today: today)); data.habits.removeLast(); let r = Record(habitID: h.id, day: today.adding(1)); data.records[r.key] = r; XCTAssertThrowsError(try DataValidation.validate(data, today: today)) }
     func testValidationRejectsBadGoalOrder() { var (data, h) = fixture(); h.goals.append(h.goals[0]); data.habits[0] = h; XCTAssertThrowsError(try DataValidation.validate(data, today: today)) }
+    func testSchemaOneSettingsDecodeWithNewDefaults() throws {
+        var (data, _) = fixture();data.settings.theme = .dark;data.settings.showDescriptions=false
+        var object=try JSONSerialization.jsonObject(with:DataValidation.encode(data)) as! [String:Any]
+        var settings=object["settings"] as! [String:Any]
+        for key in ["showMonthLabels","showWeekdayLabels","showCategoryIcons","showCategoryFilter","showLayoutSwitcher","compactNames","dragToReorder"]{settings.removeValue(forKey:key)}
+        object["settings"]=settings
+        let decoded=try DataValidation.decode(JSONSerialization.data(withJSONObject:object),today:today)
+        XCTAssertEqual(decoded.habits,data.habits);XCTAssertEqual(decoded.settings.theme,.dark);XCTAssertFalse(decoded.settings.showDescriptions)
+        XCTAssertTrue(decoded.settings.showLayoutSwitcher);XCTAssertTrue(decoded.settings.dragToReorder);XCTAssertTrue(decoded.settings.showMonthLabels)
+    }
+    func testAppearanceAndOverviewSettingsRoundTrip() throws {
+        var (data,_)=fixture();var appearance=CardAppearance();appearance.description=false;appearance.monthLabels=false;appearance.indicator=false
+        data.habits[0].appearance=appearance;data.settings.compactNames=false;data.settings.dragToReorder=false;data.settings.showCategoryFilter=false
+        XCTAssertEqual(try DataValidation.decode(DataValidation.encode(data),today:today),data)
+    }
+
     func testPortableRoundTripPreservesAllData() throws { var (data, h) = fixture(); data.settings.theme = .dark; try Engine.note("hello", habitID: h.id, day: today, data: &data, today: today); XCTAssertEqual(try DataValidation.decode(DataValidation.encode(data), today: today), data) }
     func testCorruptAndEmptyImportsRejected() { XCTAssertThrowsError(try DataValidation.decode(Data())); XCTAssertThrowsError(try DataValidation.decode(Data("{bad}".utf8))) }
     func testRepositoryAtomicTransactionAndFailedChange() throws {

@@ -4,8 +4,9 @@ import Charts
 struct StatisticsView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var scheme
     @State private var selected: UUID?
-    @State private var year = Calendar.current.component(.year, from: Date())
+    @State private var year = Int(Day().rawValue.prefix(4))!
     @State private var review = false
     private var habits: [Habit] { store.data.habits.filter { selected == nil || $0.id == selected! } }
     private var start: Day { Day(rawValue: "\(year)-01-01")! }
@@ -19,35 +20,37 @@ struct StatisticsView: View {
             ScrollView {
                 VStack(spacing: 15) {
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack { Button("All Habits") { selected = nil }.buttonStyle(.bordered).tint(selected == nil ? accent : .secondary)
+                        HStack { Button { selected=nil } label: {Image(systemName:"square.grid.3x3.fill").frame(width:36,height:36).background(Color.primary.opacity(0.06),in:Circle())}.buttonStyle(.plain).accessibilityLabel("All Habits")
                             ForEach(store.data.habits) { h in Button { selected = h.id } label: { HabitIcon(habit: h, size: 34) }.buttonStyle(.plain).accessibilityLabel(h.name).accessibilityAddTraits(selected == h.id ? .isSelected : []) }
                         }
                     }
-                    HStack { Button { year -= 1 } label: { Image(systemName: "chevron.left") }.disabled(year <= 1970); Spacer(); Text(String(year)).font(.headline); Spacer(); Button { year += 1 } label: { Image(systemName: "chevron.right") }.disabled(year >= Calendar.current.component(.year, from: Date())) }.surface()
-                    if let h = habits.first { Heatmap(habit: visualHabit(h), data: aggregateHeatmap(h), weeks: 53, end: end).surface() }
-                    HStack { metric("Completions", "\(completions)", "number"); metric("Completion Rate", "\(eligible == 0 ? 0 : Int(Double(completions) / Double(eligible) * 100))%", "percent") }
+                    HStack(spacing:10){if let h=store.data.habits.first(where:{$0.id==selected}){HabitIcon(habit:h,size:34);VStack(alignment:.leading,spacing:3){Text(h.name).font(.system(size:14,weight:.semibold));Text(h.detail).font(.system(size:11)).foregroundStyle(.secondary)}}else{Text("All Habits").font(.system(size:14,weight:.semibold))};Spacer()}.surface()
+                    HStack { Button { year -= 1 } label: { Image(systemName: "chevron.left") }.disabled(year <= 1970); Spacer(); Text(String(year)).font(.system(size:15,weight:.semibold)); Spacer(); Button { year += 1 } label: { Image(systemName: "chevron.right") }.disabled(year >= Int(Day().rawValue.prefix(4))!) }.font(.system(size:12,design:.monospaced)).padding(.horizontal,12).padding(.vertical,8).background(Color.primary.opacity(0.035),in:Capsule())
+                    if let h = habits.first { ContributionHistory(habit:visualHabit(h),data:aggregateHeatmap(h),start:start,end:end).surface() }
+                    HStack { metric("Completions", "\(completions)", "number"); metric("Completion Rate", "\(eligible == 0 ? 0 : Int(Double(completions) / Double(eligible) * 100))", "percent") }
                     VStack(alignment: .leading, spacing: 18) {
-                        Text("Completions / Month").font(.headline)
+                        Text("Completions / Month").font(.system(size:15,weight:.semibold))
                         Chart(1...12, id: \.self) { month in
                             let count = monthlyCount(month)
                             AreaMark(x: .value("Month", month), y: .value("Completions", count)).foregroundStyle(accent.opacity(0.2)).interpolationMethod(.monotone)
-                            LineMark(x: .value("Month", month), y: .value("Completions", count)).foregroundStyle(accent).interpolationMethod(.monotone)
-                        }.chartXAxis { AxisMarks(values: Array(1...12)) { value in AxisValueLabel { if let month = value.as(Int.self) { Text(Calendar.current.shortMonthSymbols[month - 1]).font(.caption2) } } } }.frame(height: 190)
+                            LineMark(x: .value("Month", month), y: .value("Completions", count)).foregroundStyle(accent).lineStyle(StrokeStyle(lineWidth:1.5)).interpolationMethod(.monotone)
+                            PointMark(x:.value("Month",month),y:.value("Completions",count)).foregroundStyle(accent).symbolSize(9)
+                        }.chartXAxis { AxisMarks(values: Array(1...12)) { value in AxisValueLabel { if let month = value.as(Int.self) { Text(Calendar.current.shortMonthSymbols[month - 1]).font(.caption2) } } } }.chartYAxis(.hidden).frame(height:140)
                             .accessibilityLabel("Monthly habit completions for \(year)")
                     }.surface()
                     HStack { metric("Current Streak", "\(habits.map { Engine.stats($0, data: store.data).currentStreak }.max() ?? 0)", "flame.fill"); metric("Best Streak", "\(habits.map { Engine.stats($0, data: store.data).bestStreak }.max() ?? 0)", "flame") }
                     VStack(alignment: .leading, spacing: 14) {
-                        Text("Completion Time").font(.headline)
+                        Text("Completion Time").font(.system(size:15,weight:.semibold))
                         Chart(0..<24, id: \.self) { hour in
                             BarMark(x: .value("Hour", hour), y: .value("Completions", hourlyCount(hour))).foregroundStyle(accent)
-                        }.frame(height: 150).chartXAxis { AxisMarks(values: [0, 6, 12, 18]) { value in AxisValueLabel { if let hour = value.as(Int.self) { Text("\(hour):00").font(.caption2) } } } }
-                        Text("Uses the local hour recorded when a build day first reaches its goal. Backfilled days use the time they were entered.").font(.caption2).foregroundStyle(.secondary)
+                        }.chartYAxis(.hidden).frame(height:140).chartXAxis { AxisMarks(values: [0, 6, 12, 18]) { value in AxisValueLabel { if let hour = value.as(Int.self) { Text("\(hour):00").font(.caption2) } } } }
                     }.surface()
-                    Text("Rate counts tracked build days through yesterday, plus today when completed. Quit habits are excluded from completion totals. Aggregate streak is the longest selected habit streak and includes quit habits.").font(.caption).foregroundStyle(.secondary)
+                    Button("Year Review",systemImage:"square.and.arrow.up"){review=true}.buttonStyle(.bordered)
                     DisclosureGroup("Monthly totals") { ForEach(1...12, id: \.self) { m in HStack { Text(Calendar.current.monthSymbols[m - 1]); Spacer(); Text("\(monthlyCount(m))").monospacedDigit() }.font(.caption).padding(.vertical, 3) } }
                 }.padding(20)
-            }.navigationTitle("Statistics").navigationBarTitleDisplayMode(.inline)
-                .toolbar { ToolbarItem(placement: .topBarLeading) { Button("Share Year", systemImage: "square.and.arrow.up") { review = true } }; ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            }.background(BuddyStyle.canvas(scheme)).toolbar(.hidden,for:.navigationBar)
+                .safeAreaInset(edge:.top){HStack{Spacer();Button("Done"){dismiss()}.font(.system(size:13,weight:.semibold)).foregroundStyle(.white).padding(.horizontal,14).padding(.vertical,9).background(BuddyStyle.purple,in:Capsule())}.padding(.horizontal,20).padding(.top,8).background(BuddyStyle.canvas(scheme))}
+                .onAppear { if ProcessInfo.processInfo.environment["BUDDY_VISUAL_SCREEN"] == "statistics" { selected=store.data.active.first?.id } }
                 .sheet(isPresented: $review) { YearReviewView(year: year, habits: habits) }
         }
     }
@@ -56,7 +59,7 @@ struct StatisticsView: View {
         return habits.reduce(0) { sum, h in sum + days.filter { $0.month == prefix && h.goal(on: $0).mode == .build && Engine.progress(h, day: $0, data: store.data).success }.count }
     }
     private func metric(_ title: String, _ value: String, _ icon: String) -> some View {
-        VStack(alignment: .leading, spacing: 13) { HStack { Spacer(); Image(systemName: icon).foregroundStyle(accent).padding(7).background(accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 8)) }; Text(value).font(.title.bold()).monospacedDigit(); Text(title).font(.caption).foregroundStyle(.secondary) }.frame(maxWidth: .infinity, alignment: .leading).surface()
+        VStack(alignment: .leading, spacing: 13) { HStack { Spacer(); Image(systemName: icon).foregroundStyle(accent).padding(7).background(accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 8)) }; Text(value).font(.system(size:25,weight:.bold)).monospacedDigit(); Text(title).font(.system(size:11)).foregroundStyle(.secondary) }.frame(maxWidth: .infinity, alignment: .leading).surface()
     }
     private func aggregateHeatmap(_ sample: Habit) -> BuddyData {
         guard selected == nil else { return store.data }

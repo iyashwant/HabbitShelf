@@ -9,7 +9,13 @@ public struct Day: RawRepresentable, Codable, Hashable, Comparable, Identifiable
               Self.formatter.string(from: date) == rawValue else { return nil }
         self.rawValue = rawValue
     }
-    public init(_ date: Date = Date(), timeZone: TimeZone = .current) {
+    public init() {
+        #if DEBUG
+        if let key = ProcessInfo.processInfo.environment["BUDDY_VISUAL_DATE"], let day = Self(rawValue: key) { self = day; return }
+        #endif
+        self.init(Date(), timeZone: .current)
+    }
+    public init(_ date: Date, timeZone: TimeZone = .current) {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
         let c = calendar.dateComponents([.year, .month, .day], from: date)

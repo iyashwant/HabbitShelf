@@ -7,7 +7,15 @@ import WidgetKit
     @Published var loaded = false
     @Published var sharedStorageAvailable = AppEnvironment.hasSharedContainer
     let repository = AppEnvironment.repository
-    init() { reload() }
+    init() {
+        #if DEBUG
+        if let screen=ProcessInfo.processInfo.environment["BUDDY_VISUAL_SCREEN"],ProcessInfo.processInfo.environment["BUDDY_VISUAL_RESET"] != "false" {
+            do { data=try repository.transaction{$0=VisualSamples.audit(screen)};loaded=true } catch { self.error=error.localizedDescription }
+            return
+        }
+        #endif
+        reload()
+    }
     func reload() {
         do { data = try repository.load(); loaded = true }
         catch { self.error = error.localizedDescription; loaded = false }

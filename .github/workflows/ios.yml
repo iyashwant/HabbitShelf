@@ -9,7 +9,7 @@ permissions:
 jobs:
   test-and-build:
     runs-on: macos-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - name: Test shared habit engine
@@ -17,6 +17,7 @@ jobs:
       - name: Check project and research
         run: python3 scripts/check-project.py
       - name: Select SDK and build app and widgets
+        id: sdk
         shell: bash
         run: |
           set -euo pipefail
@@ -28,9 +29,37 @@ jobs:
           deployment=27.0
           if [ "$sdk_major" -lt 27 ]; then
             deployment="$sdk_major.0"
-            echo "::warning::Runner lacks the iOS 27 SDK. This verifies source compilation against SDK $deployment; iOS 27 runtime validation remains pending."
+            echo "::warning::Runner lacks the iOS 27 SDK. Source compilation and simulator captures use SDK $deployment; iOS 27 validation remains pending."
           fi
+          echo "deployment=$deployment" >> "$GITHUB_OUTPUT"
           xcodebuild -project HabitBuddy.xcodeproj -scheme HabitBuddy \
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO \
             IPHONEOS_DEPLOYMENT_TARGET="$deployment" build
+      - name: Run native UI checks and capture screens
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun simctl list devices available -j > /tmp/buddy-devices.json
+          device="$(python3 - <<'PY'
+          import json
+          data=json.load(open('/tmp/buddy-devices.json'))
+          phones=[d for runtime,items in data['devices'].items() if 'iOS' in runtime for d in items if d.get('isAvailable') and d['name'].startswith('iPhone')]
+          phones.sort(key=lambda d:(d['name']!='iPhone 16',d['name']))
+          assert phones,'No available iPhone simulator'
+          print(phones[0]['udid'])
+          PY
+          )"
+          xcrun simctl boot "$device" || true
+          xcrun simctl bootstatus "$device" -b
+          xcrun simctl status_bar "$device" override --time '09:19' --batteryState charged --batteryLevel 100
+          xcodebuild -project HabitBuddy.xcodeproj -scheme HabitBuddy \
+            -destination "platform=iOS Simulator,id=$device" -derivedDataPath DerivedData \
+            -resultBundlePath VisualAudit.xcresult -parallel-testing-enabled NO \
+            CODE_SIGNING_ALLOWED=NO IPHONEOS_DEPLOYMENT_TARGET="${{ steps.sdk.outputs.deployment }}" test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-visual-audit
+          path: VisualAudit.xcresult
+          if-no-files-found: ignore

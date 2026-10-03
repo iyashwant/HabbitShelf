@@ -1,0 +1,78 @@
+[
+  {
+    "path": "Shared/Resources/FontAwesome-Solid.otf",
+    "url": "https://raw.githubusercontent.com/FortAwesome/Font-Awesome/7.0.0/otfs/Font%20Awesome%207%20Free-Solid-900.otf",
+    "bytes": 410468,
+    "sha256": "5781ffc20ae164d940c0a4560718ede1fac66e7a25d41ee79572af227416d5b7",
+    "status": "downloaded"
+  },
+  {
+    "path": "Shared/Resources/FontAwesome-Regular.otf",
+    "url": "https://raw.githubusercontent.com/FortAwesome/Font-Awesome/7.0.0/otfs/Font%20Awesome%207%20Free-Regular-400.otf",
+    "bytes": 87360,
+    "sha256": "1a39a672b32bfcb3db085ff91ed7a972d4a2deec14079f53e62234d0fa05cd43",
+    "status": "downloaded"
+  },
+  {
+    "path": "Shared/Resources/Font-Awesome-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/FortAwesome/Font-Awesome/7.0.0/LICENSE.txt",
+    "bytes": 7427,
+    "sha256": "329f24fdba0c57714d7d202d30a74767feac6907685ee24f0abbf1bd47581a07",
+    "status": "downloaded"
+  },
+  {
+    "path": "/tmp/buddy-icons.json",
+    "url": "https://raw.githubusercontent.com/FortAwesome/Font-Awesome/7.0.0/metadata/icons.json",
+    "bytes": 4370717,
+    "sha256": "e5bb02563103df25a261fad5510abeb2d33669d5b269d42c7f3f9577df0a3840",
+    "status": "downloaded"
+  },
+  {
+    "path": "research/habitkit/07_visual_audit/references/appstore-01-progress.webp",
+    "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/a9/7d/41/a97d417a-4a5b-801a-9e17-e860e104cf03/01-progress.png/460x996bb.webp",
+    "bytes": 42858,
+    "sha256": "9f198554afda11ab34ec8e0e69174f69513ae094cb2a27ad7d0ce63a38bc2653",
+    "status": "downloaded"
+  },
+  {
+    "path": "research/habitkit/07_visual_audit/references/appstore-02-widgets.webp",
+    "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/3f/ad/46/3fad46a8-0996-6be1-5dc4-3aeb1b66ba51/02-widgets.png/460x996bb.webp",
+    "bytes": 29062,
+    "sha256": "3c462fc48439122d44480b7d8f35244671ea691e800cfe871665014107004518",
+    "status": "downloaded"
+  },
+  {
+    "path": "research/habitkit/07_visual_audit/references/appstore-03-compact.webp",
+    "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/fe/2e/6c/fe2e6c98-c405-e95f-1c05-b84c4b1288df/03-compact.png/460x996bb.webp",
+    "bytes": 27892,
+    "sha256": "34279cbc68cd80c5934bcd29090a86af624692458bf9dad2f41696e58ed288f1",
+    "status": "downloaded"
+  },
+  {
+    "path": "research/habitkit/07_visual_audit/references/appstore-04-history.webp",
+    "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/37/e7/02/37e702e2-7e74-a7cc-a4a4-961d63cee348/04-history.png/460x996bb.webp",
+    "bytes": 25164,
+    "sha256": "f31ae5b4c11b50439dbee81fb6f8a34e420b58f0a394a2739a19470f042d34be",
+    "status": "downloaded"
+  },
+  {
+    "path": "research/habitkit/07_visual_audit/references/appstore-05-statistics.webp",
+    "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/90/34/50/90345055-d19b-c221-6b0f-d76a63f0265f/05-statistics.png/460x996bb.webp",
+    "bytes": 24770,
+    "sha256": "f3bca3c92991d5560a672378feab72142e860a905c66deaf3b9e307307b6edc8",
+    "status": "downloaded"
+  },
+  {
+    "path": "research/habitkit/07_visual_audit/references/appstore-06-notes.webp",
+    "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/fd/09/5b/fd095baa-294a-9e71-cf26-6b86ae6b8a48/06-notes.png/460x996bb.webp",
+    "bytes": 30024,
+    "sha256": "37260e541d31b78e3365a76850120a8b989f63b33ed21796e91e5cb44118782d",
+    "status": "downloaded"
+  },
+  {
+    "path": "research/habitkit/07_visual_audit/references/appllama-welcome.webp",
+    "url": "https://appllama.io/cdn-cgi/image/width=1290,quality=100,format=auto,fit=scale-down/https://cloud.appllama.io/orig/v1/ec31e026ea611531e392152bd56ddbb949b1c0cd.webp",
+    "status": "unavailable",
+    "reason": "b\"\\x89PNG\\r\\n\\x1a\\n\\x00\\x00\\x00\\rIHDR\\x00\\x00\\x048\\x00\\x00\\t!\\x08\\x02\\x00\\x00\\x00&|\\xc9K\\x00\\r-.IDATx^\\xec\\x9d\\x07\\x9c\\x14E\\xd6\\xc0;M\\xdc\\xcc\\xb2,q\\x81%\\x83\\x88\\x80\\x91\\xa4d\\xc5,b\\xe2\\xcc\\x9e\\xe9S\\x0cg8\\xcf\\xacw\\xc63\\x9e\\xe1L\\xa8'\\x82\\t#\\x9e\\x82G\\x90\\xa0 \\x02\\x02K\\x06\""
+  }
+]

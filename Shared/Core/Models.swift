@@ -38,6 +38,7 @@ public struct Habit: Codable, Identifiable, Equatable, Sendable {
     public var order = 0
     public var categories: [UUID] = []
     public var reminders: [Reminder] = []
+    public var appearance: CardAppearance?
     public var goals: [Goal]
     public init(name: String, created: Day = Day()) {
         self.name = name; self.created = created; self.goals = [Goal(from: created)]
@@ -72,6 +73,16 @@ public struct Record: Codable, Equatable, Sendable {
     public var key: String { Self.key(habitID, day) }
     public static func key(_ id: UUID, _ day: Day) -> String { "\(id.uuidString)|\(day.rawValue)" }
 }
+public struct CardAppearance: Codable, Equatable, Sendable {
+    public var description = true
+    public var streak = true
+    public var goal = true
+    public var indicator = true
+    public var monthLabels = true
+    public var weekdayLabels = true
+    public var categoryIcons = true
+    public init() {}
+}
 public struct Settings: Codable, Equatable, Sendable {
     public var theme: Theme = .system
     public var layout: Layout = .cards
@@ -84,11 +95,45 @@ public struct Settings: Codable, Equatable, Sendable {
     public var showStreak = true
     public var showGoal = true
     public var showCompletionIndicator = true
+    public var showMonthLabels = true
+    public var showWeekdayLabels = true
+    public var showCategoryIcons = true
+    public var showCategoryFilter = true
+    public var showLayoutSwitcher = true
+    public var compactNames = true
+    public var dragToReorder = true
     public var onboarding = false
     public var checkIn: Reminder?
     public var checkInTitle = "A little progress today"
     public var checkInBody = "Make time for the habits that matter to you."
     public init() {}
+    enum CodingKeys: String, CodingKey { case theme, layout, weekStart, recentDays, showToday, notes, haptics, showDescriptions, showStreak, showGoal, showCompletionIndicator, showMonthLabels, showWeekdayLabels, showCategoryIcons, showCategoryFilter, showLayoutSwitcher, compactNames, dragToReorder, onboarding, checkIn, checkInTitle, checkInBody }
+    public init(from decoder: Decoder) throws {
+        self.init()
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        theme = try c.decodeIfPresent(Theme.self, forKey: .theme) ?? theme
+        layout = try c.decodeIfPresent(Layout.self, forKey: .layout) ?? layout
+        weekStart = try c.decodeIfPresent(Int.self, forKey: .weekStart) ?? weekStart
+        recentDays = try c.decodeIfPresent(Int.self, forKey: .recentDays) ?? recentDays
+        showToday = try c.decodeIfPresent(Bool.self, forKey: .showToday) ?? showToday
+        notes = try c.decodeIfPresent(Bool.self, forKey: .notes) ?? notes
+        haptics = try c.decodeIfPresent(Bool.self, forKey: .haptics) ?? haptics
+        showDescriptions = try c.decodeIfPresent(Bool.self, forKey: .showDescriptions) ?? showDescriptions
+        showStreak = try c.decodeIfPresent(Bool.self, forKey: .showStreak) ?? showStreak
+        showGoal = try c.decodeIfPresent(Bool.self, forKey: .showGoal) ?? showGoal
+        showCompletionIndicator = try c.decodeIfPresent(Bool.self, forKey: .showCompletionIndicator) ?? showCompletionIndicator
+        showMonthLabels = try c.decodeIfPresent(Bool.self, forKey: .showMonthLabels) ?? showMonthLabels
+        showWeekdayLabels = try c.decodeIfPresent(Bool.self, forKey: .showWeekdayLabels) ?? showWeekdayLabels
+        showCategoryIcons = try c.decodeIfPresent(Bool.self, forKey: .showCategoryIcons) ?? showCategoryIcons
+        showCategoryFilter = try c.decodeIfPresent(Bool.self, forKey: .showCategoryFilter) ?? showCategoryFilter
+        showLayoutSwitcher = try c.decodeIfPresent(Bool.self, forKey: .showLayoutSwitcher) ?? showLayoutSwitcher
+        compactNames = try c.decodeIfPresent(Bool.self, forKey: .compactNames) ?? compactNames
+        dragToReorder = try c.decodeIfPresent(Bool.self, forKey: .dragToReorder) ?? dragToReorder
+        onboarding = try c.decodeIfPresent(Bool.self, forKey: .onboarding) ?? onboarding
+        checkIn = try c.decodeIfPresent(Reminder.self, forKey: .checkIn)
+        checkInTitle = try c.decodeIfPresent(String.self, forKey: .checkInTitle) ?? checkInTitle
+        checkInBody = try c.decodeIfPresent(String.self, forKey: .checkInBody) ?? checkInBody
+    }
 }
 public struct BuddyData: Codable, Equatable, Sendable {
     public var schemaVersion = 1

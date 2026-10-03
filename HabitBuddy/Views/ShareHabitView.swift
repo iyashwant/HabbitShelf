@@ -1,56 +1,45 @@
 import SwiftUI
+import UIKit
 
-struct ShareHabitView: View {
-    @EnvironmentObject private var store: AppStore
-    @Environment(\.dismiss) private var dismiss
-    let habit: Habit
-    @State private var dark = true
-    @State private var description = true
-    @State private var streak = true
-    @State private var indicator = true
-    @State private var color = "mint"
-    @State private var shareFile: URL?
-    @State private var message: String?
-    var body: some View {
-        NavigationStack {
+struct ShareHabitView:View {
+    @EnvironmentObject private var store:AppStore
+    @Environment(\.colorScheme) private var scheme
+    let habit:Habit
+    @State private var dark=true
+    @State private var description=true
+    @State private var streak=false
+    @State private var indicator=true
+    @State private var color="mint"
+    @State private var shareFile:URL?
+    @State private var message:String?
+    var body:some View {
+        VStack(spacing:0){
+            SheetHeader(title:"Share Habit",trailingSymbol:"square.and.arrow.up",trailingAction:render)
             ScrollView {
-                VStack(spacing: 22) {
-                    shareCard.frame(maxWidth: .infinity).clipShape(RoundedRectangle(cornerRadius: 22))
-                    VStack(spacing: 18) {
-                        Toggle("Dark Theme", isOn: $dark)
-                        Toggle("Show Description", isOn: $description)
-                        Toggle("Show Streak", isOn: $streak)
-                        Toggle("Show Completion Indicator", isOn: $indicator)
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 8) {
-                            ForEach(BuddyStyle.colors, id: \.0) { token, _ in Button { color = token } label: { RoundedRectangle(cornerRadius: 9).fill(BuddyStyle.color(token)).frame(height: 32).overlay { if color == token { Image(systemName: "checkmark").foregroundStyle(.black) } } }.buttonStyle(.plain).accessibilityLabel(token) }
-                        }
+                VStack(spacing:20){
+                    shareCard.clipShape(RoundedRectangle(cornerRadius:20))
+                    VStack(alignment:.leading,spacing:18){
+                        Text("Appearance").font(.system(size:16,weight:.semibold))
+                        HStack{Text("Theme").font(.system(size:14));Spacer();SegmentedChoice(selection:$dark,options:[(false,"Light"),(true,"Dark")]).frame(width:150)}
+                        ColorPalette(selection:$color)
+                        Toggle("Completion Indicator",isOn:$indicator).font(.system(size:14))
+                        DisclosureGroup("More Options"){Toggle("Description",isOn:$description);Toggle("Streak",isOn:$streak)}.font(.system(size:13))
                     }.surface()
-                    Button("Create Share Image", systemImage: "square.and.arrow.up") { render() }.buttonStyle(.borderedProminent)
-                    if let shareFile { ShareLink(item: shareFile) { Label("Share PNG", systemImage: "square.and.arrow.up") } }
-                    if let message { Text(message).foregroundStyle(.red) }
+                    if let message{Text(message).foregroundStyle(.red)}
                 }.padding(20)
-            }.navigationTitle("Share Habit").navigationBarTitleDisplayMode(.inline)
-                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }
-                .onAppear { color = habit.color }
-        }
+            }
+            PrimaryAction(title:"Share Habit",symbol:"square.and.arrow.up",action:render).padding(24)
+        }.background(BuddyStyle.canvas(scheme)).onAppear{color=habit.color}
+            .sheet(isPresented:Binding(get:{shareFile != nil},set:{if !$0{shareFile=nil}})){if let shareFile{NativeShareSheet(items:[shareFile])}}
     }
-    private var shareCard: some View {
-        VStack(alignment: .trailing, spacing: 12) {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack { HabitIcon(habit: habit); VStack(alignment: .leading, spacing: 3) { Text(habit.name).font(.headline); if description { Text(habit.detail).font(.caption).foregroundStyle(.secondary) } }; Spacer(); if indicator { Image(systemName: Engine.progress(habit, day: Day(), data: store.data).success ? "checkmark" : "plus").foregroundStyle(BuddyStyle.color(habit.color)).padding(12).background(BuddyStyle.color(habit.color).opacity(0.12), in: RoundedRectangle(cornerRadius: 12)) } }
-                Heatmap(habit: habit, data: store.data)
-                if streak { MetricChip(symbol: "flame.fill", text: "\(Engine.stats(habit, data: store.data).currentStreak) day streak", color: BuddyStyle.color(habit.color)) }
-            }.surface()
-            Label("Habit Buddy", systemImage: "square.grid.3x3.fill").font(.caption.weight(.semibold)).foregroundStyle(.white)
-        }.padding(20).background(BuddyStyle.color(color)).environment(\.colorScheme, dark ? .dark : .light)
+    private var shareCard:some View {
+        var a=habit.cardAppearance(store.data.settings);a.description=description;a.streak=streak;a.goal=streak;a.indicator=indicator
+        return VStack(alignment:.trailing,spacing:12){HabitCard(habit:habit,data:store.data,appearance:a,interactive:false);Label("Habit Buddy",systemImage:"square.grid.3x3.fill").font(.system(size:10,weight:.semibold)).foregroundStyle(.white)}.padding(20).background(BuddyStyle.color(color)).environment(\.colorScheme,dark ? .dark:.light)
     }
-    @MainActor private func render() {
-        let renderer = ImageRenderer(content: shareCard.frame(width: 390))
-        renderer.scale = 3
-        guard let image = renderer.uiImage, let bytes = image.pngData() else { message = "Could not create the image. Please try again."; return }
-        do {
-            let file = FileManager.default.temporaryDirectory.appendingPathComponent("habit-\(habit.id.uuidString).png")
-            try bytes.write(to: file, options: .atomic); shareFile = file
-        } catch { message = error.localizedDescription }
-    }
+    @MainActor private func render(){let renderer=ImageRenderer(content:shareCard.frame(width:390));renderer.scale=3;guard let image=renderer.uiImage,let bytes=image.pngData()else{message="Could not create the image. Please try again.";return};do{let file=FileManager.default.temporaryDirectory.appendingPathComponent("habit-\(habit.id.uuidString).png");try bytes.write(to:file,options:.atomic);shareFile=file}catch{message=error.localizedDescription}}
+}
+struct NativeShareSheet:UIViewControllerRepresentable {
+    let items:[Any]
+    func makeUIViewController(context:Context)->UIActivityViewController{UIActivityViewController(activityItems:items,applicationActivities:nil)}
+    func updateUIViewController(_ uiViewController:UIActivityViewController,context:Context){}
 }

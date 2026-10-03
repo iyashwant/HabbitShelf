@@ -6,6 +6,10 @@ struct OverviewView: View {
     @Environment(\.colorScheme) private var scheme
     @State private var path: [UUID] = []
     @State private var editor: Habit?
+    @State private var appearance: Habit?
+    @State private var notes: Habit?
+    @State private var share: Habit?
+    @State private var visualRouted = false
     @State private var daySelection: DaySelection?
     @State private var settings = false
     @State private var stats = false
@@ -16,7 +20,7 @@ struct OverviewView: View {
     var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
-                VStack(spacing: 14) {
+                VStack(spacing: 12) {
                     if !store.loaded {
                         ContentUnavailableView("Your data needs attention", systemImage: "externaldrive.badge.exclamationmark", description: Text(store.error ?? "Open Settings to restore a backup."))
                     } else if habits.isEmpty {
@@ -27,28 +31,32 @@ struct OverviewView: View {
                             if store.data.habits.isEmpty { Button("Try sample habits") { loadSamples() } }
                         }.padding(.top, 70)
                     } else {
-                        categoryFilter
-                        if store.data.settings.layout == .month { monthNavigation }
+                        if store.data.settings.showCategoryFilter && !store.data.categories.isEmpty { categoryFilter }
                         switch store.data.settings.layout {
-                        case .cards: LazyVStack(spacing: 14) { ForEach(habits) { habit in card(habit) } }
+                        case .cards: LazyVStack(spacing: 12) { ForEach(habits) { habit in card(habit) } }
                         case .compact: compact
                         case .month: monthGrid
                         }
                     }
                 }.padding(.horizontal, 16).padding(.bottom, 100)
             }
-            .background(scheme == .dark ? Color(white: 0.04) : Color.white)
-            .navigationTitle("Habit Buddy").navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) { Button { settings = true } label: { Image(systemName: "gearshape") }.accessibilityLabel("Settings") }
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button { stats = true } label: { Image(systemName: "chart.xyaxis.line") }.accessibilityLabel("Statistics")
-                    Button { editor = Habit(name: "") } label: { Image(systemName: "plus").fontWeight(.semibold) }.buttonStyle(.borderedProminent).buttonBorderShape(.circle).accessibilityLabel("Create Habit")
-                }
+            .background(BuddyStyle.canvas(scheme))
+            .toolbar(.hidden, for: .navigationBar)
+            .safeAreaInset(edge: .top) {
+                HStack {
+                    CircleControl(symbol: "gearshape", label: "Settings") { settings = true }
+                    Spacer()
+                    CircleControl(symbol: "chart.xyaxis.line", label: "Statistics") { stats = true }
+                    CircleControl(symbol: "plus", label: "Create Habit", filled: true) { editor = Habit(name: "") }
+                }.padding(.horizontal, 12).padding(.vertical, 4).background(BuddyStyle.canvas(scheme))
             }
-            .safeAreaInset(edge: .bottom) { layoutSwitcher }
+            .safeAreaInset(edge: .bottom) { if store.data.settings.showLayoutSwitcher { layoutSwitcher } }
             .navigationDestination(for: UUID.self) { HabitDetailView(id: $0) }
             .sheet(item: $editor) { HabitEditorView(habit: $0) }
+            .sheet(item: $appearance) { HabitAppearanceView(habitID: $0.id) }
+            .sheet(item: $notes) { NotesView(habitID: $0.id) }
+            .sheet(item: $share) { ShareHabitView(habit: $0) }
+            .task { visualRoute() }
             .sheet(item: $daySelection) { DayEditorView(selection: $0) }
             .sheet(isPresented: $settings) { SettingsView() }
             .sheet(isPresented: $stats) { StatisticsView() }
@@ -93,29 +101,14 @@ struct OverviewView: View {
         }.padding(5).background(.ultraThinMaterial, in: Capsule()).padding(.bottom, 10)
     }
     private func card(_ habit: Habit) -> some View {
-        let stats = Engine.stats(habit, data: store.data)
-        let color = BuddyStyle.color(habit.color)
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 11) {
-                Button { path.append(habit.id) } label: {
-                    HStack(spacing: 11) {
-                        HabitIcon(habit: habit)
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(habit.name).font(.headline).foregroundStyle(.primary)
-                            if store.data.settings.showDescriptions && !habit.detail.isEmpty { Text(habit.detail).font(.caption).foregroundStyle(.secondary).lineLimit(2) }
-                        }
-                    }.frame(maxWidth: .infinity, alignment: .leading)
-                }.buttonStyle(.plain)
-                if store.data.settings.showCompletionIndicator { completionButton(habit) }
-            }
-            Button { path.append(habit.id) } label: { Heatmap(habit: habit, data: store.data) }.buttonStyle(.plain)
-            HStack {
-                if store.data.settings.showStreak && habit.currentGoal.cadence != .none { MetricChip(symbol: "flame.fill", text: String(stats.currentStreak), color: color) }
-                if store.data.settings.showGoal { MetricChip(symbol: "target", text: habit.currentGoal.summary, color: color) }
-                Spacer()
-                if habit.currentGoal.tracking != .yesNo { Text("\(Amount.text(store.data.record(habit.id, Day()).amount)) / \(Amount.text(habit.currentGoal.target)) \(habit.currentGoal.unit)").font(.caption2).foregroundStyle(.secondary) }
-            }
-        }.surface().contextMenu { habitMenu(habit) }
+        HabitCard(habit:habit,data:store.data,onOpen:{path.append(habit.id)},onComplete:{tap(habit,Day())})
+            .contextMenu { habitMenu(habit) }
+            .modifier(HabitDrag(id:habit.id,enabled:store.data.settings.dragToReorder) { source in
+                var ids=store.data.active.map(\.id)
+                guard let from=ids.firstIndex(of:source),let to=ids.firstIndex(of:habit.id),from != to else{return}
+                ids.remove(at:from);ids.insert(source,at:to)
+                store.change { data in for (n,id) in ids.enumerated(){if let i=data.habits.firstIndex(where:{$0.id==id}){data.habits[i].order=n}} }
+            })
     }
     private func completionButton(_ habit: Habit) -> some View {
         return Button { tap(habit, Day()) } label: {
@@ -129,26 +122,29 @@ struct OverviewView: View {
     }
     private var compact: some View {
         let days = Day.range(Day().adding(-(store.data.settings.recentDays - 1)), Day())
-        return VStack(spacing: 2) {
+        return VStack(spacing: 12) {
+            HStack { Text("Last \(days.count) days").font(.system(size:12)).padding(.horizontal,10).padding(.vertical,8).background(Color.primary.opacity(0.05),in:Capsule());Spacer();Text("\(days.first!.rawValue.suffix(5)) – \(days.last!.rawValue.suffix(5))").font(.system(size:9,design:.monospaced)).foregroundStyle(.secondary) }
+            VStack(spacing:2) {
             HStack {
                 Text("\(habits.count) HABITS").font(.system(size: 9, weight: .medium)).foregroundStyle(.secondary)
                 Spacer()
-                ForEach(days) { day in Text(String(day.rawValue.suffix(2))).font(.caption2).foregroundStyle(.secondary).frame(width: 28) }
+                ForEach(days) { day in VStack(spacing:3){Text(String(Calendar.current.shortWeekdaySymbols[day.weekday-1].prefix(2)));Text(String(Int(day.rawValue.suffix(2))!))}.font(.system(size:9,design:.monospaced)).foregroundStyle(day==Day() ? Color.primary:Color.secondary).frame(width:28) }
             }.padding(.bottom, 8)
             ForEach(habits) { habit in
                 HStack(spacing: 5) {
                     Button { path.append(habit.id) } label: {
-                        HStack(spacing: 7) { HabitIcon(habit: habit, size: 28); Text(habit.name).font(.caption).lineLimit(1).foregroundStyle(.primary) }.frame(maxWidth: .infinity, alignment: .leading)
+                        HStack(spacing: 7) { HabitIcon(habit: habit, size: 28); if store.data.settings.compactNames { Text(habit.name).font(.system(size:11)).lineLimit(1) }.foregroundStyle(.primary) }.frame(maxWidth: .infinity, alignment: .leading)
                     }.buttonStyle(.plain)
                     ForEach(days) { day in
-                        Button { tap(habit, day) } label: { DayTile(habit: habit, day: day, data: store.data, size: 28) }
+                        Button { tap(habit, day) } label: { DayTile(habit: habit, day: day, data: store.data, size: 28).frame(height:44) }
                             .buttonStyle(.plain).disabled(!habit.available(on: day, today: Day()))
                             .contextMenu { Button("Edit amount and note") { daySelection = DaySelection(habit: habit, day: day) } }
                     }
-                }.padding(.vertical, 7).contextMenu { habitMenu(habit) }
+                }.frame(minHeight:44).contextMenu { habitMenu(habit) }
                 if habit.id != habits.last?.id { Divider().opacity(0.3) }
             }
-        }.surface()
+        }.surface(padding:12,radius:20)
+        }
     }
     private var monthNavigation: some View {
         HStack {
@@ -158,37 +154,41 @@ struct OverviewView: View {
         }.padding(.horizontal, 7)
     }
     private var monthGrid: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 102), spacing: 10)], spacing: 10) {
-            ForEach(habits) { habit in
-                Button { path.append(habit.id) } label: {
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(spacing: 5) { HabitIcon(habit: habit, size: 25); Text(habit.name).font(.caption2.weight(.medium)).foregroundStyle(.primary).lineLimit(1) }
-                        MiniMonth(habit: habit, data: store.data, month: month)
-                    }.padding(10).background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 16))
-                }.buttonStyle(.plain).contextMenu { habitMenu(habit) }
-            }
+        LazyVGrid(columns:Array(repeating:GridItem(.flexible(),spacing:8),count:3),spacing:10) {
+            ForEach(habits) { habit in MonthHabitCard(habit:habit,data:store.data,onOpen:{path.append(habit.id)}).contextMenu{habitMenu(habit)} }
         }
     }
     @ViewBuilder private func habitMenu(_ habit: Habit) -> some View {
         Button("Edit Habit", systemImage: "pencil") { editor = habit }
+        Button("Appearance",systemImage:"slider.horizontal.3"){appearance=habit}
+        Button("Share Habit",systemImage:"square.and.arrow.up"){share=habit}
+        if store.data.settings.notes { Button("Notes",systemImage:"note.text"){notes=habit} }
+        Button("Reorder Habits",systemImage:"arrow.up.arrow.down"){reorder=true}
         Button("Edit Today", systemImage: "calendar") { daySelection = DaySelection(habit: habit, day: Day()) }
         Button("Complete Yesterday", systemImage: "checkmark") { store.change { try Engine.complete(habit.id, day: Day().adding(-1), data: &$0) } }.disabled(!habit.available(on: Day().adding(-1), today: Day()))
-        Button("Clear Yesterday", systemImage: "eraser") { store.setAmount(0, habit.id, Day().adding(-1)) }.disabled(!habit.available(on: Day().adding(-1), today: Day()))
+        Button("Uncomplete Yesterday", systemImage: "eraser") { store.setAmount(0, habit.id, Day().adding(-1)) }.disabled(!habit.available(on: Day().adding(-1), today: Day()))
         Button("Archive", systemImage: "archivebox") { store.archive(habit.id) }
     }
     private func shiftMonth(_ delta: Int) { month = Day(Day.calendar.date(byAdding: .month, value: delta, to: month.date)!, timeZone: TimeZone(secondsFromGMT: 0)!) }
-    private func loadSamples() {
-        store.change { data in
-            for (name, symbol, color, offset) in [("Read", "book.closed.fill", "cyan", 0), ("Gym Day", "dumbbell.fill", "mint", 1), ("Journal", "pencil.tip", "yellow", 2)] {
-                var h = Habit(name: name, created: Day().adding(-90)); h.symbol = symbol; h.color = color; h.order = offset
-                h.goals[0].cadence = .daily
-                if offset == 1 { h.goals[0].cadence = .weekly; h.goals[0].days = 3 }
-                data.habits.append(h)
-                for n in 1...90 where (n + offset) % 5 != 0 {
-                    var r = Record(habitID: h.id, day: Day().adding(-n)); r.amount = 1_000; data.records[r.key] = r
-                }
-            }
+    private func loadSamples() { store.change { VisualSamples.populate(&$0) } }
+    private func visualRoute() {
+        #if DEBUG
+        guard !visualRouted,let screen=ProcessInfo.processInfo.environment["BUDDY_VISUAL_SCREEN"] else{return}
+        visualRouted=true
+        guard let habit=store.data.active.first else{return}
+        switch screen {
+        case "detail":path=[habit.id]
+        case "editor":editor=habit
+        case "new-habit":editor=Habit(name:"")
+        case "statistics":stats=true
+        case "settings":settings=true
+        case "share":share=habit
+        case "appearance":appearance=habit
+        case "notes":notes=habit
+        case "day":daySelection=DaySelection(habit:habit,day:Day())
+        default:break
         }
+        #endif
     }
 }
 
@@ -211,11 +211,42 @@ struct MiniMonth: View {
     var body: some View {
         let first = month.startOfWeek(data.settings.weekStart)
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 7), spacing: 3) {
-            ForEach(Day.range(first, month.endOfMonth)) { day in
+            ForEach(Day.range(first, first.adding(41))) { day in
                 let p = Engine.progress(habit, day: day, data: data)
                 RoundedRectangle(cornerRadius: 2).fill(BuddyStyle.color(habit.color).opacity(p.success && day.month == month.month ? 1 : 0.12)).aspectRatio(1, contentMode: .fit)
-                    .opacity(day.month == month.month ? 1 : 0)
+                    .opacity(day.month == month.month ? 1 : 0.12)
             }
         }.frame(minHeight: 85, alignment: .top)
     }
+}
+
+struct MonthHabitCard: View {
+    let habit:Habit
+    let data:BuddyData
+    var onOpen:()->Void
+    @State private var month=Day().startOfMonth
+    var body:some View {
+        Button(action:onOpen) {
+            VStack(alignment:.leading,spacing:8) {
+                HStack(spacing:5){HabitIcon(habit:habit,size:24);VStack(alignment:.leading,spacing:2){Text(habit.name).font(.system(size:10,weight:.medium)).lineLimit(1);Text(month.monthTitle).font(.system(size:8)).foregroundStyle(.secondary)}}
+                MiniMonth(habit:habit,data:data,month:month)
+            }.foregroundStyle(.primary).surface(padding:9,radius:16)
+        }.buttonStyle(.plain)
+        .simultaneousGesture(DragGesture(minimumDistance:30).onEnded{v in if abs(v.translation.width)>abs(v.translation.height){shift(v.translation.width>0 ? -1:1)}})
+        .accessibilityAction(named:"Previous month"){shift(-1)}.accessibilityAction(named:"Next month"){shift(1)}
+    }
+    private func shift(_ n:Int){let m=month.addingMonths(n);if m<=Day().startOfMonth && m>=habit.created.startOfMonth{month=m}}
+}
+struct HabitDrag: ViewModifier {
+    let id:UUID
+    let enabled:Bool
+    let move:(UUID)->Void
+    @ViewBuilder func body(content:Content)->some View {
+        if enabled{content.draggable(id.uuidString).dropDestination(for:String.self){items,_ in guard let first=items.first,let source=UUID(uuidString:first) else{return false};move(source);return true}}
+        else{content}
+    }
+}
+extension Day {
+    func addingMonths(_ n:Int)->Day { Day(Self.calendar.date(byAdding:.month,value:n,to:date)!,timeZone:TimeZone(secondsFromGMT:0)!) }
+    var noteTitle:String { if self==Day(){return "Today"};let f=DateFormatter();f.timeZone=TimeZone(secondsFromGMT:0);f.dateFormat="EEE, MMM d, yyyy";return f.string(from:date) }
 }

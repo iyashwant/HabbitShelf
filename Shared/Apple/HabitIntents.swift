@@ -18,6 +18,17 @@ struct ChooseHabitIntent: WidgetConfigurationIntent {
     static var title: LocalizedStringResource = "Choose Habit"
     static var description = IntentDescription("Choose the habit displayed in this widget.")
     @Parameter(title: "Habit") var habit: HabitEntity?
+    @Parameter(title: "Theme", default: .system) var theme: WidgetAppearance
+}
+enum WidgetAppearance: String, AppEnum {
+    case system,light,dark
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Widget Theme"
+    static var caseDisplayRepresentations: [Self:DisplayRepresentation] = [.system:"System",.light:"Light",.dark:"Dark"]
+}
+struct ChooseCompactHabitsIntent: WidgetConfigurationIntent {
+    static var title: LocalizedStringResource = "Choose Habits"
+    @Parameter(title: "Habits") var habits: [HabitEntity]?
+    @Parameter(title: "Theme", default: .system) var theme: WidgetAppearance
 }
 enum IntentWrite {
     static func run(_ change: (inout BuddyData) throws -> Void) async throws {
@@ -87,18 +98,6 @@ struct OpenHabitIntent: AppIntent {
         .result(opensIntent: OpenURLIntent(URL(string: "habitbuddy://\(habit.id.uuidString)")!))
     }
 }
-struct HabitShortcuts: AppShortcutsProvider {
-    static var appShortcuts: [AppShortcut] {
-        AppShortcut(intent: CompleteHabitIntent(), phrases: ["Complete a habit in \(.applicationName)"], shortTitle: "Complete Habit", systemImageName: "checkmark")
-        AppShortcut(intent: ClearHabitIntent(), phrases: ["Clear a habit in \(.applicationName)"], shortTitle: "Clear Habit", systemImageName: "eraser")
-        AppShortcut(intent: IncrementHabitIntent(), phrases: ["Add progress in \(.applicationName)"], shortTitle: "Increment Habit", systemImageName: "plus")
-        AppShortcut(intent: LogAmountIntent(), phrases: ["Log an amount in \(.applicationName)"], shortTitle: "Log Amount", systemImageName: "number")
-        AppShortcut(intent: LogNoteIntent(), phrases: ["Add a note in \(.applicationName)"], shortTitle: "Log Note", systemImageName: "note.text")
-        AppShortcut(intent: GetHabitProgressIntent(), phrases: ["Get habit progress in \(.applicationName)"], shortTitle: "Get Progress", systemImageName: "chart.bar")
-        AppShortcut(intent: OpenHabitIntent(), phrases: ["Open a habit in \(.applicationName)"], shortTitle: "Open Habit", systemImageName: "square.grid.3x3")
-    }
-}
-
 /// Single interaction intent reused by all widget buttons. Each invocation commits once under a file lock.
 struct WidgetLogIntent: AppIntent {
     static var title: LocalizedStringResource = "Log Habit Progress"
