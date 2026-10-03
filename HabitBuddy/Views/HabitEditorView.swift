@@ -109,7 +109,7 @@ struct IconHero: View {
     private var cloud:[HabitIconEntry]{Array(BuddyIcons.all.filter{["wallet","leaf","moon","globe","utensils","bicycle","guitar","book","mug-saucer","carrot","dumbbell","pen-nib","camera","dog","brain","heart","spa","fish","stethoscope","flask"].contains(String($0.id.dropFirst(3)))}.prefix(40))}
     var body:some View {
         ZStack {
-            LazyVGrid(columns:Array(repeating:GridItem(.flexible()),count:10),spacing:18){ForEach(0..<40,id:\.self){i in if !cloud.isEmpty{BuddyGlyph(symbol:cloud[i%cloud.count].id,size:16,outline:true).rotationEffect(.degrees(Double((i*7)%30)-15))}}.foregroundStyle(BuddyStyle.color(habit.color).opacity(0.2))
+            LazyVGrid(columns:Array(repeating:GridItem(.flexible()),count:10),spacing:18){ForEach(0..<40,id:\.self){i in if !cloud.isEmpty{BuddyGlyph(symbol:cloud[i%cloud.count].id,size:16,outline:true).rotationEffect(.degrees(Double((i*7)%30)-15))}}}.foregroundStyle(BuddyStyle.color(habit.color).opacity(0.2))
             HabitIcon(habit:habit,size:88,circular:true)
         }.frame(height:140)
     }

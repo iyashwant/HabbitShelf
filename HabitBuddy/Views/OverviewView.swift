@@ -133,7 +133,7 @@ struct OverviewView: View {
             ForEach(habits) { habit in
                 HStack(spacing: 5) {
                     Button { path.append(habit.id) } label: {
-                        HStack(spacing: 7) { HabitIcon(habit: habit, size: 28); if store.data.settings.compactNames { Text(habit.name).font(.system(size:11)).lineLimit(1) }.foregroundStyle(.primary) }.frame(maxWidth: .infinity, alignment: .leading)
+                        HStack(spacing: 7) { HabitIcon(habit: habit, size: 28); if store.data.settings.compactNames { Text(habit.name).font(.system(size:11)).lineLimit(1).foregroundStyle(.primary) } }.frame(maxWidth: .infinity, alignment: .leading)
                     }.buttonStyle(.plain)
                     ForEach(days) { day in
                         Button { tap(habit, day) } label: { DayTile(habit: habit, day: day, data: store.data, size: 28).frame(height:44) }
