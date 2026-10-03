@@ -48,6 +48,26 @@ final class HabitBuddyUITests:XCTestCase {
         let app=launch("new-habit");XCTAssertTrue(app.buttons["Save"].waitForExistence(timeout:20));XCTAssertFalse(app.buttons["Save"].isEnabled,"Save stays disabled until the habit has a name.")
         let name=app.textFields["Habit name"];name.tap();name.typeText("Test Habit");app.buttons["Choose Icon"].tap();let search=app.textFields["Search icons or emoji"];XCTAssertTrue(search.waitForExistence(timeout:10));search.tap();search.typeText("dumbbell");app.buttons["Dumbbell"].firstMatch.tap();XCTAssertEqual(name.value as? String,"Test Habit");app.buttons["Save"].tap();XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout:10));let saved=app.buttons["Log progress for Test Habit"];for _ in 0..<6{if saved.exists{break};app.swipeUp()};XCTAssertTrue(saved.exists)
     }
+    func testIconFollowsHabitName() {
+        // Suggestions settle 250 ms after typing pauses.
+        func settles(_ element:XCUIElement,_ value:String,_ message:String="") {
+            XCTAssertEqual(XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:NSPredicate(format:"value == %@",value),object:element)],timeout:5),.completed,message.isEmpty ? "Icon becomes \(value)":message)
+        }
+        let app=launch("new-habit"),name=app.textFields["Habit name"],hero=app.buttons["Choose Icon"]
+        XCTAssertTrue(name.waitForExistence(timeout:20));XCTAssertEqual(hero.value as? String,"Activity");XCTAssertFalse(app.buttons["Use Activity Icon"].exists)
+        name.tap();name.typeText("Quit smoking")
+        XCTAssertTrue(app.buttons["Use Cigarette Off Icon"].waitForExistence(timeout:5));XCTAssertTrue(app.buttons["Use Cigarette Icon"].exists);settles(hero,"Cigarette Off")
+        name.typeText(String(repeating:XCUIKeyboardKey.delete.rawValue,count:12));settles(hero,"Activity","With no matching word the default icon returns")
+        name.typeText("Go to the gym");XCTAssertTrue(app.buttons["Use Dumbbell Icon"].waitForExistence(timeout:5));settles(hero,"Dumbbell");capture(app,"icon-suggestions-gym")
+        app.buttons["Use Biceps Flexed Icon"].tap();XCTAssertEqual(hero.value as? String,"Biceps Flexed")
+        name.typeText(" and swim");XCTAssertTrue(app.buttons["Use Waves Ladder Icon"].waitForExistence(timeout:5),"Suggestions keep following the name")
+        XCTAssertEqual(hero.value as? String,"Biceps Flexed","A chosen icon stays while the name changes")
+        app.buttons["Save"].tap();XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout:10))
+        let editing=launch("editor"),field=editing.textFields["Habit name"],icon=editing.buttons["Choose Icon"]
+        XCTAssertTrue(field.waitForExistence(timeout:20));let original=icon.value as? String;XCTAssertTrue(editing.buttons["Use Dumbbell Icon"].exists,"Gym Day shows its suggestions")
+        field.tap();field.typeText(" swim");XCTAssertTrue(editing.buttons["Use Waves Ladder Icon"].waitForExistence(timeout:5))
+        XCTAssertEqual(icon.value as? String,original,"An existing habit's own icon is not replaced");capture(editing,"icon-suggestions-edit")
+    }
     func testBackfillDaysBeforeHabitStart() {
         let app=launch("new-habit");let name=app.textFields["Habit name"];XCTAssertTrue(name.waitForExistence(timeout:20));name.tap();name.typeText("Backfill Habit");app.buttons["Save"].tap()
         let card=app.buttons["Log progress for Backfill Habit"];XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout:10));for _ in 0..<6{if card.exists{break};app.swipeUp()};app.staticTexts["Backfill Habit"].firstMatch.tap()

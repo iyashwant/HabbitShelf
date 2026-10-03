@@ -120,7 +120,14 @@ enum BuddyIcons {
     static let chrome=["gearshape":"settings","chart.xyaxis.line":"chart-no-axes-combined","plus":"plus","chevron.left":"chevron-left","chevron.right":"chevron-right","square.and.pencil":"square-pen","xmark":"x","square.and.arrow.up":"share","flame.fill":"flame","flame":"flame","target":"target","checkmark":"check","calendar":"calendar","bell":"bell","note.text":"notebook-pen","archivebox":"archive","slider.horizontal.3":"sliders-horizontal","arrow.up.arrow.down":"arrow-up-down","trash":"trash","clock":"clock","folder.fill":"folder","square.grid.3x3.fill":"grid-3x3","pencil":"pencil","eraser":"eraser","timer":"timer","sparkles":"sparkles","trophy":"trophy","snowflake":"snowflake"]
     static func entry(_ symbol:String)->HabitIconEntry? { byID[symbol] ?? aliases[symbol].flatMap{byID["fa:"+$0]} }
     static func lucide(_ name:String)->String? { (byID["lu:"+name] ?? chrome[name].flatMap{byID["lu:"+$0]})?.glyph }
-    static func search(_ text:String)->[HabitIconEntry] { text.isEmpty ? all:all.filter{([$0.id,$0.name]+$0.keywords).joined(separator:" ").localizedCaseInsensitiveContains(text)} }
+    /// Ranks icons for a habit name: the curated keyword catalog, then Lucide's own names and keywords.
+    static let suggester=IconSuggester(icons:all.filter(\.lucide).map{IconSuggester.Entry(id:$0.id,name:$0.name,keywords:$0.keywords)})
+    /// Picker search: icons the habit-name matcher ranks for the query, then every other icon whose name or keywords contain it.
+    static func search(_ text:String)->[HabitIconEntry] {
+        guard !text.isEmpty else { return all }
+        let ranked=suggester.suggest(text,limit:12),first=Set(ranked)
+        return ranked.compactMap{byID[$0]}+all.filter{!first.contains($0.id) && ([$0.id,$0.name]+$0.keywords).joined(separator:" ").localizedCaseInsensitiveContains(text)}
+    }
 }
 /// Outlines from the reference that differ from Lucide, drawn on a 24-point grid.
 enum DrawnGlyph: String {

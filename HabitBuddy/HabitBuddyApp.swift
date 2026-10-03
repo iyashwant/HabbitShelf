@@ -4,7 +4,7 @@ import UserNotifications
 @main struct HabitBuddyApp: App {
     @StateObject private var store = AppStore()
     @StateObject private var timer = TimerController()
-    init() { _ = BuddyIcons.registered }
+    init() { _ = BuddyIcons.registered; Task.detached(priority:.utility) { _ = BuddyIcons.suggester } }
     var body: some Scene {
         WindowGroup {
             OverviewView().environmentObject(store).environmentObject(timer)

@@ -5,7 +5,7 @@ The requested target is a 1:1 match to HabitKit on iOS 27. This matrix separates
 | Feature area | Implemented | Remaining parity or native checks |
 |---|---|---|
 | Offline setup | No account; onboarding; optional clearly labeled sample habits | Compare first-run copy and flow |
-| Habit editor | Name, description, 1,866 Lucide outline icons plus 1,407 Font Awesome icons and emoji, 21 colors, build/quit, tracking, cadence, categories, up to 3 reminders | Matches the reference New Habit sheet (icon cloud, captions, palette ring, Build A Habit / Quit A Habit, TRACKING shown directly, floating Save disabled until named); searchable catalog and full-grapheme custom emoji |
+| Habit editor | Name, description, 1,866 Lucide outline icons plus 1,407 Font Awesome icons and emoji, 21 colors, build/quit, tracking, cadence, categories, up to 3 reminders | Matches the reference New Habit sheet (icon cloud, captions, palette ring, Build A Habit / Quit A Habit, TRACKING shown directly, floating Save disabled until named); searchable catalog and full-grapheme custom emoji. Beyond the reference, the icon follows the name as it is typed, with suggested icons under the Name field |
 | Yes/no / counts / measures | One-tap toggle, increment, total editor, exact 3 decimals, over-goal values, past-date correction | Compare keyboard and editor presentation |
 | Historical goals | Dated target/mode/tracking rules; edits effective today | Reference conversion carry-over / alternative clear-history policies are not reproduced |
 | Streaks | Daily / weekly / monthly; no goal; unfinished-today grace; current period reachability | Partial-period, target-edit and aggregate semantics are defined in ARCHITECTURE.md where docs are incomplete |

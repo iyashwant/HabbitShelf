@@ -5,6 +5,7 @@ struct HabitEditorView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State var habit: Habit
     @State private var target = "1"
     @State private var emoji = ""
@@ -12,6 +13,11 @@ struct HabitEditorView: View {
     @State private var icons = false
     @State private var reminders = false
     @State private var validation: String?
+    /// Icons matched to the name. While `autoIcon` holds, the first one becomes the habit's icon;
+    /// choosing an icon (here or in the picker) ends it. `autoBase` is restored when nothing matches.
+    @State private var suggestedIcons: [String] = []
+    @State private var autoIcon = false
+    @State private var autoBase = ""
     private var existing: Bool { store.habit(habit.id) != nil }
     private var goal: Binding<Goal> { Binding(get: { habit.goals[habit.goals.count - 1] }, set: { habit.goals[habit.goals.count - 1] = $0 }) }
     var body: some View {
@@ -19,8 +25,14 @@ struct HabitEditorView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    Button { icons=true } label: { IconHero(habit:habit) }.buttonStyle(.plain).accessibilityLabel("Choose Icon").padding(.top, 13.8)
-                    field("Name", inset: 5, gap: 6.7) { TextField("", text: $habit.name).textInputAutocapitalization(.sentences).accessibilityLabel("Habit name").buddyField() }.padding(.top, 16.7)
+                    Button { icons=true } label: { IconHero(habit:habit) }.buttonStyle(.plain).accessibilityLabel("Choose Icon").accessibilityValue(BuddyIcons.entry(habit.symbol)?.name ?? "").padding(.top, 13.8)
+                    field("Name", inset: 5, gap: 6.7) {
+                        TextField("", text: $habit.name).textInputAutocapitalization(.sentences).accessibilityLabel("Habit name").buddyField()
+                        if !suggestedIcons.isEmpty {
+                            IconSuggestions(icons: suggestedIcons, selection: habit.symbol, color: BuddyStyle.color(habit.color)) { id in autoIcon = false; withAnimation(motion) { habit.symbol = id } }
+                                .padding(.top, 3).transition(.opacity.combined(with: .move(edge: .top)))
+                        }
+                    }.padding(.top, 16.7)
                     field("Description", inset: 5, gap: 6.7) { TextField("", text: $habit.detail, axis: .vertical).lineLimit(1...4).accessibilityLabel("Description").buddyField() }.padding(.top, 10.5)
                     field("Color", inset: 5) { ColorPalette(selection: $habit.color) }.padding(.top, 13.8)
                     field("Habit Type", inset: 0, gap: 7) {
@@ -72,16 +84,33 @@ struct HabitEditorView: View {
                 PrimaryAction(title:"Save",action:save).disabled(!named).padding(.horizontal,24).padding(.bottom,6)
                     .background(alignment: .bottom) { LinearGradient(colors: [BuddyStyle.canvas(scheme).opacity(0), BuddyStyle.canvas(scheme).opacity(0.85)], startPoint: .top, endPoint: .bottom).frame(height: 120).ignoresSafeArea().allowsHitTesting(false) }
             }
-            .sheet(isPresented:$icons){IconPickerView(selection:$habit.symbol,color:BuddyStyle.color(habit.color)).buddySheet()}
+            .sheet(isPresented:$icons){IconPickerView(selection:Binding(get:{habit.symbol},set:{habit.symbol=$0;autoIcon=false}),color:BuddyStyle.color(habit.color)).buddySheet()}
             .sheet(isPresented: $reminders) { ReminderEditorView(reminders: $habit.reminders).buddySheet() }
-            .onAppear { target = Amount.text(habit.currentGoal.target) }
+            .onAppear { target = Amount.text(habit.currentGoal.target); startIconSuggestions() }
+            .task(id: habit.name) { try? await Task.sleep(for: .milliseconds(250)); if !Task.isCancelled { refreshIcons() } }
+            .onChange(of: habit.currentGoal.mode) { refreshIcons() }
             .onChange(of: habit.currentGoal.cadence) { _, new in if new == .daily || new == .none { goal.wrappedValue.days = 1 } else if new == .weekly { goal.wrappedValue.days = min(7, habit.currentGoal.days) } }
         }
+    }
+    private var motion: Animation? { reduceMotion ? nil : .snappy(duration: 0.25) }
+    /// New habits, and habits still on the default or on the icon their name suggests, follow the name.
+    private func startIconSuggestions() {
+        let quit = habit.currentGoal.mode == .quit
+        autoBase = habit.symbol
+        autoIcon = !existing || habit.symbol == Habit.draft().symbol || habit.symbol == Habit(name: "").symbol || BuddyIcons.suggester.suggest(habit.name, quit: quit, limit: 1).first == habit.symbol
+        suggestedIcons = BuddyIcons.suggester.suggest(habit.name, quit: quit)
+    }
+    private func refreshIcons() {
+        let icons = BuddyIcons.suggester.suggest(habit.name, quit: habit.currentGoal.mode == .quit)
+        let symbol = autoIcon ? icons.first ?? autoBase : habit.symbol
+        guard icons != suggestedIcons || symbol != habit.symbol else { return }
+        withAnimation(motion) { suggestedIcons = icons; if symbol != habit.symbol { habit.symbol = symbol } }
     }
     private func field<Content: View>(_ title: String, inset: CGFloat, gap: CGFloat = 8, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: gap) { Text(title).fieldCaption().foregroundStyle(BuddyStyle.secondaryText(scheme)).padding(.leading, inset); content() }
     }
     private func save() {
+        refreshIcons()
         do {
             var rule = habit.currentGoal
             rule.target = rule.tracking == .yesNo ? 1_000 : try Amount.parse(target)
@@ -125,10 +154,35 @@ struct IconHero: View {
                 ForEach(Self.rows.indices,id:\.self){r in
                     ForEach(Self.rows[r].1,id:\.1){x,name in LucideIcon(name,size:20).position(x:(x-16)*scale,y:mid+Self.rows[r].0)}
                 }.foregroundStyle(c.opacity(0.25))
-                BuddyGlyph(symbol:habit.symbol,size:46).foregroundStyle(c).frame(width:96,height:96)
+                ZStack { BuddyGlyph(symbol:habit.symbol,size:46).id(habit.symbol).transition(.scale(scale:0.6).combined(with:.opacity)) }.foregroundStyle(c).frame(width:96,height:96)
                     .background(Circle().fill(c.opacity(0.14)).background(Circle().fill(BuddyStyle.canvas(scheme)))).position(x:proxy.size.width/2,y:mid)
             }
         }.frame(height:140)
+    }
+}
+/// Icons matched to the habit name as it is typed; the selected one is outlined in the habit color.
+struct IconSuggestions: View {
+    @Environment(\.colorScheme) private var scheme
+    let icons:[String]
+    let selection:String
+    let color:Color
+    let pick:(String)->Void
+    var body:some View {
+        ScrollView(.horizontal,showsIndicators:false) {
+            HStack(spacing:8) {
+                LucideIcon("sparkles",size:15).foregroundStyle(BuddyStyle.tertiaryText(scheme)).frame(width:22)
+                ForEach(icons,id:\.self) { id in
+                    let on=id==selection,shape=RoundedRectangle(cornerRadius:12,style:.circular)
+                    Button { pick(id) } label: {
+                        BuddyGlyph(symbol:id,size:19).foregroundStyle(color).frame(width:42,height:42)
+                            .background(on ? color.opacity(0.14):BuddyStyle.field(scheme),in:shape)
+                            .overlay { shape.strokeBorder(on ? color.opacity(0.6):BuddyStyle.border(scheme,0.1),lineWidth:1) }
+                            .contentShape(shape)
+                    }.buttonStyle(FlatButtonStyle()).transition(.scale(scale:0.8).combined(with:.opacity))
+                        .accessibilityLabel("Use \(BuddyIcons.entry(id)?.name ?? "Suggested") Icon").accessibilityAddTraits(on ? .isSelected:[])
+                }
+            }.padding(.horizontal,5).padding(.vertical,1)
+        }.scrollClipDisabled().accessibilityElement(children:.contain).accessibilityLabel("Suggested Icons")
     }
 }
 struct IconPickerView: View {
