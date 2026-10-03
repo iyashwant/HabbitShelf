@@ -4,14 +4,14 @@ import SwiftUI
 import WidgetKit
 
 /// Refresh every 15 minutes and just after midnight, when "today" changes.
-private func nextRefresh() -> Date {
+func nextRefresh() -> Date {
     let midnight = Calendar.current.startOfDay(for: Date().addingTimeInterval(86_400)).addingTimeInterval(60)
     return min(Date().addingTimeInterval(900), midnight)
 }
-private func loadEntry(habitID: UUID? = nil, selectedIDs: [UUID]? = nil) -> BuddyEntry {
-    guard AppEnvironment.hasSharedContainer else { return BuddyEntry(date: Date(), data: BuddyData(), habitID: habitID, error: "Open Habit Buddy to set up widgets.", selectedIDs: selectedIDs) }
-    do { return BuddyEntry(date: Date(), data: try AppEnvironment.repository.load(), habitID: habitID, error: nil, selectedIDs: selectedIDs) }
-    catch { return BuddyEntry(date: Date(), data: BuddyData(), habitID: habitID, error: "Open Habit Buddy to recover your data.", selectedIDs: selectedIDs) }
+func loadEntry(habitID: UUID? = nil, selectedIDs: [UUID]? = nil, routineID: UUID? = nil, theme: WidgetAppearance = .system) -> BuddyEntry {
+    guard AppEnvironment.hasSharedContainer else { return BuddyEntry(date: Date(), data: BuddyData(), habitID: habitID, error: "Open Habit Buddy to set up widgets.", selectedIDs: selectedIDs, theme: theme, routineID: routineID) }
+    do { return BuddyEntry(date: Date(), data: try AppEnvironment.repository.load(), habitID: habitID, error: nil, selectedIDs: selectedIDs, theme: theme, routineID: routineID) }
+    catch { return BuddyEntry(date: Date(), data: BuddyData(), habitID: habitID, error: "Open Habit Buddy to recover your data.", selectedIDs: selectedIDs, theme: theme, routineID: routineID) }
 }
 
 // MARK: Home Screen and StandBy
@@ -19,7 +19,7 @@ private func loadEntry(habitID: UUID? = nil, selectedIDs: [UUID]? = nil) -> Budd
 struct TodayHomeWidget: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: "TodayRing", intent: ChooseCompactHabitsIntent.self, provider: CompactBuddyProvider()) { DashboardHomeWidget(entry: $0, kind: .today) }
-            .configurationDisplayName("Today Ring").description("Today's habits as a ring of colors. Made for StandBy, too.").supportedFamilies([.systemSmall]).contentMarginsDisabled()
+            .configurationDisplayName("Today Ring").description("Today's habits as a ring of colors; the medium size lists what's left. Made for StandBy, too.").supportedFamilies([.systemSmall, .systemMedium]).contentMarginsDisabled()
     }
 }
 

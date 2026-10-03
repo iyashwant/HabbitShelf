@@ -11,6 +11,32 @@ public struct DayRate: Equatable, Sendable {
         eligible += 1
         if p.success { done += 1 }
     }
+    /// One habit over the last `days` days, through today.
+    public init(_ habit: Habit, days: Int, data: BuddyData, today: Day = Day()) {
+        self.init()
+        let first = max(habit.created, today.adding(-(max(1, days) - 1)))
+        guard first <= today else { return }
+        for day in Day.range(first, today) { add(Engine.progress(habit, day: day, data: data, today: today), today: day == today) }
+    }
+}
+
+/// Each day's kept share across some habits for one week, with the week before for comparison.
+public struct WeekRates: Equatable, Sendable {
+    public var start: Day
+    public var days = Array(repeating: DayRate(), count: 7)
+    public var total = DayRate()
+    public var previous = DayRate()
+    public init(habits: [Habit], data: BuddyData, week: Day, today: Day = Day()) {
+        start = week.startOfWeek(data.settings.weekStart)
+        for habit in habits {
+            for offset in 0..<7 {
+                let day = start.adding(offset), before = start.adding(offset - 7)
+                if day <= today { days[offset].add(Engine.progress(habit, day: day, data: data, today: today), today: day == today) }
+                if before <= today { previous.add(Engine.progress(habit, day: before, data: data, today: today), today: before == today) }
+            }
+        }
+        for rate in days { total.done += rate.done; total.eligible += rate.eligible }
+    }
 }
 
 /// Patterns across habits: weekdays, time of day, the monthly trend and habits that lapse on the same days.

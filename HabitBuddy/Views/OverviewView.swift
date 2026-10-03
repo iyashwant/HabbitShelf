@@ -68,7 +68,7 @@ struct OverviewView: View {
             .navigationDestination(for: OverviewRoute.self) { route in
                 switch route {
                 case .habit(let id): HabitDetailView(id: id)
-                case .dashboard: DashboardView { path.append(.habit($0)) }
+                case .dashboard: DashboardView { path.append($0) }
                 case .explore: ExploreView()
                 case .insights: InsightsView()
                 case .calendar: HabitsCalendarView()
@@ -103,6 +103,7 @@ struct OverviewView: View {
                 case "timer": timing = true; return
                 case "recap": path = [.recap]; return
                 case "today": path = [.calendar]; return
+                case "routines": path = [.routines]; return
                 default: break
                 }
                 guard let id = UUID(uuidString: text), store.habit(id)?.archived == nil else { return }
@@ -263,7 +264,7 @@ struct OverviewView: View {
         let habit=store.data.active[index]
         switch screen {
         case "detail","years","year-calendar":path=[.habit(habit.id)]
-        case "dashboard","today-ring":path=[.dashboard]
+        case "dashboard","today-ring","widgets","widget-config":path=[.dashboard]
         case "explore":path=[.explore]
         case "insights":path=[.insights]
         case "calendar":path=[.calendar]

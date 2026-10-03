@@ -6,33 +6,81 @@ public enum Cadence: String, Codable, CaseIterable, Sendable { case none, daily,
 public enum TapAction: String, Codable, CaseIterable, Sendable { case addOne, enterTotal }
 public enum Theme: String, Codable, CaseIterable, Sendable { case system, light, dark }
 public enum Layout: String, Codable, CaseIterable, Sendable { case cards, compact, month, streaks, list }
-/// Dashboard and home-screen widget designs. Streak, month and today are small (half a row); the rest span the row.
+/// Widget sizes as on the home screen: small takes half a dashboard row, medium a full row, large a full row at double height.
+public enum WidgetSize: String, Codable, CaseIterable, Sendable { case small, medium, large }
+/// Dashboard and home-screen widget designs.
 public enum DashboardKind: String, Codable, CaseIterable, Sendable {
-    case streak, month, today, weeks, months, list
-    public var wide: Bool { self != .streak && self != .month && self != .today }
-    /// The list and today ring summarize all habits.
-    public var needsHabit: Bool { self != .list && self != .today }
+    case streak, month, today, weeks, months, list, ring, stats, year, badge, checks, week, routine
+    /// The sizes the design comes in; the first is its default.
+    public var sizes: [WidgetSize] {
+        switch self {
+        case .streak, .ring, .badge: [.small]
+        case .month: [.small, .large]
+        case .today, .stats, .routine: [.small, .medium]
+        case .weeks, .months, .week: [.medium]
+        case .year: [.medium, .large]
+        case .list: [.large, .medium]
+        case .checks: [.medium, .small, .large]
+        }
+    }
+    /// The today ring, today list, quick check and week summarize several habits.
+    public var multiHabit: Bool { self == .today || self == .list || self == .checks || self == .week }
+    /// Designs about one habit; the rest show several habits or a routine.
+    public var needsHabit: Bool { !multiHabit && self != .routine }
 }
 public enum WidgetStyle: String, Codable, CaseIterable, Sendable { case automatic, light, dark, tinted }
 public struct DashboardWidget: Codable, Identifiable, Equatable, Sendable {
     public var id = UUID()
     public var kind: DashboardKind
-    /// The habit shown; the list widget shows all active habits.
+    /// The habit shown by a single-habit design.
     public var habitID: UUID?
     public var style: WidgetStyle = .automatic
-    public init(kind: DashboardKind, habitID: UUID? = nil, style: WidgetStyle = .automatic) { self.kind = kind; self.habitID = habitID; self.style = style }
-    enum CodingKeys: String, CodingKey { case id, kind, habitID, style }
+    /// One of the design's sizes; nil (or a size the design lacks) uses its default.
+    public var size: WidgetSize?
+    /// The habits a multi-habit design shows, in habit order; nil shows every active habit.
+    public var habitIDs: [UUID]?
+    /// The routine shown by the routine design.
+    public var routineID: UUID?
+    /// A heading in place of a multi-habit design's default, such as "Today".
+    public var title: String?
+    /// A palette color in place of the habit's or routine's own.
+    public var color: String?
+    public init(kind: DashboardKind, habitID: UUID? = nil, style: WidgetStyle = .automatic, size: WidgetSize? = nil) { self.kind = kind; self.habitID = habitID; self.style = style; self.size = size }
+    enum CodingKeys: String, CodingKey { case id, kind, habitID, style, size, habitIDs, routineID, title, color }
+    /// Options were added within schema 1, so older dashboards decode with defaults.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(UUID.self, forKey: .id); kind = try c.decode(DashboardKind.self, forKey: .kind)
         habitID = try c.decodeIfPresent(UUID.self, forKey: .habitID); style = try c.decodeIfPresent(WidgetStyle.self, forKey: .style) ?? .automatic
+        size = try c.decodeIfPresent(WidgetSize.self, forKey: .size); habitIDs = try c.decodeIfPresent([UUID].self, forKey: .habitIDs)
+        routineID = try c.decodeIfPresent(UUID.self, forKey: .routineID); title = try c.decodeIfPresent(String.self, forKey: .title)
+        color = try c.decodeIfPresent(String.self, forKey: .color)
+    }
+    public var resolvedSize: WidgetSize { size.flatMap { kind.sizes.contains($0) ? $0 : nil } ?? kind.sizes[0] }
+    /// Medium and large widgets span the row.
+    public var wide: Bool { resolvedSize != .small }
+    /// The habits shown: one for a single-habit design, the chosen ones (or all) for a multi-habit design.
+    public func habits(in data: BuddyData) -> [Habit] {
+        if kind.needsHabit { return data.active.filter { $0.id == habitID } }
+        guard kind.multiHabit else { return [] }
+        guard let habitIDs else { return data.active }
+        return data.active.filter { habitIDs.contains($0.id) }
+    }
+    /// Whether everything the widget shows still exists; widgets for archived or deleted habits and routines are hidden.
+    public func visible(in data: BuddyData) -> Bool {
+        if kind == .routine { return data.routines.contains { $0.id == routineID } }
+        if kind.needsHabit { return !habits(in: data).isEmpty }
+        return habitIDs == nil || !habits(in: data).isEmpty
     }
     /// The arrangement shown until the dashboard is first edited. IDs are stable so views keep their identity.
     public static func defaults(for habits: [Habit]) -> [DashboardWidget] {
         guard !habits.isEmpty else { return [] }
-        let plan: [(DashboardKind, Int?, WidgetStyle)] = [(.weeks, 0, .dark), (.month, 1, .light), (.streak, 2, .dark), (.months, 3, .light), (.streak, 4, .tinted), (.month, 5, .dark), (.list, nil, .automatic)]
+        let plan: [(DashboardKind, Int?, WidgetStyle, WidgetSize?)] = [
+            (.weeks, 0, .dark, nil), (.today, nil, .automatic, nil), (.ring, 4, .tinted, nil), (.months, 3, .light, nil),
+            (.streak, 2, .dark, nil), (.stats, 5, .light, nil), (.checks, nil, .automatic, nil), (.month, 1, .light, nil),
+            (.badge, 6, .dark, nil), (.year, 7, .dark, nil), (.week, nil, .tinted, nil), (.list, nil, .automatic, nil)]
         return plan.enumerated().map { n, item in
-            var widget = DashboardWidget(kind: item.0, habitID: item.1.map { habits[$0 % habits.count].id }, style: item.2)
+            var widget = DashboardWidget(kind: item.0, habitID: item.1.map { habits[$0 % habits.count].id }, style: item.2, size: item.3)
             widget.id = UUID(uuidString: String(format: "00000000-0000-0000-0002-%012d", n))!
             return widget
         }

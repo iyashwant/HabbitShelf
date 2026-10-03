@@ -151,7 +151,8 @@ final class BuddyCoreTests: XCTestCase {
         let defaults = DashboardWidget.defaults(for: [h])
         XCTAssertEqual(defaults, DashboardWidget.defaults(for: [h]))
         XCTAssertEqual(defaults.last?.kind, .list); XCTAssertNil(defaults.last?.habitID)
-        XCTAssertTrue(defaults.dropLast().allSatisfy { $0.habitID == h.id })
+        XCTAssertTrue(defaults.allSatisfy { $0.kind.needsHabit ? $0.habitID == h.id : $0.habitID == nil })
+        XCTAssertTrue(defaults.allSatisfy { $0.visible(in: data) })
         data.settings.dashboard = [DashboardWidget(kind: .weeks, habitID: h.id, style: .dark), DashboardWidget(kind: .list)]
         XCTAssertEqual(try DataValidation.decode(DataValidation.encode(data), today: today).settings.dashboard, data.settings.dashboard)
         data.settings.dashboard!.append(data.settings.dashboard![0])
@@ -274,6 +275,51 @@ final class BuddyCoreTests: XCTestCase {
         XCTAssertEqual(recap.total, DayRate(done: 10, eligible: 12)); XCTAssertEqual(recap.previous, DayRate(done: 12, eligible: 14))
         XCTAssertEqual(recap.rows.count, 2); XCTAssertEqual(recap.rows[0].days, [true, true, false, true, true, true, nil])
         XCTAssertEqual(recap.perfectDays, 5); XCTAssertEqual(recap.bestDay?.rawValue, "2026-09-28"); XCTAssertEqual(recap.notes, 1)
+    }
+    func testWeekRatesAndRecentRateCountTrackedDays() throws {
+        var data = BuddyData()
+        for n in 0..<2 {
+            var h = Habit(name: "H\(n)", created: Day(rawValue: "2026-09-14")!); h.order = n; h.goals[0].cadence = .daily; data.habits.append(h)
+            for day in Day.range(h.created, today) where !["2026-09-23", "2026-09-30"].contains(day.rawValue) { try Engine.setAmount(1_000, habitID: h.id, day: day, data: &data, today: today) }
+        }
+        let week = WeekRates(habits: data.habits, data: data, week: today, today: today)
+        XCTAssertEqual(week.start.rawValue, "2026-09-28"); XCTAssertEqual(week.total, DayRate(done: 10, eligible: 12)); XCTAssertEqual(week.previous, DayRate(done: 12, eligible: 14))
+        XCTAssertEqual(week.days[2], DayRate(done: 0, eligible: 2)); XCTAssertEqual(week.days[5], DayRate(done: 2, eligible: 2)); XCTAssertEqual(week.days[6], DayRate())
+        XCTAssertEqual(WeekRates(habits: [data.habits[0]], data: data, week: today, today: today).total, DayRate(done: 5, eligible: 6))
+        // Thirty days reach back only to the habit's start; an open today is not counted yet.
+        XCTAssertEqual(DayRate(data.habits[0], days: 30, data: data, today: today), DayRate(done: 18, eligible: 20))
+        XCTAssertEqual(DayRate(data.habits[0], days: 7, data: data, today: today), DayRate(done: 6, eligible: 7))
+        try Engine.setAmount(0, habitID: data.habits[0].id, day: today, data: &data, today: today)
+        XCTAssertEqual(DayRate(data.habits[0], days: 7, data: data, today: today), DayRate(done: 5, eligible: 6))
+    }
+    func testDashboardWidgetOptionsRoundTripAndFallBack() throws {
+        var (data, h) = fixture()
+        var other = Habit(name: "Walk", created: Day(rawValue: "2026-09-28")!); other.order = 1; data.habits.append(other)
+        var routine = Routine(name: "Morning"); routine.habitIDs = [h.id]; data.routines = [routine]
+        var checks = DashboardWidget(kind: .checks, style: .tinted, size: .large); checks.habitIDs = [other.id]; checks.title = "Evening"; checks.color = "rose"
+        var routineWidget = DashboardWidget(kind: .routine, size: .medium); routineWidget.routineID = routine.id
+        data.settings.dashboard = [checks, routineWidget, DashboardWidget(kind: .streak, habitID: h.id, size: .large)]
+        XCTAssertEqual(try DataValidation.decode(DataValidation.encode(data), today: today).settings.dashboard, data.settings.dashboard)
+        XCTAssertEqual(checks.resolvedSize, .large); XCTAssertTrue(checks.wide); XCTAssertEqual(routineWidget.resolvedSize, .medium)
+        // A size the design doesn't come in falls back to its default.
+        XCTAssertEqual(data.settings.dashboard![2].resolvedSize, .small); XCTAssertFalse(data.settings.dashboard![2].wide)
+        XCTAssertEqual(DashboardWidget(kind: .list).resolvedSize, .large); XCTAssertEqual(DashboardWidget(kind: .checks).resolvedSize, .medium)
+        XCTAssertEqual(checks.habits(in: data).map(\.name), ["Walk"]); XCTAssertEqual(DashboardWidget(kind: .week).habits(in: data).map(\.name), ["Read", "Walk"])
+        XCTAssertEqual(DashboardWidget(kind: .ring, habitID: h.id).habits(in: data).map(\.name), ["Read"]); XCTAssertTrue(routineWidget.habits(in: data).isEmpty)
+        XCTAssertTrue(checks.visible(in: data)); XCTAssertTrue(routineWidget.visible(in: data))
+        // Widgets whose habits are all archived, or whose routine was deleted, are hidden rather than removed.
+        data.habits[1].archived = today
+        XCTAssertFalse(checks.visible(in: data)); XCTAssertTrue(DashboardWidget(kind: .week).visible(in: data))
+        data.routines = []; XCTAssertFalse(routineWidget.visible(in: data)); XCTAssertFalse(DashboardWidget(kind: .routine).visible(in: data))
+        // Widgets saved before these options decode with defaults, and unset options aren't written.
+        let old = #"{"id":"00000000-0000-0000-0002-000000000000","kind":"month","habitID":"\#(h.id.uuidString)"}"#
+        let widget = try JSONDecoder().decode(DashboardWidget.self, from: Data(old.utf8))
+        XCTAssertEqual(widget.style, .automatic); XCTAssertNil(widget.size); XCTAssertNil(widget.habitIDs); XCTAssertNil(widget.title); XCTAssertEqual(widget.resolvedSize, .small)
+        let encoded = String(decoding: try JSONEncoder().encode(DashboardWidget(kind: .streak)), as: UTF8.self)
+        XCTAssertFalse(encoded.contains("habitIDs")); XCTAssertFalse(encoded.contains("title")); XCTAssertFalse(encoded.contains("size"))
+        data.habits[1].archived = nil
+        checks.habitIDs = [other.id, other.id]; data.settings.dashboard = [checks]; XCTAssertThrowsError(try DataValidation.validate(data, today: today))
+        checks.habitIDs = nil; checks.title = String(repeating: "x", count: 101); data.settings.dashboard = [checks]; XCTAssertThrowsError(try DataValidation.validate(data, today: today))
     }
     func testMilestonesTrackBestStreakAndTotals() throws {
         var (data, h) = fixture(start: "2026-09-20")

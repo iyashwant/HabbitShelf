@@ -44,6 +44,11 @@ public enum DataValidation {
         if let reminder = data.settings.checkIn { try validate(reminder) }
         if let dashboard = data.settings.dashboard {
             try require(dashboard.count <= 100 && Set(dashboard.map(\.id)).count == dashboard.count, "invalid dashboard")
+            for widget in dashboard {
+                let ids = widget.habitIDs ?? []
+                try require(ids.count <= 1_000 && Set(ids).count == ids.count, "invalid dashboard habits")
+                try require((widget.title?.count ?? 0) <= 100 && (widget.color?.count ?? 0) <= 40, "invalid dashboard widget")
+            }
         }
         try require((0...7).contains(data.settings.freezesPerMonth), "invalid streak freeze allowance")
         try require(data.routines.count <= 100 && Set(data.routines.map(\.id)).count == data.routines.count, "invalid routines")

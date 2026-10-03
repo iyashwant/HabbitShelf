@@ -65,12 +65,15 @@ struct HabitCheck: View {
     var size: CGFloat = 44
     let palette: WidgetPalette
     var onTap: (() -> Void)?
+    /// Shows the habit's icon in place of the check, for the quick check grid.
+    var icon = false
     var body: some View {
         let p = Engine.progress(habit, day: today, data: data, today: today), g = habit.goal(on: today)
         let label = ZStack {
             Circle().fill(p.success ? palette.tint : palette.missed)
             if !p.success && p.fraction > 0 { Circle().trim(from: 0, to: p.fraction).stroke(palette.tint, style: StrokeStyle(lineWidth: max(2, size * 0.07), lineCap: .round)).rotationEffect(.degrees(-90)).padding(size * 0.035) }
-            Image(systemName: p.slip ? "xmark" : g.tracking != .yesNo && !p.success ? "plus" : "checkmark").font(.system(size: size * 0.36, weight: .bold)).foregroundStyle(p.success ? Color.white : palette.tint)
+            if icon { BuddyGlyph(symbol: habit.symbol, size: size * 0.44).foregroundStyle(p.success ? Color.white : palette.tint) }
+            else { Image(systemName: p.slip ? "xmark" : g.tracking != .yesNo && !p.success ? "plus" : "checkmark").font(.system(size: size * 0.36, weight: .bold)).foregroundStyle(p.success ? Color.white : palette.tint) }
         }.frame(width: size, height: size).contentShape(Circle())
         Group {
             if let onTap { Button(action: onTap) { label }.buttonStyle(.plain) }
@@ -171,29 +174,51 @@ struct WeekColumns: View {
 /// The content of one dashboard or home-screen widget, without its background.
 struct HabitWidgetContent: View {
     let kind: DashboardKind
+    /// One of the design's sizes; nil uses its default.
+    var size: WidgetSize?
     let habit: Habit?
     let data: BuddyData
+    /// The habits a multi-habit design shows.
     var habits: [Habit] = []
+    var routine: Routine?
+    /// A heading in place of the design's default.
+    var title: String?
     var today = Day()
     let palette: WidgetPalette
     /// Logs today in the app; nil on the home screen, where the check runs an intent.
     var onCheck: ((Habit) -> Void)?
+    /// Completes a routine in the app; nil on the home screen, where the button runs an intent.
+    var onRoutine: ((Routine) -> Void)?
+    var resolvedSize: WidgetSize { size.flatMap { kind.sizes.contains($0) ? $0 : nil } ?? kind.sizes[0] }
     var body: some View {
-        if let habit {
-            let streak = Engine.streak(habit, data: data, today: today)
-            switch kind {
-            case .streak: streakTile(habit, streak)
-            case .month: month(habit, streak)
-            case .weeks: weeksTile(habit, streak)
-            case .months: months(habit, streak)
-            case .list: list
-            case .today: todayTile
-            }
-        } else if kind == .list { list }
-        else if kind == .today { todayTile }
-        else { Text("Choose a habit for this widget.").font(BuddyFont.text(13)).foregroundStyle(palette.secondary).frame(maxWidth: .infinity, maxHeight: .infinity) }
+        switch kind {
+        case .list: list
+        case .today: todayTile
+        case .checks: checksTile
+        case .week: weekTile
+        case .routine:
+            if let routine { routineTile(routine) } else { placeholder("Choose a routine for this widget.") }
+        default:
+            if let habit { single(habit) } else { placeholder("Choose a habit for this widget.") }
+        }
     }
-    private func check(_ habit: Habit, _ size: CGFloat) -> HabitCheck {
+    @ViewBuilder private func single(_ habit: Habit) -> some View {
+        switch kind {
+        case .streak: streakTile(habit, Engine.streak(habit, data: data, today: today))
+        case .month: if resolvedSize == .large { monthLarge(habit) } else { month(habit, Engine.streak(habit, data: data, today: today)) }
+        case .weeks: weeksTile(habit, Engine.streak(habit, data: data, today: today))
+        case .months: months(habit, Engine.streak(habit, data: data, today: today))
+        case .ring: ringTile(habit)
+        case .stats: statsTile(habit)
+        case .year: yearTile(habit)
+        case .badge: badgeTile(habit)
+        default: EmptyView()
+        }
+    }
+    func placeholder(_ text: String) -> some View {
+        Text(text).font(BuddyFont.text(13)).foregroundStyle(palette.secondary).multilineTextAlignment(.center).padding(14).frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    func check(_ habit: Habit, _ size: CGFloat) -> HabitCheck {
         HabitCheck(habit: habit, data: data, today: today, size: size, palette: palette, onTap: onCheck.map { action in { action(habit) } })
     }
     private func streakTile(_ habit: Habit, _ streak: StreakSummary) -> some View {
@@ -243,57 +268,83 @@ struct HabitWidgetContent: View {
                     let month = today.startOfMonth.addingMonths(n - 2)
                     if n > 0 { palette.outline.frame(width: 1).padding(.horizontal, 8) }
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(Day.shortMonth.string(from: month.date)).font(BuddyFont.text(12, .semibold)).foregroundStyle(palette.primary)
-                            + Text(" '" + String(month.rawValue.prefix(4).suffix(2))).font(BuddyFont.text(12)).foregroundStyle(palette.secondary)
+                        Text("\(Text(Day.shortMonth.string(from: month.date)).font(BuddyFont.text(12, .semibold)).foregroundStyle(palette.primary))\(Text(" '" + String(month.rawValue.prefix(4).suffix(2))).font(BuddyFont.text(12)).foregroundStyle(palette.secondary))")
                         MonthDots(habit: habit, data: data, month: month, today: today, palette: palette, gap: 2.5)
                     }.frame(maxWidth: .infinity, alignment: .topLeading)
                 }
             }.frame(maxHeight: .infinity, alignment: .top)
         }.padding(14)
     }
-    /// Today's habits as a ring of colored segments, one per habit, filled when done.
+    /// Today's habits as a ring of colored segments, one per habit, filled when done. The medium size lists what's still open.
     private var todayTile: some View {
-        let done = habits.filter { Engine.progress($0, day: today, data: data, today: today).success }.count
-        return VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Today").font(BuddyFont.text(17, .bold)).foregroundStyle(palette.primary)
-                Spacer(minLength: 4)
-                Text(Day.shortWeekday.string(from: today.date).uppercased()).font(BuddyFont.text(10.5, .semibold)).tracking(0.5).foregroundStyle(palette.secondary)
+        let done = habits.filter { Engine.progress($0, day: today, data: data, today: today).success }
+        let ring = TodayRing(habits: habits, data: data, today: today, palette: palette)
+            .overlay {
+                VStack(spacing: 0) {
+                    Text("\(done.count)/\(habits.count)").font(BuddyFont.text(26, .heavy)).monospacedDigit().foregroundStyle(palette.primary).minimumScaleFactor(0.6).lineLimit(1)
+                    Text(habits.isEmpty ? "NO HABITS" : done.count == habits.count ? "ALL DONE" : "DONE").font(BuddyFont.text(9.5, .semibold)).tracking(0.6).foregroundStyle(palette.secondary)
+                }.padding(.horizontal, 18)
             }
-            TodayRing(habits: habits, data: data, today: today, palette: palette)
-                .overlay {
-                    VStack(spacing: 0) {
-                        Text("\(done)/\(habits.count)").font(BuddyFont.text(26, .heavy)).monospacedDigit().foregroundStyle(palette.primary).minimumScaleFactor(0.6).lineLimit(1)
-                        Text(habits.isEmpty ? "NO HABITS" : done == habits.count ? "ALL DONE" : "DONE").font(BuddyFont.text(9.5, .semibold)).tracking(0.6).foregroundStyle(palette.secondary)
-                    }.padding(.horizontal, 18)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }.padding(14)
-        .accessibilityElement(children: .ignore).accessibilityLabel("Today, \(done) of \(habits.count) habits done")
+        let header = HStack(alignment: .firstTextBaseline) {
+            Text(heading("Today")).font(BuddyFont.text(17, .bold)).foregroundStyle(palette.primary).lineLimit(1)
+            Spacer(minLength: 4)
+            Text(Day.shortWeekday.string(from: today.date).uppercased()).font(BuddyFont.text(10.5, .semibold)).tracking(0.5).foregroundStyle(palette.secondary)
+        }
+        return Group {
+            if resolvedSize == .medium {
+                let open = habits.filter { h in !done.contains { $0.id == h.id } }, shown = open.prefix(3)
+                HStack(spacing: 16) {
+                    ring.frame(maxHeight: .infinity)
+                    VStack(alignment: .leading, spacing: 7) {
+                        header.padding(.bottom, 1)
+                        if habits.isEmpty { Text("Create habits in Habit Buddy.").font(BuddyFont.text(13)).foregroundStyle(palette.secondary) }
+                        else if open.isEmpty { Label("Everything's done", systemImage: "checkmark.circle.fill").font(BuddyFont.text(13.5, .medium)).foregroundStyle(palette.primary) }
+                        ForEach(shown) { habit in
+                            HStack(spacing: 8) {
+                                HabitCheck(habit: habit, data: data, today: today, size: 24, palette: rowPalette(habit), onTap: onCheck.map { action in { action(habit) } })
+                                Text(habit.name).font(BuddyFont.text(13.5, .medium)).foregroundStyle(palette.primary).lineLimit(1)
+                            }
+                        }
+                        if open.count > shown.count { Text("+\(open.count - shown.count) more to go").font(BuddyFont.text(12)).foregroundStyle(palette.secondary).padding(.leading, 2) }
+                        Spacer(minLength: 0)
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                }.padding(14)
+            } else {
+                VStack(alignment: .leading, spacing: 8) { header; ring.frame(maxWidth: .infinity, maxHeight: .infinity) }.padding(14)
+            }
+        }
+        .accessibilityElement(children: resolvedSize == .medium ? .contain : .ignore).accessibilityLabel("\(heading("Today")), \(done.count) of \(habits.count) habits done")
     }
     private var list: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        let medium = resolvedSize == .medium
+        return VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Today").font(BuddyFont.text(22, .heavy)).foregroundStyle(palette.primary)
+                Text(heading("Today")).font(BuddyFont.text(medium ? 19 : 22, .heavy)).foregroundStyle(palette.primary).lineLimit(1)
                 Spacer()
-                Text(Day.longDay.string(from: today.date)).font(BuddyFont.text(11, .medium)).foregroundStyle(palette.secondary)
-            }.padding(.bottom, 8)
+                Text(Day.longDay.string(from: today.date)).font(BuddyFont.text(11, .medium)).foregroundStyle(palette.secondary).lineLimit(1)
+            }.padding(.bottom, medium ? 4 : 8)
             if habits.isEmpty { Text("Create habits in Habit Buddy.").font(BuddyFont.text(13)).foregroundStyle(palette.secondary).frame(maxWidth: .infinity, maxHeight: .infinity) }
-            ForEach(habits.prefix(6)) { habit in
-                let streak = Engine.streak(habit, data: data, today: today), tint = BuddyStyle.color(habit.color)
-                let rowPalette = WidgetPalette(palette.dark ? .dark : .light, scheme: palette.dark ? .dark : .light, tint: tint)
+            ForEach(habits.prefix(medium ? 3 : 6)) { habit in
+                let streak = Engine.streak(habit, data: data, today: today), rowPalette = rowPalette(habit)
                 HStack(spacing: 10) {
-                    HabitCheck(habit: habit, data: data, today: today, size: 30, palette: rowPalette, onTap: onCheck.map { action in { action(habit) } })
-                    VStack(alignment: .leading, spacing: 4) {
+                    HabitCheck(habit: habit, data: data, today: today, size: medium ? 28 : 30, palette: rowPalette, onTap: onCheck.map { action in { action(habit) } })
+                    VStack(alignment: .leading, spacing: medium ? 3 : 4) {
                         Text(habit.name).font(BuddyFont.text(14, .semibold)).foregroundStyle(palette.primary).lineLimit(1)
-                        WeekStrip(habit: habit, data: data, today: today, palette: rowPalette, cell: 12)
+                        WeekStrip(habit: habit, data: data, today: today, palette: rowPalette, cell: medium ? 11 : 12)
                     }
                     Spacer(minLength: 4)
-                    StreakBadge(summary: streak, palette: rowPalette, size: 17, trailing: true)
+                    StreakBadge(summary: streak, palette: rowPalette, size: medium ? 15 : 17, trailing: true)
                 }.frame(maxHeight: .infinity)
             }
         }.padding(14)
     }
+    /// The widget's own title, or the design's default.
+    func heading(_ fallback: String) -> String {
+        guard let text = title?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return fallback }
+        return text
+    }
+    /// Each habit keeps its own color inside multi-habit designs.
+    func rowPalette(_ habit: Habit) -> WidgetPalette { WidgetPalette(palette.dark ? .dark : .light, scheme: palette.dark ? .dark : .light, tint: BuddyStyle.color(habit.color)) }
 }
 
 /// One arc per habit around a ring, in the habit's color: solid when done, faint when open.
@@ -327,9 +378,32 @@ extension Day {
     static let shortWeekday: DateFormatter = { let f = DateFormatter(); f.locale = .autoupdatingCurrent; f.timeZone = TimeZone(secondsFromGMT: 0); f.dateFormat = "EEE"; return f }()
 }
 extension DashboardKind {
-    var title: String { switch self { case .streak: "Streak"; case .month: "This Month"; case .today: "Today Ring"; case .weeks: "20 Weeks"; case .months: "Three Months"; case .list: "Today List" } }
-    var symbol: String { switch self { case .streak: "flame"; case .month: "calendar"; case .today: "circle-check"; case .weeks: "grid-3x3"; case .months: "calendar-range"; case .list: "list-checks" } }
+    var title: String {
+        switch self {
+        case .streak: "Streak"; case .month: "This Month"; case .today: "Today Ring"; case .weeks: "20 Weeks"; case .months: "Three Months"; case .list: "Today List"
+        case .ring: "Goal Ring"; case .stats: "Stats"; case .year: "This Year"; case .badge: "Next Badge"; case .checks: "Quick Check"; case .week: "This Week"; case .routine: "Routine"
+        }
+    }
+    var symbol: String {
+        switch self {
+        case .streak: "flame"; case .month: "calendar"; case .today: "circle-check"; case .weeks: "grid-3x3"; case .months: "calendar-range"; case .list: "list-checks"
+        case .ring: "circle-gauge"; case .stats: "chart-no-axes-column"; case .year: "calendar-days"; case .badge: "trophy"; case .checks: "layout-grid"; case .week: "chart-column"; case .routine: "list-todo"
+        }
+    }
+    /// The heading a multi-habit design shows unless the widget has its own title.
+    var defaultTitle: String { self == .week ? "This Week" : "Today" }
+    /// Whether the design at this size shows a heading the widget's title can replace.
+    func showsTitle(_ size: WidgetSize) -> Bool { self == .today || self == .list || self == .week || (self == .checks && size == .large) }
+    /// Whether the widget's color shows beyond a tinted background; multi-habit designs keep each habit's color.
+    var usesAccent: Bool { !(self == .today || self == .list || self == .checks) }
 }
 extension WidgetStyle {
     var title: String { switch self { case .automatic: "Auto"; case .light: "Light"; case .dark: "Dark"; case .tinted: "Tinted" } }
+}
+extension WidgetSize {
+    var title: String { switch self { case .small: "Small"; case .medium: "Medium"; case .large: "Large" } }
+}
+extension DashboardKind {
+    /// The design's sizes from small to large, for pickers.
+    var sizesInOrder: [WidgetSize] { WidgetSize.allCases.filter(sizes.contains) }
 }

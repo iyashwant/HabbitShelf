@@ -86,6 +86,95 @@ final class HabitBuddyUITests:XCTestCase {
         XCTAssertGreaterThan(check.count,before,"The new streak widget for the first habit appears on the dashboard.")
         capture(app,"dashboard-added")
     }
+    /// Every dashboard design, size and option, captured a screen at a time.
+    func testDashboardWidgetCaptures() {
+        for (screen,theme,pages) in [("dashboard","dark",6),("widgets","dark",7),("widgets","light",7),("widget-config","dark",4)] {
+            let app=launch(screen,theme:theme)
+            XCTAssertTrue((screen=="widget-config" ? app.buttons["save-widget"]:app.buttons["Edit Dashboard"]).waitForExistence(timeout:20));sleep(1)
+            for page in 0..<pages {
+                if page>0 {app.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.78)).press(forDuration:0.05,thenDragTo:app.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.3)));sleep(1)}
+                capture(app,"\(screen)-\(theme)-\(page)")
+            }
+            app.terminate()
+        }
+    }
+    func testWidgetCustomization() {
+        let app=launch("dashboard"),pushUps=app.buttons.matching(identifier:"Log progress for Push-Ups")
+        XCTAssertTrue(app.buttons["Edit Dashboard"].waitForExistence(timeout:20));let before=pushUps.count
+        app.buttons["Add Widget"].firstMatch.tap();let save=app.buttons["save-widget"];XCTAssertTrue(save.waitForExistence(timeout:10))
+        app.buttons["Several Habits"].tap();app.buttons["Quick Check"].tap();app.buttons["Small"].tap();app.buttons["Gym Day"].firstMatch.tap();app.buttons["Push-Ups"].firstMatch.tap()
+        XCTAssertTrue(app.staticTexts["Shows 2 chosen. Tap a habit to add or remove it."].exists)
+        capture(app,"widget-config-quick-check");save.tap()
+        XCTAssertTrue(app.buttons["Edit Dashboard"].waitForExistence(timeout:10));XCTAssertEqual(pushUps.count,before+1,"The small quick check shows the chosen habits")
+        let gym=app.buttons.matching(identifier:"Log progress for Gym Day"),added=gym.element(boundBy:gym.count-1);for _ in 0..<8{if added.isHittable{break};app.swipeUp()}
+        XCTAssertEqual(added.value as? String,"Not done");added.tap();XCTAssertEqual(added.value as? String,"Done","A quick check icon logs today")
+        added.press(forDuration:1.2);let duplicate=app.buttons["Duplicate"];XCTAssertTrue(duplicate.waitForExistence(timeout:10));duplicate.tap()
+        XCTAssertTrue(app.buttons["Edit Dashboard"].waitForExistence(timeout:10));XCTAssertEqual(pushUps.count,before+2,"Duplicate adds a copy of the widget")
+        capture(app,"dashboard-quick-check-added")
+    }
+    /// Opt-in, on a simulator kept for it: loads the sample habits into the real store, pages through Habit Buddy's
+    /// widget gallery and adds widgets to the Home Screen. Widgets need the App Group, so build signed to run locally
+    /// (without CODE_SIGNING_ALLOWED=NO) and pass TEST_RUNNER_BUDDY_HOME_WIDGETS=1.
+    func testHomeScreenWidgetGallery() throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["BUDDY_HOME_WIDGETS"] == "1", "Changes the Home Screen; opt in with TEST_RUNNER_BUDDY_HOME_WIDGETS=1")
+        let app=XCUIApplication();app.launchArguments=["-AppleLanguages","(en)","-AppleLocale","en_US"];app.launch()
+        if app.buttons["Continue"].waitForExistence(timeout:8){app.buttons["Continue"].tap()}
+        if app.buttons["Try sample habits"].waitForExistence(timeout:8){app.buttons["Try sample habits"].tap()}
+        XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout:10));sleep(2)
+        // A second press leaves Home Screen editing if an earlier run stopped in it.
+        XCUIDevice.shared.press(.home);sleep(2);XCUIDevice.shared.press(.home);sleep(1)
+        let springboard=XCUIApplication(bundleIdentifier:"com.apple.springboard")
+        func shot(_ name:String){let a=XCTAttachment(screenshot:XCUIScreen.main.screenshot());a.name=name;a.lifetime = .keepAlways;add(a)}
+        func dump(_ step:String){print("SPRINGBOARD \(step)\n"+springboard.debugDescription)}
+        func openGallery()->Bool {
+            springboard.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.6)).press(forDuration:1.6)
+            if !springboard.buttons["Edit"].waitForExistence(timeout:4) {
+                let menu=springboard.buttons["Edit Home Screen"];guard menu.waitForExistence(timeout:3) else{dump("no edit mode");return false};menu.tap()
+                guard springboard.buttons["Edit"].waitForExistence(timeout:5) else{dump("no edit button");return false}
+            }
+            springboard.buttons["Edit"].tap()
+            let add=springboard.buttons["Add Widget"];guard add.waitForExistence(timeout:5) else{dump("no add widget");return false};add.tap()
+            let cell=springboard.cells["Habit Buddy"];guard cell.waitForExistence(timeout:8) else{dump("no app cell");return false}
+            for _ in 0..<4{if cell.isHittable{break};springboard.swipeUp()}
+            cell.tap();return springboard.pageIndicators.firstMatch.waitForExistence(timeout:8)
+        }
+        let pager=springboard.pageIndicators.matching(NSPredicate(format:"value BEGINSWITH 'page '")).firstMatch
+        func next(){springboard.coordinate(withNormalizedOffset:CGVector(dx:0.85,dy:0.6)).press(forDuration:0.05,thenDragTo:springboard.coordinate(withNormalizedOffset:CGVector(dx:0.15,dy:0.6)));sleep(2)}
+        /// The preview on screen, such as "Habit Buddy, Quick Check|Widget, Medium".
+        func showing()->String {
+            let previews=springboard.buttons.matching(NSPredicate(format:"label BEGINSWITH 'Habit Buddy, '")).allElementsBoundByIndex
+            return previews.first{$0.exists && $0.frame.minX>=0 && $0.frame.maxX<=springboard.frame.width}.map{"\($0.label)|\($0.value as? String ?? "")"} ?? ""
+        }
+        guard openGallery() else{XCTFail("Couldn't open Habit Buddy's widget gallery");return}
+        sleep(2);var last=""
+        for page in 0..<30 {
+            let value=pager.value as? String ?? "";if value==last{break};last=value
+            print("GALLERY_PAGE \(value) \(showing())");shot(String(format:"gallery-%02d",page));next()
+        }
+        XCTAssertEqual(last,"page 25 of 25","Every design and size is in the gallery")
+        springboard.buttons["close"].firstMatch.tap();sleep(1);XCUIDevice.shared.press(.home);sleep(2)
+        // Put a few designs on the Home Screen and use their buttons there.
+        for (name,size) in [("This Year","Medium"),("Goal Ring","Small"),("Routine","Small"),("Quick Check","Medium")] {
+            guard openGallery() else{XCTFail("Couldn't reopen the gallery");return}
+            sleep(1);var found=false
+            for _ in 0..<26 { if showing()=="Habit Buddy, \(name)|Widget, \(size)" {found=true;break};next() }
+            XCTAssertTrue(found,"\(name) \(size) is in the gallery");guard found else{continue}
+            springboard.buttons[" Add Widget"].firstMatch.tap();sleep(2)
+            if springboard.buttons["Done"].waitForExistence(timeout:5){springboard.buttons["Done"].tap()};sleep(2);XCUIDevice.shared.press(.home);sleep(1)
+        }
+        sleep(3);shot("home-widgets");dump("home")
+        let complete=springboard.buttons["Complete All in Morning"].firstMatch
+        if complete.waitForExistence(timeout:5){complete.tap();sleep(4);shot("home-widgets-routine-done")}
+        let gym=springboard.buttons["Log progress for Gym Day"].firstMatch
+        if gym.waitForExistence(timeout:5){gym.tap();sleep(4);shot("home-widgets-gym-logged")}
+        XCUIDevice.shared.press(.home);sleep(1);XCUIDevice.shared.press(.home)
+    }
+    func testRoutineWidgetCompletesRoutine() {
+        let app=launch("widgets"),all=app.buttons["Complete All in Morning"].firstMatch
+        XCTAssertTrue(all.waitForExistence(timeout:20));all.tap()
+        XCTAssertTrue(app.descendants(matching:.any)["Morning is done"].firstMatch.waitForExistence(timeout:10),"Complete All in the routine widget finishes the routine")
+        XCTAssertFalse(app.buttons["Complete All in Morning"].exists)
+    }
     func testRoutineCompletesItsHabits() {
         let app=launch("routines"),all=app.buttons["Complete All in Morning"].firstMatch
         XCTAssertTrue(all.waitForExistence(timeout:20));XCTAssertTrue(all.isEnabled);all.tap()

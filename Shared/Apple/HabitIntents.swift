@@ -26,6 +26,12 @@ enum WidgetAppearance: String, AppEnum {
     static var caseDisplayRepresentations: [Self:DisplayRepresentation] = [.system:"System",.light:"Light",.dark:"Dark",.tinted:"Tinted"]
     var style: WidgetStyle { switch self { case .system: .automatic; case .light: .light; case .dark: .dark; case .tinted: .tinted } }
 }
+struct ChooseRoutineWidgetIntent: WidgetConfigurationIntent {
+    static var title: LocalizedStringResource = "Choose Routine"
+    static var description = IntentDescription("Choose the routine shown in this widget.")
+    @Parameter(title: "Routine") var routine: RoutineEntity?
+    @Parameter(title: "Theme", default: .system) var theme: WidgetAppearance
+}
 struct ChooseCompactHabitsIntent: WidgetConfigurationIntent {
     static var title: LocalizedStringResource = "Choose Habits"
     @Parameter(title: "Habits") var habits: [HabitEntity]?

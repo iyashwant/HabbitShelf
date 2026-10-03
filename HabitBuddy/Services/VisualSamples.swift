@@ -51,6 +51,17 @@ enum VisualSamples {
 data.settings.onboarding=screen != "welcome";data.settings.theme=ProcessInfo.processInfo.environment["BUDDY_VISUAL_THEME"] == "light" ? .light:.dark
         data.settings.layout=Layout(rawValue:screen) ?? .cards
         if screen=="today-ring" { data.settings.dashboard=[DashboardWidget(kind:.today,style:.dark),DashboardWidget(kind:.today,style:.light),DashboardWidget(kind:.today,style:.tinted),DashboardWidget(kind:.streak,habitID:data.habits[6].id,style:.automatic)] }
+        // Every design in the sizes and options the default dashboard doesn't show.
+        if screen=="widgets", data.habits.count>=8, let routine=data.routines.first {
+            func habit(_ kind:DashboardKind,_ n:Int,_ style:WidgetStyle,_ size:WidgetSize?=nil)->DashboardWidget { DashboardWidget(kind:kind,habitID:data.habits[n].id,style:style,size:size) }
+            var routineSmall=DashboardWidget(kind:.routine,style:.light);routineSmall.routineID=routine.id
+            var routineMedium=DashboardWidget(kind:.routine,style:.tinted,size:.medium);routineMedium.routineID=routine.id
+            var evening=DashboardWidget(kind:.checks,style:.tinted,size:.large);evening.title="Evening";evening.habitIDs=[2,5,6,7,9].map{data.habits[$0].id};evening.color="violet"
+            var week=DashboardWidget(kind:.week,style:.light);week.color="green"
+            data.settings.dashboard=[habit(.ring,6,.dark),habit(.ring,0,.light),habit(.badge,1,.automatic),habit(.stats,3,.tinted),habit(.stats,5,.dark,.medium),
+                                     DashboardWidget(kind:.today,style:.automatic,size:.medium),routineSmall,DashboardWidget(kind:.checks,style:.dark,size:.small),routineMedium,
+                                     habit(.year,0,.dark,.large),habit(.month,7,.light,.large),evening,DashboardWidget(kind:.list,style:.dark,size:.medium),week]
+        }
         return data
     }
     #endif
