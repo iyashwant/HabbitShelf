@@ -18,6 +18,34 @@ Validation evidence:
 
 “Confirmed” below means a path or algorithm is present in source. It does not mean a visible hitch has been reproduced. “Profile” identifies work whose actual cost needs a trace. P0/P1/P2 are implementation priorities for this performance effort, not production incident classifications.
 
+## Implementation status (4 October 2026)
+
+The fixes below landed on `dev` after this audit. The findings table that follows is kept as audited. "Done" means the source change is in place and covered by the tests in `docs/VALIDATION.md`; none of these changes has been profiled on an iPhone yet, so the device plan at the end still applies before claiming latency or frame-rate gains.
+
+| Finding | Status | What changed |
+|---|---|---|
+| Check-ins block the UI | Done | `AppStore.change` applies a change to the snapshot on screen, then a serial persistence queue runs it again in a locked transaction on the latest file. Queued changes are reapplied over each saved snapshot; a failed save is dropped and reported. Toggles decide from the saved amount. The haptic no longer waits for the disk. Reminder title and message save when editing ends, not per keystroke. |
+| Linear record-to-habit validation | Done | ID index; key and note-length checks without per-record strings. The store and daily backups are compact JSON; exports stay formatted. |
+| Whole-database publishing | Partly | Screens key background work on `AppStore.revision` instead of comparing snapshots, and widget/reminder refreshes are skipped for app-only settings. The store still publishes one snapshot; per-screen inputs and Observation are not done. |
+| Lifetime stats and streaks in view bodies | Done (on the main thread) | `Engine.history` reads each habit once for stats, streaks and milestones (three passes become two). The store's `HabitSummaries` cache keeps each habit's result until the next snapshot. It is computed lazily on the main thread, not precomputed off-main. |
+| Explore badges | Done | Captions are computed off the main thread per snapshot. |
+| Eager long lists | Mostly | Compact rows, per-habit notes, milestones, routines and the day/routine sheets are lazy. Dashboard rows stay eager: in a lazy stack, touching and holding a widget's check logged it instead of opening the widget menu (simulator UI test). |
+| Full-history heatmaps | Done | 16-week chunks in a lazy stack; the oldest chunk may start up to 15 weeks early in the pre-start shade so all chunks share one width. |
+| Statistics | Done | Summary computed off-main per habit/year/snapshot; the all-habits grid reads kept days from the summary instead of building a temporary database. |
+| Insights stale results | Done | One cancellable request per range, habit, snapshot and day; stale results are dropped; a refreshing indicator shows. Pairs use only the 30 candidates, are cached per range and snapshot, and have unique IDs; months are indexed directly. |
+| Notes search | Done | Index built off-main per snapshot; filtering runs off-main 120 ms after typing pauses. Icon search strings are built once. |
+| Unbounded PNG exports | Done | Layout is measured before allocation and scaled to at most 24 million pixels; Year Review shares 12 habits (24 in Grid) per image; encoding and writing run in the background; progress and a double-tap guard. |
+| Saved file larger than the decoder accepts | Done | Commits over 64 MiB are refused before touching the file; imports and backups are size-checked before reading. |
+| Competing reminder reconciliation | Done in-process | `ReminderCoordinator` runs one reconciliation at a time with latest-data semantics and changes only requests whose content or time differ. Separate processes (intents) still reconcile independently. |
+| Widget store reads and reloads | Partly | One repository per process, entries sort active habits once, app-only settings skip reloads, and the midnight refresh uses calendar day addition. Data changes still reload every widget kind. |
+| Timer finish race | Done | The session is claimed inside the store's locked transaction, so app and Live Activity can't both log it. A shared coordinator for start-during-finish is not added. |
+| Synchronous launch, reload, import and export | Done | All run on the persistence queue; launch shows the empty canvas until loaded; imports read and decode off-main; the Lucide and Font Awesome catalogs load separately. Font registration still runs at launch. |
+| Repeated sorting and lookups | Done | `activeHabit(_:)`, per-habit key prefixes, an ordered goal cursor in the history pass, set membership for chosen habits, one calendar month model. |
+| Feedback and touch | Partly | Haptics fire immediately, the check-in animation respects Reduce Motion, and compact day tiles take the whole 38-point pitch. Pressed-state styling is unchanged. |
+| Render and layout polish (P3) | Not changed | Still needs a GPU/layout trace. Month and year grids now reuse their day marks for the VoiceOver label. |
+
+Persistence jobs emit a "Persistence job" signpost interval for Instruments, and `PerformanceTests` adds XCTest baselines for validating 100,000 records and reading ten-year histories.
+
 ## Optimizations already present
 
 Preserve these improvements rather than rebuilding them:
