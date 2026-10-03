@@ -5,7 +5,9 @@ import UserNotifications
 enum AppEnvironment {
     static var repository: BuddyRepository {
         #if DEBUG
-        if ProcessInfo.processInfo.environment["BUDDY_VISUAL_SCREEN"] != nil { return BuddyRepository(directory:FileManager.default.urls(for:.applicationSupportDirectory,in:.userDomainMask)[0].appendingPathComponent("VisualAudit")) }
+        let environment=ProcessInfo.processInfo.environment
+        // Each fixture gets its own store, so a fixture pinned to another date can't invalidate it.
+        if environment["BUDDY_VISUAL_SCREEN"] != nil { return BuddyRepository(directory:FileManager.default.urls(for:.applicationSupportDirectory,in:.userDomainMask)[0].appendingPathComponent("VisualAudit"+(environment["BUDDY_VISUAL_FIXTURE"].map{"-"+$0} ?? ""))) }
         #endif
         let group = Bundle.main.object(forInfoDictionaryKey: "BuddyAppGroup") as? String ?? "group.com.iyashwant.habbitbuddy"
         guard let root = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group) else {
@@ -23,6 +25,7 @@ enum AppEnvironment {
         if ProcessInfo.processInfo.environment["BUDDY_VISUAL_SCREEN"] != nil{return}
         #endif
         WidgetCenter.shared.reloadAllTimelines()
+        ControlCenter.shared.reloadAllControls()
         await NotificationService.reconcile(data)
     }
 }

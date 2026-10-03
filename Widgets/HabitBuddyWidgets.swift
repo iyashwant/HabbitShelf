@@ -57,7 +57,7 @@ struct CompactHabitsWidgetView: View {
                     HStack(spacing: 5) {
                         Link(destination: URL(string: "habitbuddy://\(habit.id.uuidString)")!) { HabitIcon(habit: habit, size: 23) }
                         ForEach(Day.range(Day(entry.date).adding(-(days - 1)), Day(entry.date))) { day in
-                            WidgetHabitAction(habit: habit, day: day, data: entry.data, compact: true).disabled(!habit.available(on: day, today: Day()))
+                            WidgetHabitAction(habit: habit, day: day, data: entry.data, compact: true).disabled(!habit.loggable(on: day, today: Day()))
                         }
                     }.frame(maxHeight: .infinity)
                 }
@@ -116,4 +116,41 @@ struct LargeCompactHabitsWidget:Widget {
     let kind="CompactHabitsLarge"
     var body:some WidgetConfiguration{AppIntentConfiguration(kind:kind,intent:ChooseCompactHabitsIntent.self,provider:CompactBuddyProvider()){entry in WidgetSurface(theme:entry.theme){CompactHabitsWidgetView(entry:entry)}}.configurationDisplayName("Compact Habit List Large").description("Eight habits with eleven recent days.").supportedFamilies([.systemLarge])}
 }
-@main struct HabitBuddyWidgetBundle:WidgetBundle {var body:some Widget {SmallHabitWidget();MediumHabitWidget();CompactHabitsWidget();LargeCompactHabitsWidget()}}
+/// Home-screen versions of the dashboard designs, drawn by the same views as the in-app dashboard.
+struct DashboardHomeWidget: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.showsWidgetContainerBackground) private var showsBackground
+    let entry: BuddyEntry
+    let kind: DashboardKind
+    var body: some View {
+        let habit = kind.needsHabit ? entry.habit : nil, today = Day(entry.date)
+        // StandBy removes the background and shows widgets on black, so light styles switch to dark there.
+        let palette = WidgetPalette(showsBackground ? entry.theme.style : .dark, scheme: showsBackground ? scheme : .dark, tint: habit.map { BuddyStyle.color($0.color) } ?? BuddyStyle.purple)
+        Group {
+            if let error = entry.error { Text(error).font(BuddyFont.text(13)).foregroundStyle(palette.secondary).padding(14).frame(maxWidth: .infinity, maxHeight: .infinity) }
+            else if kind.needsHabit && habit == nil { Text("Create a habit, then choose it in Edit Widget.").font(BuddyFont.text(13)).foregroundStyle(palette.secondary).padding(14).frame(maxWidth: .infinity, maxHeight: .infinity) }
+            else { HabitWidgetContent(kind: kind, habit: habit, data: entry.data, habits: entry.selectedHabits, today: today, palette: palette) }
+        }
+        .containerBackground(for: .widget) { palette.background(Rectangle()) }
+        .widgetURL(URL(string: habit.map { "habitbuddy://\($0.id.uuidString)" } ?? (kind == .today ? "habitbuddy://today" : "habitbuddy://home")))
+    }
+}
+struct StreakHomeWidget: Widget {
+    var body: some WidgetConfiguration { AppIntentConfiguration(kind: "Streak", intent: ChooseHabitIntent.self, provider: BuddyProvider()) { DashboardHomeWidget(entry: $0, kind: .streak) }.configurationDisplayName("Streak").description("Your streak, today's check and this week.").supportedFamilies([.systemSmall]).contentMarginsDisabled() }
+}
+struct MonthHomeWidget: Widget {
+    var body: some WidgetConfiguration { AppIntentConfiguration(kind: "Month", intent: ChooseHabitIntent.self, provider: BuddyProvider()) { DashboardHomeWidget(entry: $0, kind: .month) }.configurationDisplayName("This Month").description("This month's days and a quick check-in.").supportedFamilies([.systemSmall]).contentMarginsDisabled() }
+}
+struct WeeksHomeWidget: Widget {
+    var body: some WidgetConfiguration { AppIntentConfiguration(kind: "Weeks", intent: ChooseHabitIntent.self, provider: BuddyProvider()) { DashboardHomeWidget(entry: $0, kind: .weeks) }.configurationDisplayName("20 Weeks").description("The last 20 weeks with weekday rows.").supportedFamilies([.systemMedium]).contentMarginsDisabled() }
+}
+struct ThreeMonthsHomeWidget: Widget {
+    var body: some WidgetConfiguration { AppIntentConfiguration(kind: "ThreeMonths", intent: ChooseHabitIntent.self, provider: BuddyProvider()) { DashboardHomeWidget(entry: $0, kind: .months) }.configurationDisplayName("Three Months").description("This month and the two before it.").supportedFamilies([.systemMedium]).contentMarginsDisabled() }
+}
+struct TodayListHomeWidget: Widget {
+    var body: some WidgetConfiguration { AppIntentConfiguration(kind: "TodayList", intent: ChooseCompactHabitsIntent.self, provider: CompactBuddyProvider()) { DashboardHomeWidget(entry: $0, kind: .list) }.configurationDisplayName("Today List").description("Up to six habits with this week and their streaks.").supportedFamilies([.systemLarge]).contentMarginsDisabled() }
+}
+struct DashboardWidgetBundle: WidgetBundle {
+    var body: some Widget { StreakHomeWidget(); MonthHomeWidget(); WeeksHomeWidget(); ThreeMonthsHomeWidget(); TodayListHomeWidget() }
+}
+@main struct HabitBuddyWidgetBundle:WidgetBundle {init(){_ = BuddyIcons.registered};var body:some Widget {SmallHabitWidget();MediumHabitWidget();CompactHabitsWidget();LargeCompactHabitsWidget();DashboardWidgetBundle().body;MoreWidgetBundle().body}}

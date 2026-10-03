@@ -15,73 +15,71 @@ struct HabitEditorView: View {
     private var existing: Bool { store.habit(habit.id) != nil }
     private var goal: Binding<Goal> { Binding(get: { habit.goals[habit.goals.count - 1] }, set: { habit.goals[habit.goals.count - 1] = $0 }) }
     var body: some View {
+        let named = !habit.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    Button { icons=true } label: { IconHero(habit:habit) }.buttonStyle(.plain).accessibilityLabel("Choose Icon")
-                    field("NAME") { TextField("Habit name", text: $habit.name).font(.system(size:14)).textInputAutocapitalization(.sentences).padding(14).background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 14)) }
-                    field("DESCRIPTION") { TextField("What does this habit mean to you?", text: $habit.detail, axis: .vertical).font(.system(size:14)).lineLimit(2...4).padding(14).background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 14)) }
-                    field("COLOR") {
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 10) {
-                            ForEach(BuddyStyle.colors, id: \.0) { token, _ in
-                                Button { habit.color = token } label: {
-                                    RoundedRectangle(cornerRadius: 10).fill(BuddyStyle.color(token)).frame(height: 36)
-                                        .overlay { if habit.color == token { RoundedRectangle(cornerRadius: 10).stroke(Color.primary, lineWidth: 2).padding(-3) } }
-                                }.buttonStyle(.plain).accessibilityLabel(token).accessibilityAddTraits(habit.color == token ? .isSelected : [])
-                            }
-                        }
-                    }
-                    field("HABIT TYPE") {
-                        SegmentedChoice(selection:goal.mode,options:[(.build,"Build a habit"),(.quit,"Quit a habit")])
-                        Text(habit.currentGoal.mode == .quit ? "Clean days fill automatically. Log the days you slip." : "Mark each day you make progress.").font(.caption).foregroundStyle(.secondary)
-                    }
-                    DisclosureGroup("Advanced Options") {
-                        VStack(alignment:.leading,spacing:20) {
-                    field("TRACKING") {
-                        Picker("Tracking", selection: goal.tracking) { Text("Yes / No").tag(Tracking.yesNo); Text("Count").tag(Tracking.count); Text("Measure").tag(Tracking.measure) }.pickerStyle(.segmented)
+                VStack(alignment: .leading, spacing: 0) {
+                    Button { icons=true } label: { IconHero(habit:habit) }.buttonStyle(.plain).accessibilityLabel("Choose Icon").padding(.top, 13.8)
+                    field("Name", inset: 5, gap: 6.7) { TextField("", text: $habit.name).textInputAutocapitalization(.sentences).accessibilityLabel("Habit name").buddyField() }.padding(.top, 16.7)
+                    field("Description", inset: 5, gap: 6.7) { TextField("", text: $habit.detail, axis: .vertical).lineLimit(1...4).accessibilityLabel("Description").buddyField() }.padding(.top, 10.5)
+                    field("Color", inset: 5) { ColorPalette(selection: $habit.color) }.padding(.top, 13.8)
+                    field("Habit Type", inset: 0, gap: 7) {
+                        SegmentedChoice(selection:goal.mode,options:[(.build,"Build A Habit"),(.quit,"Quit A Habit")])
+                        Text(habit.currentGoal.mode == .quit ? "Clean days fill automatically. Log the days you slip." : "Mark each day you complete it.").font(BuddyFont.text(12.8)).foregroundStyle(BuddyStyle.tertiaryText(scheme)).frame(maxWidth: .infinity).multilineTextAlignment(.center).padding(.top, -2.6)
+                    }.padding(.top, 21.5)
+                    field("Tracking", inset: 0, gap: 7) {
+                        SegmentedChoice(selection: goal.tracking, options: [(.yesNo, "Yes / No"), (.count, "Count"), (.measure, "Measure")])
                         if habit.currentGoal.tracking != .yesNo {
                             HStack {
-                                Text(habit.currentGoal.mode == .quit ? "Stay below" : "Daily target")
-                                Spacer(); TextField("Target", text: $target).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 90)
-                            }.padding(.vertical, 8)
-                            if habit.currentGoal.tracking == .measure { TextField("Unit (minutes, km, liters…)", text: goal.unit).textFieldStyle(.roundedBorder) }
-                            Picker("On tap", selection: goal.tap) { Text("Add 1").tag(TapAction.addOne); Text("Enter total").tag(TapAction.enterTotal) }.pickerStyle(.segmented)
+                                Text(habit.currentGoal.mode == .quit ? "Stay below" : "Daily target").font(BuddyFont.text(15))
+                                Spacer(); TextField("Target", text: $target).keyboardType(.decimalPad).multilineTextAlignment(.trailing).font(BuddyFont.mono(15)).frame(width: 90)
+                            }.padding(.horizontal, 16).frame(height: 52).background(BuddyStyle.field(scheme), in: RoundedRectangle(cornerRadius: 15, style: .circular)).overlay { RoundedRectangle(cornerRadius: 15, style: .circular).strokeBorder(BuddyStyle.border(scheme, 0.1), lineWidth: 1) }
+                            if habit.currentGoal.tracking == .measure { TextField("Unit (minutes, km, liters…)", text: goal.unit).buddyField() }
+                            SegmentedChoice(selection: goal.tap, options: [(.addOne, "Tap Adds 1"), (.enterTotal, "Tap Enters Total")])
                         }
-                    }
+                    }.padding(.top, 21.5)
                     if habit.currentGoal.mode == .build {
-                        field("STREAK GOAL") {
-                            Picker("Schedule", selection: goal.cadence) { ForEach(Cadence.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) } }.pickerStyle(.segmented)
+                        field("Streak Goal", inset: 0, gap: 7) {
+                            SegmentedChoice(selection: goal.cadence, options: Cadence.allCases.map { ($0, $0 == .none ? "None" : $0.rawValue.capitalized) })
                             if habit.currentGoal.cadence == .weekly || habit.currentGoal.cadence == .monthly {
-                                Stepper("\(habit.currentGoal.days) successful days", value: goal.days, in: 1...(habit.currentGoal.cadence == .weekly ? 7 : 31))
+                                Stepper("\(habit.currentGoal.days) successful days", value: goal.days, in: 1...(habit.currentGoal.cadence == .weekly ? 7 : 31)).font(BuddyFont.text(15)).padding(.horizontal, 16).frame(height: 52).background(BuddyStyle.field(scheme), in: RoundedRectangle(cornerRadius: 15, style: .circular))
                             }
-                        }
+                        }.padding(.top, 21.5)
                     }
                     if !store.data.categories.isEmpty {
-                        field("CATEGORIES") {
-                            ForEach(store.data.categories) { category in
-                                Toggle(category.name, isOn: Binding(get: { habit.categories.contains(category.id) }, set: { included in habit.categories.removeAll { $0 == category.id }; if included { habit.categories.append(category.id) } }))
-                            }
-                        }
+                        field("Categories", inset: 0) {
+                            VStack(spacing: 0) {
+                                ForEach(store.data.categories) { category in
+                                    Toggle(isOn: Binding(get: { habit.categories.contains(category.id) }, set: { included in habit.categories.removeAll { $0 == category.id }; if included { habit.categories.append(category.id) } })) { HStack(spacing: 10) { BuddyGlyph(symbol: category.symbol, size: 16); Text(category.name).font(BuddyFont.text(15)) } }
+                                        .tint(BuddyStyle.purple).padding(.horizontal, 16).frame(height: 52)
+                                }
+                            }.panel(radius: 15, border: 0.1)
+                        }.padding(.top, 21.5)
                     }
-                    Button { reminders = true } label: { HStack { Label("Reminders", systemImage: "bell"); Spacer(); Text("\(habit.reminders.count)").foregroundStyle(.secondary); Image(systemName: "chevron.right") } }.surface()
-                        }.padding(.top,16)
-                    }.font(.system(size:13)).foregroundStyle(.secondary)
-                    if existing { Text("Goal changes take effect today. Earlier days keep their original rules. Changing mode or tracking resets today's amount and preserves its note.").font(.caption).foregroundStyle(.secondary) }
-                    if let text = validation ?? store.error { Text(text).font(.caption).foregroundStyle(.red).accessibilityIdentifier("editor-error") }
-                }.padding(20)
+                    Button { reminders = true } label: {
+                        HStack(spacing: 10) { LucideIcon("bell", size: 18); Text("Reminders").font(BuddyFont.text(15)); Spacer(); Text("\(habit.reminders.count)").font(BuddyFont.mono(13)).foregroundStyle(BuddyStyle.secondaryText(scheme)); LucideIcon("chevron-right", size: 15).foregroundStyle(BuddyStyle.secondaryText(scheme)) }
+                            .foregroundStyle(BuddyStyle.text(scheme)).padding(.horizontal, 16).frame(height: 52).contentShape(Rectangle())
+                    }.buttonStyle(.plain).panel(radius: 15, border: 0.1).padding(.top, 21.5)
+                    if existing { Text("Goal changes take effect today. Earlier days keep their original rules. Changing mode or tracking resets today's amount and preserves its note.").font(BuddyFont.text(12)).foregroundStyle(BuddyStyle.tertiaryText(scheme)).padding(.top, 14) }
+                    if let text = validation ?? store.error { Text(text).font(BuddyFont.text(12)).foregroundStyle(.red).accessibilityIdentifier("editor-error").padding(.top, 10) }
+                }.padding(.horizontal, 16).padding(.bottom, 110)
             }
+            .scrollDismissesKeyboard(.interactively)
             .background(BuddyStyle.canvas(scheme))
             .toolbar(.hidden,for:.navigationBar)
-            .safeAreaInset(edge:.top){SheetHeader(title:existing ? "Edit Habit":"New Habit").background(BuddyStyle.canvas(scheme))}
-            .safeAreaInset(edge:.bottom){PrimaryAction(title:"Save",action:save).padding(.horizontal,24).padding(.vertical,12).background(BuddyStyle.canvas(scheme))}
-            .sheet(isPresented:$icons){IconPickerView(selection:$habit.symbol,color:BuddyStyle.color(habit.color))}
-            .sheet(isPresented: $reminders) { ReminderEditorView(reminders: $habit.reminders) }
+            .safeAreaInset(edge:.top,spacing:0){SheetHeader(title:existing ? "Edit Habit":"New Habit")}
+            .overlay(alignment: .bottom) {
+                PrimaryAction(title:"Save",action:save).disabled(!named).padding(.horizontal,24).padding(.bottom,6)
+                    .background(alignment: .bottom) { LinearGradient(colors: [BuddyStyle.canvas(scheme).opacity(0), BuddyStyle.canvas(scheme).opacity(0.85)], startPoint: .top, endPoint: .bottom).frame(height: 120).ignoresSafeArea().allowsHitTesting(false) }
+            }
+            .sheet(isPresented:$icons){IconPickerView(selection:$habit.symbol,color:BuddyStyle.color(habit.color)).buddySheet()}
+            .sheet(isPresented: $reminders) { ReminderEditorView(reminders: $habit.reminders).buddySheet() }
             .onAppear { target = Amount.text(habit.currentGoal.target) }
             .onChange(of: habit.currentGoal.cadence) { _, new in if new == .daily || new == .none { goal.wrappedValue.days = 1 } else if new == .weekly { goal.wrappedValue.days = min(7, habit.currentGoal.days) } }
         }
     }
-    private func field<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 10) { Text(title).font(.system(size:10,weight:.medium)).foregroundStyle(.secondary); content() }
+    private func field<Content: View>(_ title: String, inset: CGFloat, gap: CGFloat = 8, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: gap) { Text(title).fieldCaption().foregroundStyle(BuddyStyle.secondaryText(scheme)).padding(.leading, inset); content() }
     }
     private func save() {
         do {
@@ -97,20 +95,39 @@ struct HabitEditorView: View {
 }
 
 struct SegmentedChoice<Value:Hashable>: View {
+    @Environment(\.colorScheme) private var scheme
     @Binding var selection:Value
     let options:[(Value,String)]
     var body:some View {
-        HStack(spacing:4){ForEach(options.indices,id:\.self){i in Button{selection=options[i].0}label:{Text(options[i].1).font(.system(size:12,weight:.semibold)).foregroundStyle(selection==options[i].0 ? .primary:.secondary).frame(maxWidth:.infinity,minHeight:36).background(selection==options[i].0 ? Color.primary.opacity(0.075):.clear,in:RoundedRectangle(cornerRadius:11))}.buttonStyle(.plain).accessibilityAddTraits(selection==options[i].0 ? .isSelected:[])}}
-            .padding(4).background(Color.primary.opacity(0.035),in:RoundedRectangle(cornerRadius:14)).overlay{RoundedRectangle(cornerRadius:14).stroke(Color.primary.opacity(0.06),lineWidth:1)}
+        HStack(spacing:0){ForEach(options.indices,id:\.self){i in
+            let on=selection==options[i].0
+            Button{selection=options[i].0}label:{
+                Text(options[i].1).font(BuddyFont.text(14,.medium)).tracking(0.28).lineLimit(1).minimumScaleFactor(0.8).foregroundStyle(on ? BuddyStyle.text(scheme):Color(hex:scheme == .dark ? 0x8B8B94:0x77777E))
+                    .frame(maxWidth:.infinity,minHeight:40).background(on ? (scheme == .dark ? Color(hex:0x2B2B31):Color.black.opacity(0.07)):.clear,in:RoundedRectangle(cornerRadius:10.5,style:.circular)).contentShape(Rectangle())
+            }.buttonStyle(.plain).accessibilityAddTraits(on ? .isSelected:[])}}
+            .padding(5).background(scheme == .dark ? Color(hex:0x171719):BuddyStyle.field(scheme),in:RoundedRectangle(cornerRadius:15,style:.circular)).overlay{RoundedRectangle(cornerRadius:15,style:.circular).strokeBorder(BuddyStyle.border(scheme,0.1),lineWidth:1)}
     }
 }
+/// The faint icon cloud around the selected icon, laid out like the reference editor.
 struct IconHero: View {
+    @Environment(\.colorScheme) private var scheme
     let habit:Habit
-    private var cloud:[HabitIconEntry]{Array(BuddyIcons.all.filter{["wallet","leaf","moon","globe","utensils","bicycle","guitar","book","mug-saucer","carrot","dumbbell","pen-nib","camera","dog","brain","heart","spa","fish","stethoscope","flask"].contains(String($0.id.dropFirst(3)))}.prefix(40))}
+    private static let rows:[(CGFloat,[(CGFloat,String)])] = [
+        (-55.5,[(40,"wallet"),(68,"fan"),(103,"cloud-moon"),(133,"cookie"),(163,"camera"),(196,"tag"),(226,"badge-dollar-sign"),(262,"send"),(292,"cup-soda"),(319,"popcorn"),(358,"carrot")]),
+        (-18,[(40,"coffee"),(68,"notebook-text"),(104,"ship"),(134,"volleyball"),(260,"salad"),(290,"soup"),(321,"clapperboard"),(353,"wrench")]),
+        (20,[(39,"image"),(67,"trash"),(100,"mountain-snow"),(135,"cookie"),(260,"chef-hat"),(292,"cake-slice"),(321,"notebook-pen"),(349,"flame-kindling")]),
+        (56,[(38,"apple"),(72,"crown"),(104,"bike"),(132,"braces"),(169,"stethoscope"),(195,"trophy"),(227,"target"),(258,"gem"),(288,"utensils"),(322,"pill"),(353,"utensils-crossed")])]
     var body:some View {
-        ZStack {
-            LazyVGrid(columns:Array(repeating:GridItem(.flexible()),count:10),spacing:18){ForEach(0..<40,id:\.self){i in if !cloud.isEmpty{BuddyGlyph(symbol:cloud[i%cloud.count].id,size:16,outline:true).rotationEffect(.degrees(Double((i*7)%30)-15))}}}.foregroundStyle(BuddyStyle.color(habit.color).opacity(0.2))
-            HabitIcon(habit:habit,size:88,circular:true)
+        let c=BuddyStyle.color(habit.color)
+        GeometryReader { proxy in
+            let scale=proxy.size.width/361,mid=proxy.size.height/2
+            ZStack {
+                ForEach(Self.rows.indices,id:\.self){r in
+                    ForEach(Self.rows[r].1,id:\.1){x,name in LucideIcon(name,size:20).position(x:(x-16)*scale,y:mid+Self.rows[r].0)}
+                }.foregroundStyle(c.opacity(0.25))
+                BuddyGlyph(symbol:habit.symbol,size:46).foregroundStyle(c).frame(width:96,height:96)
+                    .background(Circle().fill(c.opacity(0.14)).background(Circle().fill(BuddyStyle.canvas(scheme)))).position(x:proxy.size.width/2,y:mid)
+            }
         }.frame(height:140)
     }
 }

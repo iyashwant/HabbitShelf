@@ -13,6 +13,24 @@ final class BuddyCoreTests: XCTestCase {
         XCTAssertNil(Day(rawValue: "2026-02-30")); XCTAssertNil(Day(rawValue: "2026-2-03")); XCTAssertNil(Day(rawValue: "not a date"))
         XCTAssertEqual(Day(rawValue: "2024-02-29")?.adding(1).rawValue, "2024-03-01")
     }
+    func testFastCivilArithmeticMatchesFoundation() {
+        var calendar = Calendar(identifier: .gregorian); calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let formatter = DateFormatter(); formatter.locale = Locale(identifier: "en_US_POSIX"); formatter.calendar = calendar
+        formatter.timeZone = calendar.timeZone; formatter.dateFormat = "yyyy-MM-dd"
+        var date = formatter.date(from: "1900-01-01")!, previous: Day?
+        for _ in 0..<73_051 { // through 2099-12-31
+            let text = formatter.string(from: date), day = Day(rawValue: text)!
+            XCTAssertEqual(day.date, date); XCTAssertEqual(day.weekday, calendar.component(.weekday, from: date))
+            XCTAssertEqual(Day(date, timeZone: calendar.timeZone), day)
+            if let previous { XCTAssertEqual(previous.adding(1), day); XCTAssertEqual(previous.distance(to: day), 1); XCTAssertLessThan(previous, day) }
+            if text.hasSuffix("-01") { XCTAssertEqual(day.adding(-1), day.adding(-1).startOfMonth.endOfMonth) }
+            previous = day; date = calendar.date(byAdding: .day, value: 1, to: date)!
+        }
+        // Foundation is Julian before October 1582; those dates keep its exact rules.
+        XCTAssertNil(Day(rawValue: "1582-10-10")); XCTAssertEqual(Day(rawValue: "1582-10-04")?.adding(1).rawValue, "1582-10-15")
+        XCTAssertEqual(Day(rawValue: "1583-01-01")?.adding(-1).rawValue, "1582-12-31")
+        for bad in ["2026-13-01", "2026-00-10", "2026-04-31", "2026-04-00", "2025-02-29", "2026-04-1a", "2026/04/10", "2026-04-100", "２０２６-04-10"] { XCTAssertNil(Day(rawValue: bad), bad) }
+    }
     func testWeekStartsEveryWeekday() { for first in 1...7 { XCTAssertEqual(today.startOfWeek(first).weekday, first); XCTAssertLessThanOrEqual(today.startOfWeek(first), today) } }
     func testFebruaryLeapAndNormalEnd() { XCTAssertEqual(Day(rawValue: "2024-02-15")!.endOfMonth.rawValue, "2024-02-29"); XCTAssertEqual(Day(rawValue: "2026-02-15")!.endOfMonth.rawValue, "2026-02-28") }
     func testTravelDoesNotMoveStoredDay() throws {
@@ -33,7 +51,47 @@ final class BuddyCoreTests: XCTestCase {
     func testClearKeepsNote() throws { var (data, h) = fixture(); try Engine.note("hello", habitID: h.id, day: today, data: &data, today: today); try log(1_000, "2026-10-03", h, &data); try log(0, "2026-10-03", h, &data); XCTAssertEqual(data.record(h.id, today).note, "hello") }
     func testNoteOnlyHasNoProgress() throws { var (data, h) = fixture(); try Engine.note("rest day", habitID: h.id, day: today, data: &data, today: today); XCTAssertFalse(Engine.progress(h, day: today, data: data, today: today).success) }
     func testAppendNote() throws { var (data, h) = fixture(); try Engine.note("one", habitID: h.id, day: today, data: &data, today: today); try Engine.note("two", append: true, habitID: h.id, day: today, data: &data, today: today); XCTAssertEqual(data.record(h.id, today).note, "one\ntwo") }
-    func testFutureAndPreStartRejected() { var (data, h) = fixture(); XCTAssertThrowsError(try log(1_000, "2026-10-04", h, &data)); XCTAssertThrowsError(try log(1_000, "2026-09-27", h, &data)) }
+    func testFutureRejected() { var (data, h) = fixture(); XCTAssertThrowsError(try log(1_000, "2026-10-04", h, &data)); XCTAssertFalse(h.loggable(on: today.adding(1), today: today)) }
+    func testBackfillBeforeStartMovesStartBack() throws {
+        var (data, h) = fixture(cadence: .daily, start: "2026-09-28")
+        try log(1_000, "2026-09-20", h, &data)
+        let moved = data.habits[0], day = Day(rawValue: "2026-09-20")!
+        XCTAssertEqual(moved.created, day); XCTAssertEqual(moved.goals.map(\.from), [day])
+        XCTAssertTrue(Engine.progress(moved, day: day, data: data, today: today).success)
+        XCTAssertNoThrow(try DataValidation.validate(data, today: today))
+        let stats = Engine.stats(moved, data: data, today: today)
+        XCTAssertEqual(stats.completions, 1); XCTAssertEqual(stats.eligibleDays, 13); XCTAssertEqual(stats.bestStreak, 1)
+    }
+    func testBackfillKeepsLaterGoalVersions() throws {
+        var (data, h) = fixture(tracking: .count, target: 2_000, start: "2026-09-28")
+        h.goals.append({ var g = h.goals[0]; g.from = Day(rawValue: "2026-10-01")!; g.target = 5_000; return g }()); data.habits[0] = h
+        try log(2_000, "2026-09-01", h, &data)
+        XCTAssertEqual(data.habits[0].goals.map(\.from.rawValue), ["2026-09-01", "2026-10-01"])
+        XCTAssertTrue(Engine.progress(data.habits[0], day: Day(rawValue: "2026-09-01")!, data: data, today: today).success)
+    }
+    func testEmptyBuildWriteBeforeStartChangesNothing() throws {
+        var (data, h) = fixture(start: "2026-09-28"); let before = data
+        try log(0, "2026-09-20", h, &data); try Engine.note("", habitID: h.id, day: Day(rawValue: "2026-09-20")!, data: &data, today: today)
+        XCTAssertEqual(data, before)
+    }
+    func testNoteBeforeStartMovesStartBack() throws {
+        var (data, h) = fixture(start: "2026-09-28"); let day = Day(rawValue: "2026-09-25")!
+        try Engine.note("travel", habitID: h.id, day: day, data: &data, today: today)
+        XCTAssertEqual(data.habits[0].created, day); XCTAssertEqual(data.record(h.id, day).note, "travel"); XCTAssertFalse(Engine.progress(data.habits[0], day: day, data: data, today: today).success)
+    }
+    func testQuitCleanDayBeforeStartBeginsCleanRun() throws {
+        var (data, h) = fixture(mode: .quit, start: "2026-09-28")
+        try log(0, "2026-09-20", h, &data)
+        XCTAssertEqual(data.habits[0].created.rawValue, "2026-09-20"); XCTAssertEqual(Engine.stats(data.habits[0], data: data, today: today).currentStreak, 14)
+    }
+    func testBackfillBeforeStartRespectsArchiveModeAndEpoch() throws {
+        var (data, h) = fixture(start: "2026-09-28")
+        XCTAssertThrowsError(try log(1_000, "1969-12-31", h, &data))
+        h.goals.append({ var g = h.goals[0]; g.from = today; g.mode = .quit; return g }()); data.habits[0] = h
+        XCTAssertThrowsError(try log(1_000, "2026-09-20", h, &data)) { XCTAssertEqual(($0 as? BuddyError)?.errorDescription, BuddyError.locked.errorDescription) }
+        h.goals.removeLast(); h.archived = today; data.habits[0] = h
+        XCTAssertThrowsError(try log(1_000, "2026-09-20", h, &data)); XCTAssertEqual(data.habits[0].created.rawValue, "2026-09-28")
+    }
     func testUnfinishedTodayKeepsDailyStreak() throws { var (data, h) = fixture(); for day in ["2026-10-01", "2026-10-02"] { try log(1_000, day, h, &data) }; XCTAssertEqual(Engine.stats(h, data: data, today: today).currentStreak, 2) }
     func testMissedYesterdayBreaksDailyStreak() throws { var (data, h) = fixture(); try log(1_000, "2026-10-01", h, &data); let s = Engine.stats(h, data: data, today: today); XCTAssertEqual(s.currentStreak, 0); XCTAssertEqual(s.bestStreak, 1) }
     func testWeeklyCountsDistinctDates() throws { var (data, h) = fixture(tracking: .count, target: 1_000, cadence: .weekly, days: 3); for _ in 0..<12 { try Engine.increment(habitID: h.id, day: today, data: &data, today: today) }; XCTAssertEqual(Engine.stats(h, data: data, today: today).completions, 1); XCTAssertEqual(Engine.stats(h, data: data, today: today).currentStreak, 0) }
@@ -54,6 +112,188 @@ final class BuddyCoreTests: XCTestCase {
     func testDeleteCategoryPreservesHabitAndHistory() { var (data, h) = fixture(); let category = Category(name: "Health"); data.categories = [category]; h.categories = [category.id]; data.habits[0] = h; Engine.deleteCategory(category.id, data: &data); XCTAssertEqual(data.habits.count, 1); XCTAssertTrue(data.habits[0].categories.isEmpty) }
     func testValidationRejectsDuplicateIDsAndFutureLogs() throws { var (data, h) = fixture(); data.habits.append(h); XCTAssertThrowsError(try DataValidation.validate(data, today: today)); data.habits.removeLast(); let r = Record(habitID: h.id, day: today.adding(1)); data.records[r.key] = r; XCTAssertThrowsError(try DataValidation.validate(data, today: today)) }
     func testValidationRejectsBadGoalOrder() { var (data, h) = fixture(); h.goals.append(h.goals[0]); data.habits[0] = h; XCTAssertThrowsError(try DataValidation.validate(data, today: today)) }
+    func testWeeklyStreakCountsSuccessfulWeeks() throws {
+        var (data, h) = fixture(cadence: .weekly, days: 2, start: "2026-09-07")
+        for d in ["2026-09-07", "2026-09-08", "2026-09-15", "2026-09-16", "2026-09-22", "2026-09-23", "2026-10-01"] { try log(1_000, d, h, &data) }
+        // The current week needs one more day and can still get it, so it keeps the run without adding to it.
+        XCTAssertEqual(Engine.streak(data.habits[0], data: data, today: today), StreakSummary(value: 3, unit: .weeks))
+        try log(1_000, "2026-10-02", h, &data)
+        XCTAssertEqual(Engine.streak(data.habits[0], data: data, today: today).value, 4)
+        try log(0, "2026-09-16", h, &data)
+        XCTAssertEqual(Engine.streak(data.habits[0], data: data, today: today).value, 2)
+    }
+    func testUnreachableCurrentWeekEndsWeeklyStreak() throws {
+        var (data, h) = fixture(cadence: .weekly, days: 5, start: "2026-09-21")
+        for d in Day.range(Day(rawValue: "2026-09-21")!, Day(rawValue: "2026-09-25")!) { try log(1_000, d.rawValue, h, &data) }
+        XCTAssertEqual(Engine.streak(data.habits[0], data: data, today: today).value, 0)
+    }
+    func testMonthlyStreakCapsPartialFirstMonth() throws {
+        var (data, h) = fixture(cadence: .monthly, days: 10, start: "2026-08-25")
+        for d in Day.range(Day(rawValue: "2026-08-25")!, Day(rawValue: "2026-08-31")!) + Day.range(Day(rawValue: "2026-09-01")!, Day(rawValue: "2026-09-10")!) { try log(1_000, d.rawValue, h, &data) }
+        XCTAssertEqual(Engine.streak(data.habits[0], data: data, today: today), StreakSummary(value: 2, unit: .months))
+    }
+    func testDailyStreakSummaryUsesDays() throws {
+        var (data, h) = fixture()
+        for d in ["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02"] { try log(1_000, d, h, &data) }
+        XCTAssertEqual(Engine.streak(data.habits[0], data: data, today: today), StreakSummary(value: 5, unit: .days))
+    }
+    func testYearStatsCountsTrackedDaysAndLongestRun() throws {
+        var (data, h) = fixture()
+        for d in ["2026-09-28", "2026-09-29", "2026-10-01", "2026-10-02", "2026-10-03"] { try log(1_000, d, h, &data) }
+        XCTAssertEqual(Engine.yearStats(data.habits[0], year: 2026, data: data, today: today), YearStats(completions: 5, eligible: 6, longestRun: 3))
+        XCTAssertEqual(Engine.yearStats(data.habits[0], year: 2025, data: data, today: today), YearStats())
+        XCTAssertEqual(Engine.yearStats(data.habits[0], year: 2027, data: data, today: today), YearStats())
+    }
+    func testDashboardRoundTripsAndDefaultsAreStable() throws {
+        var (data, h) = fixture()
+        XCTAssertNil(try DataValidation.decode(DataValidation.encode(data), today: today).settings.dashboard)
+        XCTAssertTrue(DashboardWidget.defaults(for: []).isEmpty)
+        let defaults = DashboardWidget.defaults(for: [h])
+        XCTAssertEqual(defaults, DashboardWidget.defaults(for: [h]))
+        XCTAssertEqual(defaults.last?.kind, .list); XCTAssertNil(defaults.last?.habitID)
+        XCTAssertTrue(defaults.dropLast().allSatisfy { $0.habitID == h.id })
+        data.settings.dashboard = [DashboardWidget(kind: .weeks, habitID: h.id, style: .dark), DashboardWidget(kind: .list)]
+        XCTAssertEqual(try DataValidation.decode(DataValidation.encode(data), today: today).settings.dashboard, data.settings.dashboard)
+        data.settings.dashboard!.append(data.settings.dashboard![0])
+        XCTAssertThrowsError(try DataValidation.validate(data, today: today))
+    }
+    func testRoutineCompletesOpenBuildHabitsOnly() throws {
+        var data = BuddyData(), habits: [Habit] = []
+        for (n, name) in ["Stretch", "Water", "Sugar", "Read"].enumerated() {
+            var h = Habit(name: name, created: Day(rawValue: "2026-09-01")!); h.order = n; h.goals[0].cadence = .daily
+            if n == 1 { h.goals[0].tracking = .count; h.goals[0].target = 3_000 }
+            if n == 2 { h.goals[0].mode = .quit }
+            habits.append(h)
+        }
+        data.habits = habits
+        try Engine.setAmount(1_000, habitID: habits[1].id, day: today, data: &data, today: today)
+        try Engine.setAmount(1_000, habitID: habits[3].id, day: today, data: &data, today: today)
+        var routine = Routine(name: "Morning"); routine.habitIDs = habits.map(\.id); data.routines = [routine]
+        XCTAssertNoThrow(try DataValidation.validate(data, today: today))
+        XCTAssertEqual(try Engine.completeRoutine(routine.id, day: today, data: &data, today: today), 2)
+        XCTAssertEqual(data.record(habits[1].id, today).amount, 3_000, "A count is completed to its target")
+        XCTAssertEqual(data.record(habits[2].id, today).amount, 0, "Quit habits are left alone")
+        XCTAssertTrue(Engine.routineProgress(routine, data: data, day: today, today: today) == (4, 4))
+        XCTAssertEqual(try Engine.completeRoutine(routine.id, day: today, data: &data, today: today), 0)
+        XCTAssertThrowsError(try Engine.completeRoutine(UUID(), day: today, data: &data, today: today))
+    }
+    func testRoutinesValidateAndDecodeFromOlderFiles() throws {
+        var (data, h) = fixture()
+        var object = try JSONSerialization.jsonObject(with: DataValidation.encode(data)) as! [String: Any]
+        object.removeValue(forKey: "routines")
+        XCTAssertEqual(try DataValidation.decode(JSONSerialization.data(withJSONObject: object), today: today), data)
+        var routine = Routine(name: "Evening"); routine.habitIDs = [h.id]; data.routines = [routine]
+        XCTAssertEqual(try DataValidation.decode(DataValidation.encode(data), today: today), data)
+        data.routines[0].habitIDs.append(UUID()); XCTAssertThrowsError(try DataValidation.validate(data, today: today))
+        data.routines[0].habitIDs = [h.id, h.id]; XCTAssertThrowsError(try DataValidation.validate(data, today: today))
+        data.routines[0].habitIDs = [h.id]; data.routines[0].name = " "; XCTAssertThrowsError(try DataValidation.validate(data, today: today))
+        data.routines[0].name = "Evening"; try log(1_000, "2026-10-02", h, &data)
+        Engine.deleteHabit(h.id, data: &data)
+        XCTAssertTrue(data.habits.isEmpty); XCTAssertTrue(data.records.isEmpty); XCTAssertEqual(data.routines[0].habitIDs, [])
+        XCTAssertNoThrow(try DataValidation.validate(data, today: today))
+    }
+    func testStreakFreezeBridgesOneMissedDailyDay() throws {
+        var (data, h) = fixture(start: "2026-09-25")
+        for d in ["2026-09-28", "2026-09-29", "2026-10-01", "2026-10-02"] { try log(1_000, d, h, &data) }
+        let missed = Day(rawValue: "2026-09-30")!
+        XCTAssertEqual(Engine.stats(h, data: data, today: today).currentStreak, 2)
+        XCTAssertThrowsError(try Engine.setFreeze(true, habitID: h.id, day: missed, data: &data, today: today)) { XCTAssertEqual(($0 as? BuddyError)?.errorDescription, BuddyError.noFreezesLeft.errorDescription) }
+        data.settings.freezesPerMonth = 1
+        try Engine.setFreeze(true, habitID: h.id, day: missed, data: &data, today: today)
+        XCTAssertTrue(Engine.progress(h, day: missed, data: data, today: today).frozen)
+        let stats = Engine.stats(h, data: data, today: today)
+        XCTAssertEqual(stats.currentStreak, 4, "A frozen day neither adds to nor breaks the streak")
+        XCTAssertEqual(stats.completions, 4); XCTAssertEqual(stats.eligibleDays, 8, "The completion rate still counts the frozen day as missed")
+        XCTAssertEqual(Engine.yearStats(h, year: 2026, data: data, today: today).longestRun, 4)
+        XCTAssertNoThrow(try DataValidation.validate(data, today: today))
+        XCTAssertThrowsError(try Engine.setFreeze(true, habitID: h.id, day: Day(rawValue: "2026-09-27")!, data: &data, today: today)) { XCTAssertEqual(($0 as? BuddyError)?.errorDescription, BuddyError.noFreezesLeft.errorDescription) }
+        XCTAssertEqual(Engine.freezesUsed(h, month: missed, data: data), 1)
+        for day in [today, Day(rawValue: "2026-09-29")!, today.adding(1)] { XCTAssertThrowsError(try Engine.setFreeze(true, habitID: h.id, day: day, data: &data, today: today)) }
+        try log(1_000, "2026-09-30", h, &data)
+        XCTAssertNil(data.record(h.id, missed).frozen, "Logging the day replaces its freeze")
+        XCTAssertEqual(Engine.stats(h, data: data, today: today).currentStreak, 5)
+        var bad = data.record(h.id, today); bad.frozen = true; data.records[bad.key] = bad
+        XCTAssertThrowsError(try DataValidation.validate(data, today: today))
+    }
+    func testStreakFreezeOnlyForDailyBuildGoals() throws {
+        for (cadence, mode) in [(Cadence.weekly, HabitMode.build), (.none, .build), (.daily, .quit)] {
+            var (data, h) = fixture(mode: mode, cadence: cadence, days: cadence == .weekly ? 3 : 1); data.settings.freezesPerMonth = 3
+            XCTAssertThrowsError(try Engine.setFreeze(true, habitID: h.id, day: today.adding(-2), data: &data, today: today), "\(cadence) \(mode)")
+        }
+    }
+    func testTimerLogsElapsedTimeInTheGoalUnit() throws {
+        func habit(_ tracking: Tracking, _ unit: String, mode: HabitMode = .build) -> (BuddyData, Habit) {
+            var (data, h) = fixture(tracking: tracking, mode: mode, target: tracking == .yesNo ? 1_000 : 10_000); h.goals[0].unit = unit; data.habits[0] = h; return (data, h)
+        }
+        var (data, h) = habit(.measure, "minutes")
+        XCTAssertEqual(try Engine.logTimer(seconds: 750, habitID: h.id, day: today, data: &data, today: today), 12_500)
+        XCTAssertEqual(data.record(h.id, today).amount, 12_500)
+        (data, h) = habit(.count, "Min")
+        XCTAssertEqual(try Engine.logTimer(seconds: 750, habitID: h.id, day: today, data: &data, today: today), 12_000)
+        XCTAssertEqual(try Engine.logTimer(seconds: 30, habitID: h.id, day: today, data: &data, today: today), 0)
+        XCTAssertEqual(data.record(h.id, today).amount, 12_000)
+        (data, h) = habit(.yesNo, "")
+        _ = try Engine.logTimer(seconds: 5, habitID: h.id, day: today, data: &data, today: today)
+        XCTAssertTrue(Engine.progress(h, day: today, data: data, today: today).success)
+        for (tracking, unit, mode) in [(Tracking.measure, "km", HabitMode.build), (.yesNo, "", .quit)] {
+            (data, h) = habit(tracking, unit, mode: mode)
+            XCTAssertNil(try Engine.logTimer(seconds: 600, habitID: h.id, day: today, data: &data, today: today)); XCTAssertTrue(data.records.isEmpty)
+        }
+        var goal = Goal(); goal.tracking = .measure; goal.unit = "Hours"
+        XCTAssertEqual(TimerUnit(goal), .hours); XCTAssertEqual(TimerUnit(goal)?.duration(target: 1_500), 5_400)
+        XCTAssertEqual(TimerUnit.seconds.amount(seconds: 90.25, whole: false), 90_250)
+    }
+    func testInsightsFindWeekdaysTrendHoursAndHabitsThatLapseTogether() throws {
+        var data = BuddyData(), ids: [UUID] = []
+        let misses = [["2026-09-16", "2026-09-20", "2026-09-23", "2026-09-30"], ["2026-09-16", "2026-09-23", "2026-09-30"]]
+        for n in 0..<2 {
+            var h = Habit(name: "H\(n)", created: Day(rawValue: "2026-09-14")!); h.order = n; h.goals[0].cadence = .daily; data.habits.append(h); ids.append(h.id)
+            for day in Day.range(h.created, today) where !misses[n].contains(day.rawValue) { try Engine.setAmount(1_000, habitID: h.id, day: day, data: &data, today: today) }
+        }
+        data.records[Record.key(ids[0], today)]?.completionHour = 7
+        let insights = InsightsSummary(data: data, from: Day(rawValue: "2026-09-01")!, today: today)
+        XCTAssertEqual(insights.total, DayRate(done: 33, eligible: 40))
+        XCTAssertEqual(insights.weekdays[3], DayRate(done: 0, eligible: 6), "Every Wednesday was missed")
+        XCTAssertEqual(insights.weekdays[0], DayRate(done: 3, eligible: 4))
+        XCTAssertEqual(insights.worstWeekday, 4); XCTAssertEqual(insights.bestWeekday, 2)
+        XCTAssertEqual(insights.months.count, 12); XCTAssertEqual(insights.months[11].month.rawValue, "2026-10-01")
+        XCTAssertEqual(insights.months[10].rate, DayRate(done: 27, eligible: 34)); XCTAssertEqual(insights.months[11].rate, DayRate(done: 6, eligible: 6))
+        XCTAssertGreaterThanOrEqual(insights.hours[7], 1)
+        XCTAssertEqual(insights.pairs.count, 1); XCTAssertEqual(insights.pairs[0].together, 3); XCTAssertEqual(insights.pairs[0].either, 4)
+        XCTAssertTrue(InsightsSummary(data: data, habitIDs: [ids[1]], from: today, today: today).pairs.isEmpty)
+    }
+    func testWeekRecapComparesWithThePreviousWeek() throws {
+        var data = BuddyData(), ids: [UUID] = []
+        for n in 0..<2 {
+            var h = Habit(name: "H\(n)", created: Day(rawValue: "2026-09-14")!); h.order = n; h.goals[0].cadence = .daily; data.habits.append(h); ids.append(h.id)
+            for day in Day.range(h.created, today) where !["2026-09-23", "2026-09-30"].contains(day.rawValue) { try Engine.setAmount(1_000, habitID: h.id, day: day, data: &data, today: today) }
+        }
+        try Engine.note("felt good", habitID: ids[0], day: Day(rawValue: "2026-09-29")!, data: &data, today: today)
+        let recap = WeekRecap(data: data, week: today, today: today)
+        XCTAssertEqual(recap.start.rawValue, "2026-09-28"); XCTAssertEqual(recap.end.rawValue, "2026-10-04")
+        XCTAssertEqual(recap.total, DayRate(done: 10, eligible: 12)); XCTAssertEqual(recap.previous, DayRate(done: 12, eligible: 14))
+        XCTAssertEqual(recap.rows.count, 2); XCTAssertEqual(recap.rows[0].days, [true, true, false, true, true, true, nil])
+        XCTAssertEqual(recap.perfectDays, 5); XCTAssertEqual(recap.bestDay?.rawValue, "2026-09-28"); XCTAssertEqual(recap.notes, 1)
+    }
+    func testMilestonesTrackBestStreakAndTotals() throws {
+        var (data, h) = fixture(start: "2026-09-20")
+        for day in Day.range(Day(rawValue: "2026-09-23")!, Day(rawValue: "2026-10-02")!) { try log(1_000, day.rawValue, h, &data) }
+        let m = Milestones(data.habits[0], data: data, today: today)
+        XCTAssertEqual(m.bestStreak, 10); XCTAssertEqual(m.currentStreak, 10); XCTAssertEqual(m.total, 10)
+        XCTAssertEqual(m.nextStreak, 14); XCTAssertEqual(m.nextTotal, 25); XCTAssertEqual(m.earned, 4)
+        XCTAssertEqual(m.totalReached[1]?.rawValue, "2026-09-23"); XCTAssertEqual(m.totalReached[10]?.rawValue, "2026-10-02")
+    }
+    func testRecapReminderFiresOnTheLastDayOfTheWeek() {
+        var (data, _) = fixture(); let now = ISO8601DateFormatter().date(from: "2026-10-03T12:00:00Z")!, zone = TimeZone(secondsFromGMT: 0)!
+        XCTAssertTrue(ReminderPlanner.plan(data, now: now, timeZone: zone).requests.isEmpty)
+        data.settings.recapReminder = true
+        var calendar = Calendar(identifier: .gregorian); calendar.timeZone = zone
+        let requests = ReminderPlanner.plan(data, now: now, timeZone: zone).requests
+        XCTAssertEqual(requests.count, 1); XCTAssertEqual(requests[0].id, "buddy.\(ReminderPlanner.recapID).2026-10-04")
+        XCTAssertEqual(calendar.component(.weekday, from: requests[0].fireDate), 1); XCTAssertEqual(calendar.component(.hour, from: requests[0].fireDate), 19)
+        data.settings.weekStart = 1
+        XCTAssertEqual(calendar.component(.weekday, from: ReminderPlanner.plan(data, now: now, timeZone: zone).requests[0].fireDate), 7)
+    }
     func testSchemaOneSettingsDecodeWithNewDefaults() throws {
         var (data, _) = fixture();data.settings.theme = .dark;data.settings.showDescriptions=false
         var object=try JSONSerialization.jsonObject(with:DataValidation.encode(data)) as! [String:Any]

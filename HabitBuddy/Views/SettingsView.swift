@@ -10,9 +10,13 @@ struct BackupDocument: FileDocument {
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper { FileWrapper(regularFileWithContents: bytes) }
 }
 
+enum SettingsPage: Hashable { case general, overview, checkIn, theme, categories, archive, data }
+
 struct SettingsView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.openURL) private var openURL
     @State private var exporting = false
     @State private var importing = false
     @State private var document: BackupDocument?
@@ -25,108 +29,291 @@ struct SettingsView: View {
     @State private var categoryEditor: Category?
     @State private var denied = false
     @State private var deleteHabit: Habit?
+    @State private var reorder = false
     private func setting<T>(_ key: WritableKeyPath<Settings, T>) -> Binding<T> {
         Binding(get: { store.data.settings[keyPath: key] }, set: { value in store.change { $0.settings[keyPath: key] = value } })
     }
     var body: some View {
         NavigationStack {
-            Form {
-                Section("General") {
-                    Picker("Theme", selection: setting(\.theme)) { ForEach(Theme.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) } }
-                    Picker("First day of week", selection: setting(\.weekStart)) { ForEach(1...7, id: \.self) { Text(Calendar.current.weekdaySymbols[$0 - 1]).tag($0) } }
-                    Toggle("Outline Today", isOn: setting(\.showToday))
-                    Toggle("Day Notes", isOn: setting(\.notes))
-                    Toggle("Haptic Feedback", isOn: setting(\.haptics))
-                }
-                Section("Categories") {
-                    ForEach(store.data.categories) { category in
-                        HStack { Button { categoryEditor=category } label: { HStack { BuddyGlyph(symbol:category.symbol,size:16);Text(category.name) } }.buttonStyle(.plain); Spacer(); Button("Delete", role: .destructive) { store.change { Engine.deleteCategory(category.id, data: &$0) } }.font(.caption) }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    SettingsGroup("App") {
+                        SettingsLink(page: .general, icon: "settings", color: "pink", title: "General")
+                        SettingsLink(page: .overview, icon: "grid-2x2", color: "teal", title: "Overview")
+                        SettingsLink(page: .checkIn, icon: "bell", color: "cyan", title: "Daily Check-In Reminders")
+                        SettingsLink(page: .theme, icon: "palette", color: "amber", title: "Theme")
+                        SettingsLink(page: .categories, icon: "tags", color: "lime", title: "Categories")
+                        SettingsLink(page: .archive, icon: "archive", color: "green", title: "Archived Habits")
+                        SettingsLink(page: .data, icon: "file-input", color: "indigo", title: "Data Import/Export")
+                        SettingsRow(icon: "list", color: "coral", title: "Reorder Habits") { reorder = true }
                     }
-                    HStack { TextField("New category", text: $categoryName); Button("Add") { let name = categoryName.trimmingCharacters(in: .whitespacesAndNewlines); if store.change({ $0.categories.append(Category(name: name)) }) { categoryName = "" } }.disabled(categoryName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }
+                    SettingsGroup("Help") {
+                        SettingsRow(icon: "ship", color: "orange", title: "Show Onboarding") { dismiss(); store.change { $0.settings.onboarding = false } }
+                        SettingsRow(icon: "send", color: "gray", title: "Send Feedback") { openURL(URL(string: "https://github.com/iyashwant/habbit-buddy/issues")!) }
+                    }
+                    SettingsGroup("About") {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Habit Buddy").font(BuddyFont.text(16, .semibold))
+                            Text("Offline. No account. Your habits stay on this device.").font(BuddyFont.text(13)).foregroundStyle(BuddyStyle.secondaryText(scheme))
+                            Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0") · iOS 27 · Native SwiftUI").font(BuddyFont.mono(11)).foregroundStyle(BuddyStyle.tertiaryText(scheme))
+                            if !store.sharedStorageAvailable { Text("App Group storage is not configured. The app uses private local storage; widgets and Shortcuts need the shared group. Export your data before changing signing or the App Group.").font(BuddyFont.text(12)).foregroundStyle(.orange) }
+                        }.padding(.horizontal, 20).padding(.vertical, 16).frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }.padding(.horizontal, 8).padding(.bottom, 40)
+            }
+            .scrollIndicators(.hidden)
+            .background(BuddyStyle.canvas(scheme))
+            .toolbar(.hidden, for: .navigationBar)
+            .safeAreaInset(edge: .top, spacing: 0) { SheetHeader(title: "Settings").background(BuddyStyle.canvas(scheme).opacity(0.94)) }
+            .navigationDestination(for: SettingsPage.self) { page in self.page(page) }
+            .fileExporter(isPresented: $exporting, document: document, contentType: .json, defaultFilename: "habit-buddy-\(Day().rawValue)") { outcome in
+                switch outcome { case .success: result = "Backup exported."; case .failure(let error): if (error as NSError).code != NSUserCancelledError { result = error.localizedDescription } }
+            }
+            .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { outcome in
+                switch outcome {
+                case .success(let url):
+                    let access = url.startAccessingSecurityScopedResource(); defer { if access { url.stopAccessingSecurityScopedResource() } }
+                    do { try stage(Data(contentsOf: url)) } catch { result = error.localizedDescription }
+                case .failure(let error): if (error as NSError).code != NSUserCancelledError { result = error.localizedDescription }
                 }
-                Section("Overview") {
-                    Picker("Default View",selection:setting(\.layout)){Text("Classic").tag(Layout.cards);Text("Compact").tag(Layout.compact);Text("Month").tag(Layout.month)}
-                    Stepper("Compact view: \(store.data.settings.recentDays) days", value: setting(\.recentDays), in: 1...7)
-                    Toggle("Compact Habit Names",isOn:setting(\.compactNames))
-                    Toggle("Layout Switcher",isOn:setting(\.showLayoutSwitcher))
-                    Toggle("Category Filter",isOn:setting(\.showCategoryFilter))
-                    Toggle("Drag to Reorder",isOn:setting(\.dragToReorder))
-                    Toggle("Month Labels",isOn:setting(\.showMonthLabels))
-                    Toggle("Weekday Labels",isOn:setting(\.showWeekdayLabels))
-                    Toggle("Category Icons",isOn:setting(\.showCategoryIcons))
-                    Toggle("Show Descriptions", isOn: setting(\.showDescriptions))
-                    Toggle("Show Streak", isOn: setting(\.showStreak))
-                    Toggle("Show Goal", isOn: setting(\.showGoal))
-                    Toggle("Show Completion Indicator", isOn: setting(\.showCompletionIndicator))
+            }
+            .confirmationDialog("Replace current habit data?", isPresented: $confirm, titleVisibility: .visible) {
+                Button("Replace and Save Recovery Snapshot", role: .destructive) { if let bytes = replacement, store.restore(bytes) { result = "Backup restored."; loadBackups() }; replacement = nil }
+                Button("Cancel", role: .cancel) { replacement = nil }
+            } message: { Text(restoreDescription) }
+            .confirmationDialog("Permanently delete this habit and all its history?", isPresented: Binding(get: { deleteHabit != nil }, set: { if !$0 { deleteHabit = nil } }), titleVisibility: .visible) {
+                Button("Delete Permanently", role: .destructive) {
+                    if let id = deleteHabit?.id { store.change { Engine.deleteHabit(id, data: &$0) } }; deleteHabit = nil
                 }
-                Section("Daily Check-in") {
-                    Toggle("Daily Check-in Reminder", isOn: Binding(get: { store.data.settings.checkIn != nil }, set: { enabled in store.change { $0.settings.checkIn = enabled ? Reminder() : nil }; if enabled { askNotifications() } }))
+            }
+            .alert("Habit Buddy", isPresented: Binding(get: { result != nil }, set: { if !$0 { result = nil } })) { Button("OK") { result = nil } } message: { Text(result ?? "") }
+            .sheet(item:$categoryEditor){CategoryEditorView(category:$0).buddySheet()}
+            .sheet(isPresented: $reorder) { ReorderView() }
+            .onAppear { loadBackups() }
+        }
+    }
+    @ViewBuilder private func page(_ page: SettingsPage) -> some View {
+        switch page {
+        case .general:
+            SettingsPageView(title: "General") {
+                SettingsGroup {
+                    SettingsMenu(title: "First Day of Week", value: Calendar.current.weekdaySymbols[store.data.settings.weekStart - 1]) { ForEach(1...7, id: \.self) { d in Button(Calendar.current.weekdaySymbols[d - 1]) { setting(\.weekStart).wrappedValue = d } } }
+                    SettingsToggle(title: "Outline Today", isOn: setting(\.showToday))
+                    SettingsToggle(title: "Day Notes", isOn: setting(\.notes))
+                    SettingsToggle(title: "Haptic Feedback", isOn: setting(\.haptics))
+                    SettingsMenu(title: "Streak Freezes", value: store.data.settings.freezesPerMonth == 0 ? "Off" : "\(store.data.settings.freezesPerMonth) a month") {
+                        Button("Off") { setting(\.freezesPerMonth).wrappedValue = 0 }
+                        ForEach(1...3, id: \.self) { n in Button("\(n) a month") { setting(\.freezesPerMonth).wrappedValue = n } }
+                    }
+                }
+                SettingsNote("A streak freeze protects a daily streak from one missed day. Press and hold a missed day, choose Edit Progress, then turn on Freeze Streak. Frozen days still count as missed in completion rates.")
+            }
+        case .overview:
+            SettingsPageView(title: "Overview") {
+                SettingsGroup("Layout") {
+                    SettingsMenu(title: "Default View", value: store.data.settings.layout.title) {
+                        ForEach(Layout.allCases, id: \.self) { layout in Button(layout.title) { setting(\.layout).wrappedValue = layout } }
+                    }
+                    SettingsStepper(title: "Compact View Days", value: setting(\.recentDays), range: 1...7)
+                    SettingsToggle(title: "Compact Habit Names", isOn: setting(\.compactNames))
+                    SettingsToggle(title: "Layout Switcher", isOn: setting(\.showLayoutSwitcher))
+                    SettingsToggle(title: "Category Filter", isOn: setting(\.showCategoryFilter))
+                    SettingsToggle(title: "Drag to Reorder", isOn: setting(\.dragToReorder))
+                }
+                SettingsGroup("Habit Cards") {
+                    SettingsToggle(title: "Month Labels", isOn: setting(\.showMonthLabels))
+                    SettingsToggle(title: "Weekday Labels", isOn: setting(\.showWeekdayLabels))
+                    SettingsToggle(title: "Category Icons", isOn: setting(\.showCategoryIcons))
+                    SettingsToggle(title: "Show Descriptions", isOn: setting(\.showDescriptions))
+                    SettingsToggle(title: "Show Streak", isOn: setting(\.showStreak))
+                    SettingsToggle(title: "Show Goal", isOn: setting(\.showGoal))
+                    SettingsToggle(title: "Completion Indicator", isOn: setting(\.showCompletionIndicator))
+                }
+            }
+        case .checkIn:
+            SettingsPageView(title: "Daily Check-In") {
+                SettingsGroup {
+                    SettingsToggle(title: "Daily Check-In Reminder", isOn: Binding(get: { store.data.settings.checkIn != nil }, set: { enabled in store.change { $0.settings.checkIn = enabled ? Reminder() : nil }; if enabled { askNotifications() } }))
                     if let reminder = store.data.settings.checkIn {
-                        DatePicker("Time", selection: Binding(get: { Calendar.current.date(from: DateComponents(hour: reminder.hour, minute: reminder.minute)) ?? Date() }, set: { date in store.change { $0.settings.checkIn?.hour = Calendar.current.component(.hour, from: date); $0.settings.checkIn?.minute = Calendar.current.component(.minute, from: date) } }), displayedComponents: .hourAndMinute)
-                        TextField("Title", text: setting(\.checkInTitle))
-                        TextField("Message", text: setting(\.checkInBody))
+                        SettingsLine { DatePicker("Time", selection: Binding(get: { Calendar.current.date(from: DateComponents(hour: reminder.hour, minute: reminder.minute)) ?? Date() }, set: { date in store.change { $0.settings.checkIn?.hour = Calendar.current.component(.hour, from: date); $0.settings.checkIn?.minute = Calendar.current.component(.minute, from: date) } }), displayedComponents: .hourAndMinute) }
+                        SettingsLine { TextField("Title", text: setting(\.checkInTitle)) }
+                        SettingsLine { TextField("Message", text: setting(\.checkInBody)) }
                     }
-                    Button("Enable Notifications") { askNotifications() }
-                    if denied { Link("Allow notifications in System Settings", destination: URL(string: UIApplication.openSettingsURLString)!) }
-                    let plan = ReminderPlanner.plan(store.data)
-                    Text("\(plan.requests.count) scheduled reminders in the next 7 days.\(plan.omittedCount > 0 ? " \(plan.omittedCount) later requests exceed the notification budget; open the app to refresh coverage." : "")").font(.caption).foregroundStyle(.secondary)
+                    SettingsToggle(title: "Weekly Recap Reminder", isOn: Binding(get: { store.data.settings.recapReminder }, set: { enabled in store.change { $0.settings.recapReminder = enabled }; if enabled { askNotifications() } }))
+                    SettingsRow(icon: "bell-ring", color: "cyan", title: "Enable Notifications") { askNotifications() }
+                    if denied { SettingsRow(icon: "settings", color: "gray", title: "Allow in System Settings") { openURL(URL(string: UIApplication.openSettingsURLString)!) } }
                 }
-                Section("Your Data") {
-                    Button("Export JSON Backup", systemImage: "square.and.arrow.up") {
+                let plan = ReminderPlanner.plan(store.data)
+                SettingsNote("\(plan.requests.count) scheduled reminders in the next 7 days.\(plan.omittedCount > 0 ? " \(plan.omittedCount) later requests exceed the notification budget; open the app to refresh coverage." : "")")
+            }
+        case .theme:
+            SettingsPageView(title: "Theme") {
+                SettingsGroup {
+                    ForEach(Theme.allCases, id: \.self) { theme in
+                        SettingsRow(icon: theme == .system ? "smartphone" : theme == .light ? "sun" : "moon", color: theme == .dark ? "indigo" : theme == .light ? "amber" : "gray", title: theme.rawValue.capitalized, chevron: false, selected: store.data.settings.theme == theme) { setting(\.theme).wrappedValue = theme }
+                    }
+                }
+                SettingsNote("System follows your iPhone's appearance.")
+            }
+        case .categories:
+            SettingsPageView(title: "Categories") {
+                SettingsGroup {
+                    ForEach(store.data.categories) { category in
+                        SettingsLine {
+                            Button { categoryEditor = category } label: { HStack(spacing: 10) { BuddyGlyph(symbol: category.symbol, size: 18); Text(category.name) }.contentShape(Rectangle()) }.buttonStyle(.plain)
+                            Spacer()
+                            Button("Delete", role: .destructive) { store.change { Engine.deleteCategory(category.id, data: &$0) } }.font(BuddyFont.text(13))
+                        }
+                    }
+                    SettingsLine {
+                        TextField("New category", text: $categoryName)
+                        Button("Add") { let name = categoryName.trimmingCharacters(in: .whitespacesAndNewlines); if store.change({ $0.categories.append(Category(name: name)) }) { categoryName = "" } }.disabled(categoryName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).tint(BuddyStyle.purple)
+                    }
+                }
+            }
+        case .archive:
+            SettingsPageView(title: "Archived Habits") {
+                let archived = store.data.habits.filter { $0.archived != nil }
+                if archived.isEmpty { SettingsNote("Archived habits keep their history and appear here.") }
+                else {
+                    SettingsGroup {
+                        ForEach(archived) { h in
+                            SettingsLine { HabitIcon(habit: h, size: 34); Text(h.name); Spacer(); Button("Restore") { store.archive(h.id, restore: true) }.tint(BuddyStyle.purple) }
+                            SettingsLine { Button("Delete \(h.name) Permanently", role: .destructive) { deleteHabit = h } }
+                        }
+                    }
+                }
+            }
+        case .data:
+            SettingsPageView(title: "Data Import/Export") {
+                SettingsGroup {
+                    SettingsRow(icon: "file-output", color: "indigo", title: "Export JSON Backup") {
                         do { document = BackupDocument(bytes: try store.repository.export()); exporting = true }
                         catch { result = error.localizedDescription }
                     }
-                    Button("Import JSON Backup", systemImage: "square.and.arrow.down") { importing = true }
-                    NavigationLink("On-device Backups (\(backups.count))") {
-                        List {
-                            ForEach(backups, id: \.path) { backup in Button(backup.lastPathComponent) { do { try stage(Data(contentsOf: backup)) } catch { result = error.localizedDescription } } }
-                            if backups.isEmpty { Text("Snapshots appear after the first saved day. Up to seven daily snapshots and three before-restore snapshots are kept.").font(.caption).foregroundStyle(.secondary) }
-                        }.navigationTitle("Backups")
-                    }
-                    Text("JSON includes habits, goals, progress, notes, categories, reminders and settings. A validated import replaces the current data after saving a recovery snapshot. Export periodically to protect against phone loss.").font(.caption).foregroundStyle(.secondary)
+                    SettingsRow(icon: "file-input", color: "blue", title: "Import JSON Backup") { importing = true }
                 }
-                Section("Archive") {
-                    ForEach(store.data.habits.filter { $0.archived != nil }) { h in
-                        HStack { HabitIcon(habit: h, size: 28); Text(h.name); Spacer(); Button("Restore") { store.archive(h.id, restore: true) } }
-                        Button("Delete \(h.name) Permanently", role: .destructive) { deleteHabit = h }
-                    }
-                    if !store.data.habits.contains(where: { $0.archived != nil }) { Text("Archived habits keep their history and appear here.").font(.caption).foregroundStyle(.secondary) }
+                SettingsNote("JSON includes habits, goals, progress, notes, categories, reminders and settings. A validated import replaces the current data after saving a recovery snapshot. Export periodically to protect against phone loss.")
+                SettingsGroup("On-device Backups (\(backups.count))") {
+                    ForEach(backups, id: \.path) { backup in SettingsRow(icon: "clock", color: "gray", title: backup.lastPathComponent) { do { try stage(Data(contentsOf: backup)) } catch { result = error.localizedDescription } } }
+                    if backups.isEmpty { Text("Snapshots appear after the first saved day. Up to seven daily snapshots and three before-restore snapshots are kept.").font(BuddyFont.text(13)).foregroundStyle(BuddyStyle.secondaryText(scheme)).padding(16) }
                 }
-                Section("Habit Buddy") {
-                    Text("Offline. No account. Your habits stay on this device.")
-                    Text("iOS 27 · Native SwiftUI").font(.caption).foregroundStyle(.secondary)
-                    if !store.sharedStorageAvailable { Text("App Group storage is not configured. The app uses private local storage; widgets and Shortcuts need the shared group. Export your data before changing signing or the App Group.").font(.caption).foregroundStyle(.orange) }
-                }
-            }.navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
-                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-                .fileExporter(isPresented: $exporting, document: document, contentType: .json, defaultFilename: "habit-buddy-\(Day().rawValue)") { outcome in
-                    switch outcome { case .success: result = "Backup exported."; case .failure(let error): if (error as NSError).code != NSUserCancelledError { result = error.localizedDescription } }
-                }
-                .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { outcome in
-                    switch outcome {
-                    case .success(let url):
-                        let access = url.startAccessingSecurityScopedResource(); defer { if access { url.stopAccessingSecurityScopedResource() } }
-                        do { try stage(Data(contentsOf: url)) } catch { result = error.localizedDescription }
-                    case .failure(let error): if (error as NSError).code != NSUserCancelledError { result = error.localizedDescription }
-                    }
-                }
-                .confirmationDialog("Replace current habit data?", isPresented: $confirm, titleVisibility: .visible) {
-                    Button("Replace and Save Recovery Snapshot", role: .destructive) { if let bytes = replacement, store.restore(bytes) { result = "Backup restored."; loadBackups() }; replacement = nil }
-                    Button("Cancel", role: .cancel) { replacement = nil }
-                } message: { Text(restoreDescription) }
-                .confirmationDialog("Permanently delete this habit and all its history?", isPresented: Binding(get: { deleteHabit != nil }, set: { if !$0 { deleteHabit = nil } }), titleVisibility: .visible) {
-                    Button("Delete Permanently", role: .destructive) {
-                        if let id = deleteHabit?.id { store.change { data in data.habits.removeAll { $0.id == id }; data.records = data.records.filter { $0.value.habitID != id } } }; deleteHabit = nil
-                    }
-                }
-                .alert("Habit Buddy", isPresented: Binding(get: { result != nil }, set: { if !$0 { result = nil } })) { Button("OK") { result = nil } } message: { Text(result ?? "") }
-                .sheet(item:$categoryEditor){CategoryEditorView(category:$0)}
-                .onAppear { loadBackups() }
+            }
         }
     }
     private func askNotifications() { Task { do { denied = try await !NotificationService.request(); await NotificationService.reconcile(store.data) } catch { result = error.localizedDescription } } }
     private func loadBackups() { do { backups = try store.repository.backups() } catch { result = error.localizedDescription } }
     private func stage(_ bytes: Data) throws { let data = try DataValidation.decode(bytes); replacement = bytes; restoreDescription = "This backup contains \(data.habits.count) habits and \(data.records.count) day records."; confirm = true }
+}
+
+/// A settings sub-page: back control, centered title and grouped rows.
+struct SettingsPageView<Content: View>: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var scheme
+    let title: String
+    @ViewBuilder var content: () -> Content
+    var body: some View {
+        ScrollView { VStack(alignment: .leading, spacing: 0) { content() }.padding(.horizontal, 8).padding(.bottom, 40) }
+            .scrollIndicators(.hidden)
+            .background(BuddyStyle.canvas(scheme)).toolbar(.hidden, for: .navigationBar)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                ZStack {
+                    Text(title).font(BuddyFont.text(20, .bold)).tracking(1.7).foregroundStyle(BuddyStyle.text(scheme)).lineLimit(1).padding(.horizontal, 56)
+                    HStack { CircleControl(symbol: "chevron-left", label: "Back", size: 38, glyph: 16) { dismiss() }; Spacer() }
+                }.padding(.horizontal, 12).padding(.top, 25).padding(.bottom, 10).background(BuddyStyle.canvas(scheme).opacity(0.94))
+            }
+    }
+}
+/// Uppercase caption above a bordered group whose rows are separated by hairlines.
+struct SettingsGroup<Content: View>: View {
+    @Environment(\.colorScheme) private var scheme
+    var title: String?
+    @ViewBuilder var content: () -> Content
+    init(_ title: String? = nil, @ViewBuilder content: @escaping () -> Content) { self.title = title; self.content = content }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9.6) {
+            if let title { Text(title).fieldCaption().tracking(2.3).foregroundStyle(BuddyStyle.secondaryText(scheme)).padding(.leading, 5.7) }
+            VStack(spacing: 0) {
+                Group(subviews: content()) { rows in
+                    ForEach(rows) { row in row; if row.id != rows.last?.id { BuddyStyle.divider(scheme).frame(height: 1) } }
+                }
+            }.panel(radius: 20, border: 0.125).clipShape(RoundedRectangle(cornerRadius: 20, style: .circular))
+        }.padding(.top, title == nil ? 14 : 26.5)
+    }
+}
+struct SettingsTile: View {
+    let icon: String
+    let color: String
+    var body: some View { LucideIcon(icon, size: 18.5).foregroundStyle(BuddyStyle.color(color)).frame(width: 34, height: 34).background(BuddyStyle.color(color).opacity(0.14), in: RoundedRectangle(cornerRadius: 8, style: .circular)) }
+}
+struct SettingsRow: View {
+    @Environment(\.colorScheme) private var scheme
+    let icon: String
+    let color: String
+    let title: String
+    var chevron = true
+    var selected = false
+    var action: () -> Void
+    var body: some View {
+        Button(action: action) { SettingsRowLabel(icon: icon, color: color, title: title, chevron: chevron, selected: selected) }.buttonStyle(.plain)
+            .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+struct SettingsLink: View {
+    let page: SettingsPage
+    let icon: String
+    let color: String
+    let title: String
+    var body: some View { NavigationLink(value: page) { SettingsRowLabel(icon: icon, color: color, title: title) }.buttonStyle(.plain) }
+}
+struct SettingsRowLabel: View {
+    @Environment(\.colorScheme) private var scheme
+    let icon: String
+    let color: String
+    let title: String
+    var chevron = true
+    var selected = false
+    var body: some View {
+        HStack(spacing: 12.3) {
+            SettingsTile(icon: icon, color: color)
+            Text(title).font(BuddyFont.text(16)).foregroundStyle(BuddyStyle.text(scheme)).lineLimit(1)
+            Spacer(minLength: 8)
+            if selected { LucideIcon("check", size: 18).foregroundStyle(BuddyStyle.purple) }
+            if chevron { LucideIcon("chevron-right", size: 15).foregroundStyle(Color(hex: scheme == .dark ? 0x6C6C70 : 0xA0A0A6)) }
+        }.padding(.leading, 18).padding(.trailing, 19.4).frame(height: 53).contentShape(Rectangle())
+    }
+}
+/// A plain settings row for custom controls.
+struct SettingsLine<Content: View>: View {
+    @Environment(\.colorScheme) private var scheme
+    @ViewBuilder var content: () -> Content
+    var body: some View { HStack(spacing: 10) { content() }.font(BuddyFont.text(16)).foregroundStyle(BuddyStyle.text(scheme)).tint(BuddyStyle.purple).padding(.horizontal, 20).frame(minHeight: 53) }
+}
+struct SettingsToggle: View {
+    let title: String
+    @Binding var isOn: Bool
+    var body: some View { SettingsLine { Toggle(title, isOn: $isOn) } }
+}
+struct SettingsStepper: View {
+    let title: String
+    @Binding var value: Int
+    let range: ClosedRange<Int>
+    var body: some View { SettingsLine { Stepper(value: $value, in: range) { HStack { Text(title); Spacer(); Text("\(value)").font(BuddyFont.mono(14)) } } } }
+}
+struct SettingsMenu<Items: View>: View {
+    @Environment(\.colorScheme) private var scheme
+    let title: String
+    let value: String
+    @ViewBuilder var items: () -> Items
+    var body: some View {
+        SettingsLine { Text(title); Spacer(); Menu { items() } label: { HStack(spacing: 6) { Text(value).font(BuddyFont.text(15)); LucideIcon("chevrons-up-down", size: 14) }.foregroundStyle(BuddyStyle.secondaryText(scheme)) } }
+    }
+}
+struct SettingsNote: View {
+    @Environment(\.colorScheme) private var scheme
+    let text: String
+    init(_ text: String) { self.text = text }
+    var body: some View { Text(text).font(BuddyFont.text(12.5)).foregroundStyle(BuddyStyle.tertiaryText(scheme)).padding(.horizontal, 12).padding(.top, 10) }
 }
 
 struct ReorderView: View {
@@ -167,4 +354,8 @@ struct CategoryEditorView: View {
             }.disabled(category.name.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty)
         }.padding(20).background(BuddyStyle.canvas(scheme)).sheet(isPresented:$icons){IconPickerView(selection:$category.symbol,color:BuddyStyle.purple)}
     }
+}
+
+extension Layout {
+    var title: String { switch self { case .cards: "Classic"; case .compact: "Compact"; case .month: "Month"; case .streaks: "Streaks"; case .list: "List" } }
 }

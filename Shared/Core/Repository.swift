@@ -18,7 +18,7 @@ public enum DataValidation {
         for category in data.categories { try require(!category.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && category.name.count <= 100, "invalid category") }
         for habit in data.habits {
             try require(!habit.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && habit.name.count <= 200 && habit.detail.count <= 2_000, "invalid habit name or description")
-            try require(habit.created <= today && habit.created.rawValue >= "1970-01-01", "invalid start date")
+            try require(habit.created <= today && habit.created >= Habit.earliestStart, "invalid start date")
             try require(habit.archived == nil || (habit.archived! >= habit.created && habit.archived! <= today), "invalid archive date")
             var pauseEnd: Day?
             for pause in habit.pauses {
@@ -42,6 +42,15 @@ public enum DataValidation {
             for reminder in habit.reminders { try validate(reminder) }
         }
         if let reminder = data.settings.checkIn { try validate(reminder) }
+        if let dashboard = data.settings.dashboard {
+            try require(dashboard.count <= 100 && Set(dashboard.map(\.id)).count == dashboard.count, "invalid dashboard")
+        }
+        try require((0...7).contains(data.settings.freezesPerMonth), "invalid streak freeze allowance")
+        try require(data.routines.count <= 100 && Set(data.routines.map(\.id)).count == data.routines.count, "invalid routines")
+        for routine in data.routines {
+            try require(!routine.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && routine.name.count <= 100, "invalid routine name")
+            try require(Set(routine.habitIDs).count == routine.habitIDs.count && Set(routine.habitIDs).isSubset(of: habitIDs), "invalid routine habits")
+        }
         for (key, record) in data.records {
             guard let habit = data.habits.first(where: { $0.id == record.habitID }) else { throw BuddyError.invalidData("orphaned record") }
             let goal = habit.goal(on: record.day)
@@ -50,6 +59,7 @@ public enum DataValidation {
             try require(goal.tracking == .measure || record.amount % 1_000 == 0, "fractional count")
             try require(goal.tracking != .yesNo || record.amount <= 1_000, "invalid yes/no amount")
             try require(record.completionHour == nil || (0...23).contains(record.completionHour!), "invalid completion hour")
+            try require(record.frozen != true || (record.day < today && goal.mode == .build && goal.cadence == .daily && record.amount < goal.target), "invalid streak freeze")
         }
     }
     private static func validate(_ reminder: Reminder) throws {
@@ -75,6 +85,9 @@ public enum DataValidation {
 public final class BuddyRepository: @unchecked Sendable {
     public let directory: URL
     private let mutex = NSRecursiveLock()
+    /// The last snapshot this instance read or committed, keyed by its exact bytes and validation day.
+    /// Unchanged files skip JSON decoding; any write from another process changes the bytes.
+    private var cache: (bytes: Data, day: Day, value: BuddyData)?
     public init(directory: URL) { self.directory = directory }
     private var file: URL { directory.appendingPathComponent("habits-v1.json") }
     public var backupDirectory: URL { directory.appendingPathComponent("Backups", isDirectory: true) }
@@ -89,7 +102,16 @@ public final class BuddyRepository: @unchecked Sendable {
     }
     private func readUnlocked() throws -> BuddyData {
         guard FileManager.default.fileExists(atPath: file.path) else { return BuddyData() }
-        return try DataValidation.decode(Data(contentsOf: file))
+        let bytes = try Data(contentsOf: file), today = Day()
+        if let cache, cache.day == today, cache.bytes == bytes { return cache.value }
+        let value = try DataValidation.decode(bytes, today: today)
+        cache = (bytes, today, value)
+        return value
+    }
+    private func commitUnlocked(_ value: BuddyData) throws {
+        let bytes = try DataValidation.encode(value)
+        try bytes.write(to: file, options: .atomic)
+        cache = (bytes, Day(), value)
     }
     public func load() throws -> BuddyData { try locked { try readUnlocked() } }
     @discardableResult public func transaction(_ change: (inout BuddyData) throws -> Void) throws -> BuddyData {
@@ -98,7 +120,7 @@ public final class BuddyRepository: @unchecked Sendable {
             try dailyBackup(current)
             try change(&current)
             try DataValidation.validate(current)
-            try DataValidation.encode(current).write(to: file, options: .atomic)
+            try commitUnlocked(current)
             return current
         }
     }
@@ -114,7 +136,7 @@ public final class BuddyRepository: @unchecked Sendable {
                 try Data(contentsOf: file).write(to: backupDirectory.appendingPathComponent(stamp), options: .atomic)
             }
             try prune(prefix: "before-restore-", keep: 3)
-            try DataValidation.encode(replacement).write(to: file, options: .atomic)
+            try commitUnlocked(replacement)
             return replacement
         }
     }
@@ -127,11 +149,11 @@ public final class BuddyRepository: @unchecked Sendable {
     }
     private func dailyBackup(_ current: BuddyData) throws {
         guard FileManager.default.fileExists(atPath: file.path) else { return }
-        try FileManager.default.createDirectory(at: backupDirectory, withIntermediateDirectories: true)
         let backup = backupDirectory.appendingPathComponent("daily-\(Day().rawValue).json")
-        if !FileManager.default.fileExists(atPath: backup.path) {
-            try DataValidation.encode(current).write(to: backup, options: .atomic)
-        }
+        // Only this method creates daily snapshots, so pruning is needed only after adding one.
+        guard !FileManager.default.fileExists(atPath: backup.path) else { return }
+        try FileManager.default.createDirectory(at: backupDirectory, withIntermediateDirectories: true)
+        try DataValidation.encode(current).write(to: backup, options: .atomic)
         try prune(prefix: "daily-", keep: 7)
     }
     private func prune(prefix: String, keep: Int) throws {

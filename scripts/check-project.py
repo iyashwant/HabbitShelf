@@ -19,7 +19,7 @@ for folder in ["HabitBuddy", "Shared", "Widgets", "UITests"]:
         assert str(path.relative_to(ROOT)) in source, f"Source missing from project: {path}"
 for resource in (ROOT / "Shared/Resources").glob("*"):
     assert str(resource.relative_to(ROOT)) in source, f"Resource missing from project: {resource}"
-icons=json.loads((ROOT / "Shared/Resources/habit-icons.json").read_text())
+icons=json.loads((ROOT / "Shared/Resources/habit-icons.json").read_text())+json.loads((ROOT / "Shared/Resources/lucide-icons.json").read_text())
 assert len(icons)==len({i["id"] for i in icons}), "Duplicate icon IDs"
 assert all(i["name"] and i["unicode"] for i in icons), "Incomplete icon metadata"
 for extension in ["*.plist", "*.entitlements", "*.xcprivacy"]:

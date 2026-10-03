@@ -7,6 +7,8 @@ import WidgetKit
     @Published var loaded = false
     @Published var sharedStorageAvailable = AppEnvironment.hasSharedContainer
     let repository = AppEnvironment.repository
+    private var sync: Task<Void, Never>?
+    private let haptic = UIImpactFeedbackGenerator(style: .light)
     init() {
         #if DEBUG
         if let screen=ProcessInfo.processInfo.environment["BUDDY_VISUAL_SCREEN"],ProcessInfo.processInfo.environment["BUDDY_VISUAL_RESET"] != "false" {
@@ -24,21 +26,40 @@ import WidgetKit
         guard loaded else { error = "Data could not be loaded. Restore a backup before making changes."; return false }
         do {
             data = try repository.transaction(block)
-            Task { await AppEnvironment.changed(data) }
+            scheduleSync()
             return true
         } catch { self.error = error.localizedDescription; return false }
     }
+    /// Widget reloads and notification rescheduling run once after a burst of taps, never concurrently.
+    private func scheduleSync(delay: Duration = .milliseconds(350)) {
+        let previous = sync
+        previous?.cancel()
+        syncPending = true
+        sync = Task { [weak self] in
+            if delay > .zero { try? await Task.sleep(for: delay) }
+            guard !Task.isCancelled else { return }
+            await previous?.value
+            guard let self else { return }
+            syncPending = false
+            await AppEnvironment.changed(data)
+        }
+    }
+    private var syncPending = false
+    /// Leaving the app must not strand a debounced widget or reminder update.
+    func flushSync() { if syncPending { scheduleSync(delay: .zero) } }
     func habit(_ id: UUID) -> Habit? { data.habits.first { $0.id == id } }
     @discardableResult func setAmount(_ value: Int64, _ id: UUID, _ day: Day) -> Bool {
         change { try Engine.setAmount(value, habitID: id, day: day, data: &$0) }
     }
     @discardableResult func quickLog(_ habit: Habit, day: Day = Day()) -> Bool {
         let goal = habit.goal(on: day), old = data.record(habit.id, day).amount
-        let result = change { data in
-            if goal.tracking == .yesNo { try Engine.setAmount(old == 0 ? 1_000 : 0, habitID: habit.id, day: day, data: &data) }
-            else { try Engine.increment(habitID: habit.id, day: day, data: &data) }
+        let result = withAnimation(.snappy(duration: 0.22)) {
+            change { data in
+                if goal.tracking == .yesNo { try Engine.setAmount(old == 0 ? 1_000 : 0, habitID: habit.id, day: day, data: &data) }
+                else { try Engine.increment(habitID: habit.id, day: day, data: &data) }
+            }
         }
-        if result && data.settings.haptics { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
+        if result && data.settings.haptics { haptic.impactOccurred(); haptic.prepare() }
         return result
     }
     func archive(_ id: UUID, restore: Bool = false) {
@@ -54,7 +75,7 @@ import WidgetKit
     @discardableResult func restore(_ bytes: Data) -> Bool {
         do {
             data = try repository.restore(bytes); loaded = true
-            Task { await AppEnvironment.changed(data) }; return true
+            scheduleSync(); return true
         } catch { self.error = error.localizedDescription; return false }
     }
 }

@@ -21,9 +21,10 @@ struct ChooseHabitIntent: WidgetConfigurationIntent {
     @Parameter(title: "Theme", default: .system) var theme: WidgetAppearance
 }
 enum WidgetAppearance: String, AppEnum {
-    case system,light,dark
+    case system,light,dark,tinted
     static var typeDisplayRepresentation: TypeDisplayRepresentation = "Widget Theme"
-    static var caseDisplayRepresentations: [Self:DisplayRepresentation] = [.system:"System",.light:"Light",.dark:"Dark"]
+    static var caseDisplayRepresentations: [Self:DisplayRepresentation] = [.system:"System",.light:"Light",.dark:"Dark",.tinted:"Tinted"]
+    var style: WidgetStyle { switch self { case .system: .automatic; case .light: .light; case .dark: .dark; case .tinted: .tinted } }
 }
 struct ChooseCompactHabitsIntent: WidgetConfigurationIntent {
     static var title: LocalizedStringResource = "Choose Habits"
@@ -117,3 +118,75 @@ struct WidgetLogIntent: AppIntent {
         return .result()
     }
 }
+
+struct RoutineEntity: AppEntity {
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Routine"
+    static var defaultQuery = RoutineQuery()
+    var id: UUID
+    var name: String
+    var displayRepresentation: DisplayRepresentation { DisplayRepresentation(title: "\(name)") }
+    init(_ routine: Routine) { id = routine.id; name = routine.name }
+}
+struct RoutineQuery: EntityQuery {
+    func entities(for identifiers: [UUID]) async throws -> [RoutineEntity] { try AppEnvironment.repository.load().routines.filter { identifiers.contains($0.id) }.map(RoutineEntity.init) }
+    func suggestedEntities() async throws -> [RoutineEntity] { try AppEnvironment.repository.load().routines.map(RoutineEntity.init) }
+}
+struct CompleteRoutineIntent: AppIntent {
+    static var title: LocalizedStringResource = "Complete Routine"
+    static var description = IntentDescription("Complete every open build habit in a routine for today. Quit habits are left alone.")
+    @Parameter(title: "Routine") var routine: RoutineEntity?
+    init() {}
+    init(_ routine: RoutineEntity?) { self.routine = routine }
+    func perform() async throws -> some IntentResult {
+        guard let id = routine?.id else { throw BuddyError.unavailable }
+        try await IntentWrite.run { try Engine.completeRoutine(id, day: Day(), data: &$0) }
+        return .result()
+    }
+}
+/// Control Center, Lock Screen and Action button logging. Yes/no habits toggle; counts add one until the goal.
+struct ControlLogIntent: AppIntent {
+    static var title: LocalizedStringResource = "Log Habit"
+    static var description = IntentDescription("Check off a yes/no habit, or add one to a count that hasn't reached its goal.")
+    @Parameter(title: "Habit") var habit: HabitEntity?
+    init() {}
+    init(_ habit: HabitEntity?) { self.habit = habit }
+    func perform() async throws -> some IntentResult {
+        guard let id = habit?.id else { throw BuddyError.unavailable }
+        try await IntentWrite.run { data in
+            guard let h = data.active.first(where: { $0.id == id }) else { throw BuddyError.unavailable }
+            let day = Day(), g = h.goal(on: day), old = data.record(id, day).amount
+            if g.tracking == .yesNo { try Engine.setAmount(old == 0 ? 1_000 : 0, habitID: id, day: day, data: &data) }
+            else if g.mode == .build && old < g.target { try Engine.increment(habitID: id, day: day, data: &data) }
+        }
+        return .result()
+    }
+}
+struct ChooseControlHabitIntent: ControlConfigurationIntent {
+    static var title: LocalizedStringResource = "Choose Habit"
+    @Parameter(title: "Habit") var habit: HabitEntity?
+    init() {}
+}
+struct ChooseControlRoutineIntent: ControlConfigurationIntent {
+    static var title: LocalizedStringResource = "Choose Routine"
+    @Parameter(title: "Routine") var routine: RoutineEntity?
+    init() {}
+}
+/// Lock Screen widgets have no theme, so they take only the habit.
+struct ChooseLockHabitIntent: WidgetConfigurationIntent {
+    static var title: LocalizedStringResource = "Choose Habit"
+    static var description = IntentDescription("Choose the habit shown on the Lock Screen.")
+    @Parameter(title: "Habit") var habit: HabitEntity?
+}
+struct ChooseLockHabitsIntent: WidgetConfigurationIntent {
+    static var title: LocalizedStringResource = "Choose Habits"
+    static var description = IntentDescription("Choose the habits counted today, or leave empty for all.")
+    @Parameter(title: "Habits") var habits: [HabitEntity]?
+}
+/// Opens the app's timer, for the Control Center control.
+struct OpenTimerIntent: AppIntent {
+    static var title: LocalizedStringResource = "Open Habit Timer"
+    static var openAppWhenRun = true
+    init() {}
+    func perform() async throws -> some IntentResult & OpensIntent { .result(opensIntent: OpenURLIntent(URL(string: "habitbuddy://timer")!)) }
+}
+extension HabitEntity { init(id: UUID, name: String) { self.id = id; self.name = name } }

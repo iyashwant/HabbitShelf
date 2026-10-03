@@ -8,6 +8,7 @@ struct HabitShortcuts: AppShortcutsProvider {
         AppShortcut(intent: LogAmountIntent(), phrases: ["Log an amount in \(.applicationName)"], shortTitle: "Log Amount", systemImageName: "number")
         AppShortcut(intent: LogNoteIntent(), phrases: ["Add a note in \(.applicationName)"], shortTitle: "Log Note", systemImageName: "note.text")
         AppShortcut(intent: GetHabitProgressIntent(), phrases: ["Get habit progress in \(.applicationName)"], shortTitle: "Get Progress", systemImageName: "chart.bar")
+        AppShortcut(intent: CompleteRoutineIntent(), phrases: ["Complete a routine in \(.applicationName)"], shortTitle: "Complete Routine", systemImageName: "checklist")
         AppShortcut(intent: OpenHabitIntent(), phrases: ["Open a habit in \(.applicationName)"], shortTitle: "Open Habit", systemImageName: "square.grid.3x3")
     }
 }

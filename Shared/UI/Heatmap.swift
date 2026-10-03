@@ -1,5 +1,25 @@
 import SwiftUI
 
+extension Day {
+    /// Display formatters are costly to create, so tiles and rows share these.
+    static let shortMonth = utcFormatter("MMM")
+    static let monthYear = utcFormatter("MMM yyyy")
+    static let longDay = utcFormatter("EEE, MMM d, yyyy")
+    private static func utcFormatter(_ format: String) -> DateFormatter {
+        let f = DateFormatter(); f.locale = .autoupdatingCurrent; f.timeZone = TimeZone(secondsFromGMT: 0); f.dateFormat = format
+        return f
+    }
+}
+
+/// Tile shades for one grid style: full color for success, `empty` inside the tracked range, `inactive` outside it.
+struct TileShade {
+    var empty = BuddyStyle.emptyTile
+    var inactive = BuddyStyle.inactiveTile
+    /// The detail history uses brighter empty tiles than the overview cards.
+    static let detail = TileShade(empty: 0.18, inactive: 0.12)
+    func alpha(_ p: Progress) -> Double { !p.available ? inactive : p.success ? 1 : p.slip ? empty + 0.04 : empty + p.fraction * (0.75 - empty) }
+}
+
 struct Heatmap: View {
     let habit: Habit
     let data: BuddyData
@@ -8,44 +28,48 @@ struct Heatmap: View {
     var labels = true
     var monthLabels = true
     var weekdayLabels = true
+    /// Fixed tile pitch; when nil the tiles stretch to fill the width.
+    var pitch: CGFloat?
+    /// With a fixed pitch, show only the latest weeks that fit the width.
+    var fit = false
+    var shade = TileShade()
+    private let gap: CGFloat = 3
+    private var top: CGFloat { labels && monthLabels ? 18 : 0 }
     var body: some View {
         GeometryReader { proxy in
+            let labelWidth: CGFloat = labels && weekdayLabels ? 26 : 0
+            let weeks = fit && pitch != nil ? max(1, Int((proxy.size.width - labelWidth + gap) / pitch!)) : self.weeks
             let first = end.startOfWeek(data.settings.weekStart).adding(-(weeks - 1) * 7)
-            let labelWidth: CGFloat = labels && weekdayLabels ? 22 : 0
-            let top: CGFloat = labels && monthLabels ? 17 : 0
-            let gap: CGFloat = 3
-            let tile = max(2, (proxy.size.width - labelWidth - CGFloat(weeks - 1) * gap) / CGFloat(weeks))
+            let step = pitch ?? max(5, (proxy.size.width - labelWidth + gap) / CGFloat(weeks))
+            let tile = step - gap
             Canvas { context, _ in
+                let today = Day(), color = BuddyStyle.color(habit.color)
                 for col in 0..<weeks {
+                    let weekStart = first.adding(col * 7)
                     for row in 0..<7 {
-                        let day = first.adding(col * 7 + row)
-                        let progress = Engine.progress(habit, day: day, data: data)
-                        let rect = CGRect(x: labelWidth + CGFloat(col) * (tile + gap), y: top + CGFloat(row) * (tile + gap), width: tile, height: tile)
-                        let path = Path(roundedRect: rect, cornerRadius: tile * 0.25)
-                        let color = BuddyStyle.color(habit.color)
-                        let alpha = !progress.available ? 0.05 : progress.success ? 1 : progress.slip ? 0.13 : 0.12 + progress.fraction * 0.62
-                        context.fill(path, with: .color(color.opacity(alpha)))
-                        if day == Day() && data.settings.showToday { context.stroke(path, with: .color(color.opacity(0.85)), lineWidth: 1) }
-                        if day.rawValue.hasSuffix("-01"), labels && monthLabels {
-                            let f = DateFormatter(); f.timeZone = TimeZone(secondsFromGMT: 0); f.dateFormat = "MMM"
-                            let text = Text(f.string(from: day.date)).font(.system(size: 8, design: .monospaced)).foregroundStyle(.secondary)
-                            context.draw(text, at: CGPoint(x: rect.minX + 3, y: 6))
-                        }
+                        let day = weekStart.adding(row)
+                        let progress = Engine.progress(habit, day: day, data: data, today: today)
+                        let rect = CGRect(x: labelWidth + CGFloat(col) * step, y: top + CGFloat(row) * step, width: tile, height: tile)
+                        context.fill(Path(roundedRect: rect, cornerRadius: tile * 0.3), with: .color(progress.frozen ? BuddyStyle.freeze.opacity(0.5) : color.opacity(shade.alpha(progress))))
+                    }
+                    // A month is labelled at the first week that starts inside it.
+                    if labels && monthLabels && Int(weekStart.rawValue.suffix(2))! <= 7 {
+                        let text = Text(Day.shortMonth.string(from: weekStart.date)).font(BuddyFont.mono(10)).foregroundStyle(Color(hex: 0x73737C))
+                        context.draw(text, at: CGPoint(x: labelWidth + CGFloat(col) * step, y: 6), anchor: .leading)
                     }
                 }
                 if labels && weekdayLabels {
-                    let names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
                     for row in [1, 3, 5] {
-                        let name = names[(data.settings.weekStart - 1 + row) % 7]
-                        context.draw(Text(name).font(.system(size: 8, design: .monospaced)).foregroundStyle(.secondary), at: CGPoint(x: 6, y: top + CGFloat(row) * (tile + gap) + tile / 2))
+                        context.draw(Text(Self.weekday(data.settings.weekStart, row)).font(BuddyFont.mono(10)).foregroundStyle(Color(hex: 0x73737C)), at: CGPoint(x: 0, y: top + CGFloat(row) * step + tile / 2), anchor: .leading)
                     }
                 }
             }
         }
-        .frame(height: labels && monthLabels ? 106 : 88)
+        .frame(height: top + 7 * (pitch ?? 13))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(habit.name), contribution grid, last \(weeks) weeks. Open the calendar to edit individual days.")
     }
+    static func weekday(_ start: Int, _ row: Int) -> String { Calendar.current.shortWeekdaySymbols[(start - 1 + row) % 7] }
 }
 
 struct DayTile: View {
@@ -53,75 +77,92 @@ struct DayTile: View {
     let habit: Habit
     let day: Day
     let data: BuddyData
-    var size: CGFloat = 32
+    var size: CGFloat = 30
     var showNumber = false
     var body: some View {
-        let p = Engine.progress(habit, day: day, data: data)
-        let color = BuddyStyle.color(habit.color)
-        RoundedRectangle(cornerRadius: size * 0.28)
-            .fill(color.opacity(!p.available ? 0.04 : p.success ? 1 : 0.12 + p.fraction * 0.5))
+        let today = Day(), p = Engine.progress(habit, day: day, data: data, today: today)
+        let color = BuddyStyle.color(habit.color), shape = RoundedRectangle(cornerRadius: size * 0.3, style: .circular)
+        shape.fill(p.frozen ? BuddyStyle.freeze.opacity(0.35) : color.opacity(TileShade().alpha(p)))
             .overlay {
-                if showNumber { Text(String(day.rawValue.suffix(2)).replacingOccurrences(of: "^0", with: "", options: .regularExpression)).font(.caption).foregroundStyle(p.success ? Color.black.opacity(0.8) : .secondary) }
-                else if p.slip { Image(systemName: "xmark").font(.system(size: 10, weight: .bold)).foregroundStyle(color) }
-                else if p.success && differentiate { Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).foregroundStyle(Color.black.opacity(0.6)) }
+                if p.frozen && !showNumber { LucideIcon("snowflake", size: size * 0.45).foregroundStyle(BuddyStyle.freeze) }
+                else if showNumber { Text(String(Int(day.rawValue.suffix(2))!)).font(BuddyFont.mono(11)).foregroundStyle(p.success ? Color.black.opacity(0.8) : .secondary) }
+                else if p.slip { LucideIcon("x", size: size * 0.4).foregroundStyle(color) }
+                else if p.success && differentiate { LucideIcon("check", size: size * 0.4).foregroundStyle(Color.black.opacity(0.6)) }
                 else if habit.goal(on: day).tracking != .yesNo && !p.success && p.fraction > 0 {
-                    Circle().trim(from: 0, to: p.fraction).stroke(color, lineWidth: 2).rotationEffect(.degrees(-90)).padding(4)
+                    Circle().trim(from: 0, to: p.fraction).stroke(color, lineWidth: 2).rotationEffect(.degrees(-90)).padding(size * 0.18)
                 }
             }
-            .overlay { if day == Day() && data.settings.showToday { RoundedRectangle(cornerRadius: size * 0.28).stroke(color, lineWidth: 1.5) } }
-            .overlay(alignment: .bottom) { if data.settings.notes && !data.record(habit.id, day).note.isEmpty { Circle().fill(Color.primary).frame(width: 3, height: 3).padding(.bottom, 3) } }
+            .overlay(alignment: .bottom) { if data.settings.notes && !data.record(habit.id, day).note.isEmpty { Circle().fill(p.success ? Color.black.opacity(0.6) : Color.primary).frame(width: 3, height: 3).padding(.bottom, 3) } }
             .frame(width: size, height: size)
-            .opacity(p.available ? 1 : 0.4)
-            .accessibilityLabel("\(day.rawValue), \(p.success ? "complete" : p.slip ? "slip" : "incomplete"), \(Amount.text(p.amount)) \(habit.goal(on: day).unit)")
+            .opacity(p.available || habit.loggable(on: day, today: today) ? 1 : 0.4)
+            .accessibilityLabel("\(day.rawValue), \(p.success ? "complete" : p.slip ? "slip" : p.frozen ? "frozen" : "incomplete"), \(Amount.text(p.amount)) \(habit.goal(on: day).unit)")
     }
 }
 
+/// The whole history in a horizontal scroller that opens on the latest week, with the oldest visible weeks fading out.
 struct ContributionHistory: View {
+    @Environment(\.colorScheme) private var scheme
     let habit: Habit
     let data: BuddyData
     var start: Day?
     var end = Day()
     var monthLabels = true
     var weekdayLabels = true
-    private var weeks: Int { max(24, (start ?? habit.created).startOfWeek(data.settings.weekStart).distance(to:end.startOfWeek(data.settings.weekStart))/7+1) }
+    var shade = TileShade()
+    var labelWidth: CGFloat = 26
+    /// Width of the leading fade.
+    var fade: CGFloat = 33
+    /// Shade the leading edge with the canvas color instead of fading the tiles out (detail style).
+    var shadeEdge = false
+    private let pitch: CGFloat = 13
+    private var weeks: Int { max(30, (start ?? habit.created).startOfWeek(data.settings.weekStart).distance(to: end.startOfWeek(data.settings.weekStart)) / 7 + 1) }
+    private var top: CGFloat { monthLabels ? 18 : 0 }
     var body: some View {
-        GeometryReader { proxy in
-            let left:CGFloat=weekdayLabels ? 22:0
-            let tile=max(2,(proxy.size.width-left-23*3)/24)
-            HStack(spacing:0) {
-                if weekdayLabels {
-                    Canvas { context,_ in
-                        for row in [1,3,5] {
-                            let name=Calendar.current.shortWeekdaySymbols[(data.settings.weekStart-1+row)%7]
-                            context.draw(Text(name).font(.system(size:7,design:.monospaced)).foregroundStyle(.secondary),at:CGPoint(x:10,y:(monthLabels ? 17:0)+CGFloat(row)*(tile+3)+tile/2))
-                        }
-                    }.frame(width:22)
-                }
-                ScrollView(.horizontal,showsIndicators:false) {
-                    Heatmap(habit:habit,data:data,weeks:weeks,end:end,monthLabels:monthLabels,weekdayLabels:false)
-                        .frame(width:CGFloat(weeks)*(tile+3)-3)
-                }.defaultScrollAnchor(.trailing)
+        HStack(spacing: 0) {
+            if weekdayLabels {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(0..<7, id: \.self) { row in
+                        Text(row % 2 == 1 ? Heatmap.weekday(data.settings.weekStart, row) : "").font(BuddyFont.mono(10)).foregroundStyle(Color(hex: 0x73737C)).frame(height: pitch - 3).padding(.bottom, 3)
+                    }
+                }.padding(.top, top).frame(width: labelWidth, alignment: .leading).accessibilityHidden(true)
             }
-        }.frame(height:monthLabels ? 106:88)
+            ScrollView(.horizontal, showsIndicators: false) {
+                Heatmap(habit: habit, data: data, weeks: weeks, end: end, monthLabels: monthLabels, weekdayLabels: false, pitch: pitch, shade: shade)
+                    .frame(width: CGFloat(weeks) * pitch)
+            }
+            .defaultScrollAnchor(.trailing)
+            .mask(HStack(spacing: 0) { LinearGradient(colors: [shadeEdge ? .black : .clear, .black], startPoint: .leading, endPoint: .trailing).frame(width: fade); Color.black })
+            .overlay(alignment: .leading) { if shadeEdge { LinearGradient(colors: [BuddyStyle.canvas(scheme).opacity(0.7), BuddyStyle.canvas(scheme).opacity(0)], startPoint: .leading, endPoint: .trailing).frame(width: fade).allowsHitTesting(false) } }
+        }
+        .frame(height: top + 7 * pitch)
     }
-
 }
+
+/// One day in the detail calendar. Days of neighbouring months show at reduced opacity.
 struct CalendarDay: View {
+    @Environment(\.colorScheme) private var scheme
     let habit: Habit
     let day: Day
     let data: BuddyData
     var inMonth = true
     var body: some View {
-        let p=Engine.progress(habit,day:day,data:data),c=BuddyStyle.color(habit.color)
-        VStack(spacing:3) {
-            Text(String(Int(day.rawValue.suffix(2))!)).font(.system(size:13,weight:day==Day() ? .semibold:.regular,design:.monospaced))
-                .foregroundStyle(p.success ? Color.primary:Color.secondary)
-            if p.success || p.slip { Image(systemName:p.slip ? "xmark":"circle.fill").font(.system(size:4)).foregroundStyle(c) }
-            else { Color.clear.frame(height:4) }
-        }.frame(maxWidth:.infinity).frame(height:42)
-            .background(c.opacity(p.success ? 0.17:p.fraction*0.12),in:RoundedRectangle(cornerRadius:12))
-            .overlay{if day==Day() && data.settings.showToday{RoundedRectangle(cornerRadius:12).stroke(c,lineWidth:1.3)}}
-            .opacity(!inMonth ? 0.45:day>Day() ? 0.3:1)
-            .accessibilityLabel("\(day.rawValue), \(p.success ? "complete":p.slip ? "slip":"incomplete"), \(Amount.text(p.amount))")
+        let today = Day(), p = Engine.progress(habit, day: day, data: data, today: today), c = BuddyStyle.color(habit.color)
+        let shape = RoundedRectangle(cornerRadius: 12, style: .circular)
+        let digit: Color = p.success || day == today ? BuddyStyle.text(scheme) : day > today ? BuddyStyle.text(scheme).opacity(0.18) : BuddyStyle.secondaryText(scheme)
+        ZStack {
+            shape.fill(c.opacity(p.success ? 0.15 : p.fraction * 0.1))
+            Text(String(Int(day.rawValue.suffix(2))!)).font(BuddyFont.mono(14)).foregroundStyle(digit)
+            if p.success || p.slip {
+                Group { if p.slip { LucideIcon("x", size: 9) } else { Circle().frame(width: 5, height: 5) } }
+                    .foregroundStyle(c).frame(maxHeight: .infinity, alignment: .bottom).padding(.bottom, p.slip ? 1.5 : 3.5)
+            } else if p.frozen {
+                LucideIcon("snowflake", size: 9).foregroundStyle(BuddyStyle.freeze).frame(maxHeight: .infinity, alignment: .bottom).padding(.bottom, 1.5)
+            }
+            if day == today && data.settings.showToday { shape.strokeBorder(c, lineWidth: 1.5) }
+        }
+        .frame(maxWidth: .infinity).frame(height: 46)
+        .opacity(inMonth || day > today ? 1 : 0.6)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(day.rawValue), \(p.success ? "complete" : p.slip ? "slip" : p.frozen ? "frozen" : "incomplete"), \(Amount.text(p.amount))")
     }
 }

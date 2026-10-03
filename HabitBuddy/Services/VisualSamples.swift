@@ -19,14 +19,38 @@ enum VisualSamples {
                 if offset==0 { r.amount=n==2 ? 1_000:n==4 ? 3_000:0 }
                 if r.amount>=h.currentGoal.target && h.currentGoal.mode == .build { r.completedAt=day.date.addingTimeInterval(Double(10+n)*3_600);r.completionHour=10+n }
                 if n==0 && [0,3,7,15,28].contains(offset){r.note=["A short session still counts.","More energy after moving.","Made time before work.","Kept a steady pace.","Glad I showed up."][offset==0 ? 0:offset==3 ? 1:offset==7 ? 2:offset==15 ? 3:4]}
+                if n==2 && [1,9,40].contains(offset){r.note=offset==1 ? "Wrote about the weekend trip.":offset==9 ? "Hard to focus, still wrote three lines.":"Started a gratitude list."}
+                if n==6 && [2,20].contains(offset){r.note=offset==2 ? "Breathing exercise before bed.":"Ten minutes felt short today."}
                 if r.amount>0 || !r.note.isEmpty {data.records[r.key]=r}
             }
         }
+        if data.routines.isEmpty {
+            var routine=Routine(name:"Morning");routine.id=UUID(uuidString:"00000000-0000-0000-0004-000000000001")!;routine.habitIDs=[2,4,6].map{data.habits[$0].id}
+            data.routines=[routine]
+        }
     }
     #if DEBUG
+    /// The two habits from the owner's HabitKit screenshots (captured 2026-10-03), for side-by-side comparison.
+    static func reference(_ data:inout BuddyData) {
+        func day(_ text:String)->Day { Day(rawValue:text)! }
+        let habits:[(String,String,String,String,[ClosedRange<Day>])]=[
+            ("No smoking","lu:cigarette","stone","2026-09-14",[day("2026-09-14")...day("2026-09-24"),day("2026-09-26")...day("2026-09-26"),day("2026-09-28")...day("2026-10-01")]),
+            ("No dope","lu:activity","coral","2026-09-13",[day("2026-09-13")...day("2026-10-01")])]
+        for (n,item) in habits.enumerated() {
+            var h=Habit(name:item.0,created:day(item.3));h.id=UUID(uuidString:String(format:"00000000-0000-0000-0001-%012d",n+1))!;h.symbol=item.1;h.color=item.2;h.order=n
+            if n==1 { h.goals[0].cadence = .weekly;h.goals[0].days=5 }
+            data.habits.append(h)
+            for range in item.4 { for d in Day.range(range.lowerBound,range.upperBound) {
+                var r=Record(habitID:h.id,day:d);r.amount=1_000;r.completedAt=d.date.addingTimeInterval(20*3_600);r.completionHour=20;data.records[r.key]=r
+            } }
+        }
+    }
     static func audit(_ screen:String)->BuddyData {
-        var data=BuddyData();populate(&data);data.settings.onboarding=screen != "welcome";data.settings.theme=ProcessInfo.processInfo.environment["BUDDY_VISUAL_THEME"] == "light" ? .light:.dark
-        data.settings.layout=screen=="compact" ? .compact:screen=="month" ? .month:.cards
+        var data=BuddyData()
+        if ProcessInfo.processInfo.environment["BUDDY_VISUAL_FIXTURE"] == "reference" { reference(&data) } else { populate(&data) }
+data.settings.onboarding=screen != "welcome";data.settings.theme=ProcessInfo.processInfo.environment["BUDDY_VISUAL_THEME"] == "light" ? .light:.dark
+        data.settings.layout=Layout(rawValue:screen) ?? .cards
+        if screen=="today-ring" { data.settings.dashboard=[DashboardWidget(kind:.today,style:.dark),DashboardWidget(kind:.today,style:.light),DashboardWidget(kind:.today,style:.tinted),DashboardWidget(kind:.streak,habitID:data.habits[6].id,style:.automatic)] }
         return data
     }
     #endif
