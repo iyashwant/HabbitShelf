@@ -14,7 +14,7 @@ final class HabitBuddyUITests:XCTestCase {
         for i in 0..<total{let part=bytes.subdata(in:i*size..<min(bytes.count,(i+1)*size));print("BUDDY_CAPTURE|\(name)|\(i)|\(total)|\(part.base64EncodedString())")}
     }
     func testReferenceScreenCaptures() {
-        for screen in ["cards","compact","month","streaks","list","dashboard","today-ring","explore","insights","calendar","recap","notes-timeline","milestones","habit-milestones","routines","routine","timer","years","year-calendar","detail","editor","new-habit","statistics","notes","appearance","day","settings","share","welcome"] {
+        for screen in ["cards","compact","compact-settings","month","streaks","list","dashboard","today-ring","explore","insights","calendar","recap","notes-timeline","milestones","habit-milestones","routines","routine","timer","years","year-calendar","detail","editor","new-habit","statistics","notes","appearance","day","settings","share","welcome"] {
             let app=launch(screen)
             switch screen {
             case "editor","new-habit","day":XCTAssertTrue(app.buttons["Save"].firstMatch.waitForExistence(timeout:20))
@@ -23,6 +23,7 @@ final class HabitBuddyUITests:XCTestCase {
             case "statistics":XCTAssertTrue(app.buttons["Done"].firstMatch.waitForExistence(timeout:20))
             case "welcome":XCTAssertTrue(app.buttons["Continue"].waitForExistence(timeout:20))
             case "appearance":XCTAssertTrue(app.staticTexts["Appearance"].firstMatch.waitForExistence(timeout:20))
+            case "compact-settings":XCTAssertTrue(app.buttons["5 days"].waitForExistence(timeout:20));sleep(1)
             case "notes":XCTAssertTrue(app.buttons["Close Notes"].waitForExistence(timeout:20))
             case "detail","years":XCTAssertTrue(app.buttons["Back"].waitForExistence(timeout:20))
             case "dashboard","today-ring":XCTAssertTrue(app.buttons["Edit Dashboard"].waitForExistence(timeout:20))
@@ -43,6 +44,17 @@ final class HabitBuddyUITests:XCTestCase {
         let app=launch("cards"),button=app.buttons["Log progress for Gym Day"]
         XCTAssertTrue(button.waitForExistence(timeout:20));XCTAssertEqual(button.value as? String,"0");button.tap();XCTAssertEqual(button.value as? String,"1")
         app.terminate();app.launchEnvironment["BUDDY_VISUAL_RESET"]="false";app.launch();XCTAssertTrue(button.waitForExistence(timeout:20));XCTAssertEqual(button.value as? String,"1");button.tap();XCTAssertEqual(button.value as? String,"0")
+    }
+    func testCompactListSettings() {
+        let app=launch("compact"),pill=app.buttons["Last 5 days"]
+        XCTAssertTrue(pill.waitForExistence(timeout:20));XCTAssertTrue(app.buttons["Gym Day"].exists,"Names show by default")
+        pill.tap();let three=app.buttons["3 days"];XCTAssertTrue(three.waitForExistence(timeout:10));XCTAssertTrue(app.buttons["5 days"].isSelected);XCTAssertTrue(app.buttons["Shown"].isSelected)
+        three.tap();XCTAssertTrue(three.isSelected);XCTAssertFalse(app.buttons["5 days"].isSelected);XCTAssertTrue(app.buttons["Last 3 days"].waitForExistence(timeout:5),"The list behind the sheet follows the choice")
+        app.buttons["Hidden"].tap();XCTAssertTrue(app.buttons["Hidden"].isSelected);capture(app,"compact-settings-changed")
+        let title=app.staticTexts["Compact List Settings"];title.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5)).press(forDuration:0.05,thenDragTo:app.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.99)),withVelocity:.fast,thenHoldForDuration:0);XCTAssertTrue(title.waitForNonExistence(timeout:5),"Dragging the sheet down closes it")
+        XCTAssertFalse(app.buttons["Gym Day"].exists,"Hidden names leave only the icons")
+        app.terminate();app.launchEnvironment["BUDDY_VISUAL_RESET"]="false";app.launch()
+        XCTAssertTrue(app.buttons["Last 3 days"].waitForExistence(timeout:20),"The day count is saved");XCTAssertFalse(app.buttons["Gym Day"].exists,"Hidden names are saved")
     }
     func testEditorValidationAndIconSearch() {
         let app=launch("new-habit");XCTAssertTrue(app.buttons["Save"].waitForExistence(timeout:20));XCTAssertFalse(app.buttons["Save"].isEnabled,"Save stays disabled until the habit has a name.")

@@ -49,7 +49,7 @@ enum VisualSamples {
         var data=BuddyData()
         if ProcessInfo.processInfo.environment["BUDDY_VISUAL_FIXTURE"] == "reference" { reference(&data) } else { populate(&data) }
 data.settings.onboarding=screen != "welcome";data.settings.theme=ProcessInfo.processInfo.environment["BUDDY_VISUAL_THEME"] == "light" ? .light:.dark
-        data.settings.layout=Layout(rawValue:screen) ?? .cards
+        data.settings.layout=Layout(rawValue:screen) ?? (screen=="compact-settings" ? .compact:.cards)
         if screen=="today-ring" { data.settings.dashboard=[DashboardWidget(kind:.today,style:.dark),DashboardWidget(kind:.today,style:.light),DashboardWidget(kind:.today,style:.tinted),DashboardWidget(kind:.streak,habitID:data.habits[6].id,style:.automatic)] }
         // Every design in the sizes and options the default dashboard doesn't show.
         if screen=="widgets", data.habits.count>=8, let routine=data.routines.first {

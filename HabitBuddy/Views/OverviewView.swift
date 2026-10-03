@@ -12,6 +12,7 @@ struct OverviewView: View {
     @State private var visualRouted = false
     @State private var daySelection: DaySelection?
     @State private var settings = false
+    @State private var compactSettings = false
     @State private var stats = false
     @State private var reorder = false
     @State private var routine: Routine?
@@ -85,6 +86,7 @@ struct OverviewView: View {
             .task { visualRoute() }
             .sheet(item: $daySelection) { DayEditorView(selection: $0) }
             .sheet(isPresented: $settings) { SettingsView().buddySheet() }
+            .sheet(isPresented: $compactSettings) { CompactListSettingsView() }
             .sheet(isPresented: $stats) { StatisticsView().buddySheet() }
             .sheet(isPresented: $reorder) { ReorderView() }
             .sheet(item: $routine) { RoutineSheet(routineID: $0.id).buddySheet().presentationDetents([.medium, .large]) }
@@ -167,8 +169,11 @@ struct OverviewView: View {
         let line = BuddyStyle.border(scheme, 0.105)
         return VStack(spacing: 12) {
             HStack {
-                Text("Last \(days.count) days").font(BuddyFont.text(15)).foregroundStyle(BuddyStyle.text(scheme))
-                    .padding(.horizontal, 10.2).frame(height: 38).background(BuddyStyle.field(scheme), in: Capsule()).overlay { Capsule().strokeBorder(BuddyStyle.border(scheme, 0.1), lineWidth: 1) }
+                Button { compactSettings = true } label: {
+                    Text("Last \(days.count) days").font(BuddyFont.text(15)).foregroundStyle(BuddyStyle.text(scheme))
+                        .padding(.horizontal, 10.2).frame(height: 38).background(BuddyStyle.field(scheme), in: Capsule()).overlay { Capsule().strokeBorder(BuddyStyle.border(scheme, 0.1), lineWidth: 1) }
+                        .contentShape(Capsule())
+                }.buttonStyle(FlatButtonStyle()).accessibilityHint("Choose the days and whether habit names show")
                 Spacer()
                 Text("\(days.first!.shortTitle) — \(days.last!.shortTitle)").font(BuddyFont.mono(10.8)).tracking(1.45).foregroundStyle(BuddyStyle.tertiaryText(scheme))
             }
@@ -278,6 +283,7 @@ struct OverviewView: View {
         case "new-habit":editor = .draft()
         case "statistics":stats=true
         case "settings":settings=true
+        case "compact-settings":compactSettings=true
         case "share":share=habit
         case "appearance":appearance=habit
         case "notes":notes=habit
@@ -359,6 +365,39 @@ extension Day {
     var noteTitle:String { self==Day() ? "Today":Day.longDay.string(from:date) }
     /// "SEP 29", for the compact period label.
     var shortTitle:String { Day.shortMonth.string(from:date).uppercased()+" "+String(Int(rawValue.suffix(2))!) }
+}
+/// Opened from the compact list's "Last N days" pill: how many recent days it shows, and whether habit names show beside the icons.
+struct CompactListSettingsView: View {
+    @EnvironmentObject private var store: AppStore
+    @Environment(\.colorScheme) private var scheme
+    var body: some View {
+        let note = scheme == .dark ? Color(hex: 0xA0A0A8) : BuddyStyle.secondaryText(scheme)
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Compact List Settings").font(BuddyFont.text(22, .bold)).tracking(0.7).foregroundStyle(BuddyStyle.text(scheme))
+                .accessibilityAddTraits(.isHeader)
+            Text("Configure the amount of days to display in the compact list").font(BuddyFont.text(14)).tracking(-0.1).lineSpacing(2.4).foregroundStyle(note)
+                .fixedSize(horizontal: false, vertical: true).padding(.top, 9.7)
+            HStack(spacing: 5) {
+                ForEach(1...7, id: \.self) { count in
+                    let on = store.data.settings.recentDays == count, shape = RoundedRectangle(cornerRadius: 12, style: .circular)
+                    Button { store.change { $0.settings.recentDays = count } } label: {
+                        Text("\(count)").font(BuddyFont.mono(12.5)).foregroundStyle(on ? Color.white : BuddyStyle.tertiaryText(scheme))
+                            .frame(maxWidth: .infinity, minHeight: 40).background(on ? BuddyStyle.purple : .clear, in: shape)
+                            .overlay { if !on { shape.strokeBorder(BuddyStyle.border(scheme, 0.07), lineWidth: 1) } }.contentShape(shape)
+                    }.buttonStyle(FlatButtonStyle()).accessibilityLabel(count == 1 ? "1 day" : "\(count) days").accessibilityAddTraits(on ? .isSelected : [])
+                }
+            }.padding(.top, 10.9)
+            Text("Configure whether the habit names will be hidden or not").font(BuddyFont.text(14)).tracking(-0.1).foregroundStyle(note)
+                .fixedSize(horizontal: false, vertical: true).padding(.top, 21)
+            SegmentedChoice(selection: Binding(get: { store.data.settings.compactNames }, set: { shown in store.change { $0.settings.compactNames = shown } }), options: [(false, "Hidden"), (true, "Shown")])
+                .padding(.top, 10.9)
+        }
+        .padding(.horizontal, 20).padding(.bottom, 30)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+        .presentationDetents([.height(326)])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(BuddyStyle.field(scheme))
+    }
 }
 /// The three drawn view-switcher icons: card rows, a checklist, and a two-column list.
 struct LayoutGlyph: View {
