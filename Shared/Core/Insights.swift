@@ -44,12 +44,14 @@ public struct WeekRates: Equatable, Sendable {
 public struct InsightsSummary: Equatable, Sendable {
     public struct MonthRate: Equatable, Sendable { public var month: Day; public var rate: DayRate }
     /// Two habits missed (or slipped) on the same days, out of the days either lapsed while both were tracked.
-    public struct LapsePair: Equatable, Sendable {
+    public struct LapsePair: Equatable, Identifiable, Sendable {
         public var first: UUID
         public var second: UUID
         public var together: Int
         public var either: Int
         public var share: Double { either == 0 ? 0 : Double(together) / Double(either) }
+        /// Both habits: one habit can appear in several pairs.
+        public var id: String { first.uuidString + second.uuidString }
     }
     /// Index 0 is Sunday, matching `Day.weekday - 1`.
     public var weekdays = Array(repeating: DayRate(), count: 7)
@@ -59,30 +61,37 @@ public struct InsightsSummary: Equatable, Sendable {
     public var pairs: [LapsePair] = []
     public init() {}
     /// `from` bounds every figure except `months`, which always covers the last twelve months.
-    /// Lapse pairs are found among the first `pairLimit` habits and the `maxPairs` strongest are kept.
-    public init(data: BuddyData, habitIDs: [UUID]? = nil, from: Day, today: Day = Day(), pairLimit: Int = 30, maxPairs: Int = 3) {
-        let habits = data.habits.filter { habitIDs == nil || habitIDs!.contains($0.id) }.sorted { $0.order < $1.order }
-        let firstMonth = today.startOfMonth.addingMonths(-11)
+    /// Lapse pairs are found among the first `pairLimit` habits and the `maxPairs` strongest are kept;
+    /// `includePairs: false` skips them. A cancelled task stops early with partial figures.
+    public init(data: BuddyData, habitIDs: [UUID]? = nil, from: Day, today: Day = Day(), pairLimit: Int = 30, maxPairs: Int = 3, includePairs: Bool = true) {
+        let chosen = habitIDs.map(Set.init)
+        let habits = data.habits.filter { chosen?.contains($0.id) ?? true }.sorted { $0.order < $1.order }
+        let firstMonth = today.startOfMonth.addingMonths(-11), firstMonthNumber = firstMonth.monthNumber
         months = (0..<12).map { MonthRate(month: firstMonth.addingMonths($0), rate: DayRate()) }
+        // Only habits that can form a pair keep their tracked and lapsed days.
+        let candidates = includePairs ? Array(habits.prefix(pairLimit)) : []
+        let candidateIDs = Set(candidates.map(\.id))
         var tracked: [UUID: Set<Day>] = [:], lapses: [UUID: Set<Day>] = [:]
         for habit in habits {
+            if Task.isCancelled { return }
             let end = min(today, habit.archived ?? today)
             let start = max(habit.created, min(from, firstMonth))
             guard start <= end else { continue }
+            let prefix = Record.keyPrefix(habit.id), pairs = candidateIDs.contains(habit.id)
             var seen = Set<Day>(), lapsed = Set<Day>()
             for day in Day.range(start, end) {
-                let p = Engine.progress(habit, day: day, data: data, today: today), isToday = day == today
-                if day >= firstMonth, let index = months.firstIndex(where: { $0.month.month == day.month }) { months[index].rate.add(p, today: isToday) }
+                let p = Engine.progress(habit, day: day, data: data, today: today, prefix: prefix), isToday = day == today
+                if day >= firstMonth { months[day.monthNumber - firstMonthNumber].rate.add(p, today: isToday) }
                 guard day >= from, p.available else { continue }
                 weekdays[day.weekday - 1].add(p, today: isToday)
                 total.add(p, today: isToday)
-                if p.success, habit.goal(on: day).mode == .build, let hour = data.records[Record.key(habit.id, day)]?.completionHour, (0..<24).contains(hour) { hours[hour] += 1 }
-                if day < today { seen.insert(day); if !p.success { lapsed.insert(day) } }
+                if p.success, habit.goal(on: day).mode == .build, let hour = data.records[prefix + day.rawValue]?.completionHour, (0..<24).contains(hour) { hours[hour] += 1 }
+                if pairs && day < today { seen.insert(day); if !p.success { lapsed.insert(day) } }
             }
-            tracked[habit.id] = seen; lapses[habit.id] = lapsed
+            if pairs { tracked[habit.id] = seen; lapses[habit.id] = lapsed }
         }
-        let candidates = habits.prefix(pairLimit)
         for (i, a) in candidates.enumerated() {
+            if Task.isCancelled { return }
             for b in candidates.dropFirst(i + 1) {
                 guard let seenA = tracked[a.id], let seenB = tracked[b.id] else { continue }
                 let both = seenA.intersection(seenB)
@@ -154,15 +163,11 @@ public struct Milestones: Equatable, Sendable {
     public var total = 0
     /// The day each reached total step was reached.
     public var totalReached: [Int: Day] = [:]
-    public init(_ habit: Habit, data: BuddyData, today: Day = Day()) {
-        let stats = Engine.stats(habit, data: data, today: today)
-        currentStreak = stats.currentStreak; bestStreak = stats.bestStreak
-        let end = min(today, habit.archived ?? today)
-        guard habit.created <= end else { return }
-        for day in Day.range(habit.created, end) where Engine.progress(habit, day: day, data: data, today: today).success {
-            total += 1
-            if Self.totalSteps.contains(total) { totalReached[total] = day }
-        }
+    public init(_ habit: Habit, data: BuddyData, today: Day = Day()) { self.init(Engine.history(habit, data: data, today: today)) }
+    /// From a history already read, such as a cached one.
+    public init(_ history: HabitHistory) {
+        currentStreak = history.stats.currentStreak; bestStreak = history.stats.bestStreak
+        total = history.total; totalReached = history.totalReached
     }
     public var nextStreak: Int? { Self.streakSteps.first { $0 > bestStreak } }
     public var nextTotal: Int? { Self.totalSteps.first { $0 > total } }

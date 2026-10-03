@@ -64,6 +64,15 @@ public struct Day: RawRepresentable, Codable, Hashable, Comparable, Identifiable
     }()
     public var date: Date { Date(timeIntervalSince1970: Double(ordinal) * 86_400) }
     public var month: String { String(rawValue.prefix(7)) }
+    /// Months since January of year 0 (January is 0 mod 12), for month arithmetic without strings or a calendar.
+    public var monthNumber: Int {
+        var year = 0, month = 0
+        for (i, byte) in rawValue.utf8.prefix(7).enumerated() where i != 4 {
+            let digit = Int(byte) - 48
+            if i < 4 { year = year * 10 + digit } else { month = month * 10 + digit }
+        }
+        return year * 12 + month - 1
+    }
     public var weekday: Int { ((ordinal + 4) % 7 + 7) % 7 + 1 } // Sunday = 1; 1970-01-01 was a Thursday
     public func adding(_ count: Int) -> Day { count == 0 ? self : Day(ordinal: ordinal + count) }
     public func startOfWeek(_ firstWeekday: Int) -> Day { adding(-((weekday - firstWeekday + 7) % 7)) }

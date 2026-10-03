@@ -61,10 +61,11 @@ public struct DashboardWidget: Codable, Identifiable, Equatable, Sendable {
     public var wide: Bool { resolvedSize != .small }
     /// The habits shown: one for a single-habit design, the chosen ones (or all) for a multi-habit design.
     public func habits(in data: BuddyData) -> [Habit] {
-        if kind.needsHabit { return data.active.filter { $0.id == habitID } }
+        if kind.needsHabit { return data.activeHabit(habitID).map { [$0] } ?? [] }
         guard kind.multiHabit else { return [] }
         guard let habitIDs else { return data.active }
-        return data.active.filter { habitIDs.contains($0.id) }
+        let chosen = Set(habitIDs)
+        return data.active.filter { chosen.contains($0.id) }
     }
     /// Whether everything the widget shows still exists; widgets for archived or deleted habits and routines are hidden.
     public func visible(in data: BuddyData) -> Bool {
@@ -169,7 +170,9 @@ public struct Record: Codable, Equatable, Sendable {
     public var frozen: Bool?
     public init(habitID: UUID, day: Day) { self.habitID = habitID; self.day = day }
     public var key: String { Self.key(habitID, day) }
-    public static func key(_ id: UUID, _ day: Day) -> String { "\(id.uuidString)|\(day.rawValue)" }
+    public static func key(_ id: UUID, _ day: Day) -> String { keyPrefix(id) + day.rawValue }
+    /// The part of a key shared by one habit's records. Loops over many days build it once.
+    public static func keyPrefix(_ id: UUID) -> String { id.uuidString + "|" }
 }
 public struct CardAppearance: Codable, Equatable, Sendable {
     public var description = true
@@ -264,6 +267,8 @@ public struct BuddyData: Codable, Equatable, Sendable {
         settings = try c.decode(Settings.self, forKey: .settings)
     }
     public var active: [Habit] { habits.filter { $0.archived == nil }.sorted { $0.order < $1.order } }
+    /// One active habit by ID, without filtering and sorting every habit like `active`.
+    public func activeHabit(_ id: UUID?) -> Habit? { habits.first { $0.id == id && $0.archived == nil } }
     public func record(_ id: UUID, _ day: Day) -> Record { records[Record.key(id, day)] ?? Record(habitID: id, day: day) }
 }
 public enum BuddyError: LocalizedError {
