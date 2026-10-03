@@ -40,8 +40,8 @@ import UserNotifications
     /// Logs the elapsed time (capped at the countdown) through the shared engine, then ends the timer.
     func finish(_ store: AppStore) {
         guard let session else { return }
-        let elapsed = session.elapsed()
-        if store.change({ _ = try Engine.logTimer(seconds: elapsed, habitID: session.habitID, day: session.day, data: &$0) }) { end() }
+        let now = Date()
+        Task { if await store.finishTimer(session, at: now) { end() } }
     }
     func cancel() { end() }
     private func end() { let ended = session; session = nil; Task { await TimerSessions.stop(ended) } }

@@ -1,5 +1,7 @@
 import SwiftUI
 import UIKit
+import ImageIO
+import UniformTypeIdentifiers
 
 struct ShareHabitView:View {
     @EnvironmentObject private var store:AppStore
@@ -12,6 +14,7 @@ struct ShareHabitView:View {
     @State private var color="mint"
     @State private var export:HabitImageExport?
     @State private var message:String?
+    @State private var rendering=false
     var body:some View {
         VStack(spacing:0){
             SheetHeader(title:"Share Habit",trailingSymbol:"square.and.arrow.up",trailingAction:render)
@@ -28,7 +31,7 @@ struct ShareHabitView:View {
                     if let message{Text(message).foregroundStyle(.red)}
                 }.padding(20)
             }
-            PrimaryAction(title:"Share Habit",symbol:"square.and.arrow.up",action:render).accessibilityIdentifier("share-habit-image").padding(24)
+            PrimaryAction(title:"Share Habit",symbol:"square.and.arrow.up",action:render).disabled(rendering).accessibilityIdentifier("share-habit-image").padding(24)
         }.background(BuddyStyle.canvas(scheme)).onAppear{color=habit.color}
             .sheet(item:$export){image in NativeShareSheet(items:[image.url])}
     }
@@ -36,11 +39,42 @@ struct ShareHabitView:View {
         var a=habit.cardAppearance(store.data.settings);a.description=description;a.streak=streak;a.goal=streak;a.indicator=indicator;a.monthLabels=false;a.weekdayLabels=false
         return VStack(alignment:.trailing,spacing:12){HabitCard(habit:habit,data:store.data,appearance:a,interactive:false);Label("Habit Buddy",systemImage:"square.grid.3x3.fill").font(.system(size:10,weight:.semibold)).foregroundStyle(.white)}.padding(20).background(BuddyStyle.color(color)).environment(\.colorScheme,dark ? .dark:.light)
     }
-    @MainActor private func render(){message=nil;let renderer=ImageRenderer(content:shareCard.frame(width:390));renderer.scale=3;guard let image=renderer.uiImage,let bytes=image.pngData()else{message="Could not create the image. Please try again.";return};do{let file=FileManager.default.temporaryDirectory.appendingPathComponent("habit-\(habit.id.uuidString).png");try bytes.write(to:file,options:.atomic);export=HabitImageExport(url:file)}catch{message=error.localizedDescription}}
+    @MainActor private func render(){
+        guard !rendering else{return}
+        rendering=true;message=nil
+        Task{
+            defer{rendering=false}
+            do{export=HabitImageExport(url:try await ImageExport.png(shareCard,width:390,scale:3,name:"habit-\(habit.id.uuidString).png"))}
+            catch{message=error.localizedDescription}
+        }
+    }
 }
 private struct HabitImageExport:Identifiable {let id=UUID();let url:URL}
 struct NativeShareSheet:UIViewControllerRepresentable {
     let items:[Any]
     func makeUIViewController(context:Context)->UIActivityViewController{UIActivityViewController(activityItems:items,applicationActivities:nil)}
     func updateUIViewController(_ uiViewController:UIActivityViewController,context:Context){}
+}
+
+/// Turns a SwiftUI view into a PNG file. Layout and rendering stay on the main actor; encoding and writing run
+/// in the background. The layout is measured before any pixels are allocated, and the scale drops for very
+/// large images so one never needs more than `maxPixels` (about 96 MB at four bytes a pixel).
+enum ImageExport {
+    static let maxPixels: CGFloat = 24_000_000
+    struct Failed: LocalizedError { var errorDescription: String? { "Could not create the image. Please try again." } }
+    @MainActor static func png<Content: View>(_ content: Content, width: CGFloat, scale: CGFloat, name: String) async throws -> URL {
+        let renderer = ImageRenderer(content: content.frame(width: width))
+        var size = CGSize.zero
+        renderer.render { measured, _ in size = measured }
+        guard size.width > 0, size.height > 0 else { throw Failed() }
+        renderer.scale = min(scale, (maxPixels / (size.width * size.height)).squareRoot())
+        guard let image = renderer.cgImage else { throw Failed() }
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(name.replacingOccurrences(of: "/", with: "-")), box = Unchecked(image)
+        try await Task.detached(priority: .userInitiated) {
+            guard let destination = CGImageDestinationCreateWithURL(file as CFURL, UTType.png.identifier as CFString, 1, nil) else { throw Failed() }
+            CGImageDestinationAddImage(destination, box.value, nil)
+            guard CGImageDestinationFinalize(destination) else { throw Failed() }
+        }.value
+        return file
+    }
 }

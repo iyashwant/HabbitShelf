@@ -10,6 +10,7 @@ struct WeeklyRecapView: View {
     @State private var configured = false
     @State private var export: SharedImage?
     @State private var message: String?
+    @State private var rendering = false
     var body: some View {
         let today = Day(), weekStart = store.data.settings.weekStart, current = today.startOfWeek(weekStart)
         let start = week.startOfWeek(weekStart), recap = WeekRecap(data: store.data, week: start, today: today)
@@ -45,14 +46,14 @@ struct WeeklyRecapView: View {
     }
     static func range(_ recap: WeekRecap) -> String { "\(Day.shortMonth.string(from: recap.start.date)) \(Int(recap.start.rawValue.suffix(2))!) – \(Day.shortMonth.string(from: recap.end.date)) \(Int(recap.end.rawValue.suffix(2))!)" }
     @MainActor private func share(_ recap: WeekRecap) {
-        message = nil
-        let renderer = ImageRenderer(content: RecapPoster(recap: recap, data: store.data, scheme: scheme).padding(16).background(BuddyStyle.canvas(scheme)).frame(width: 420).environment(\.colorScheme, scheme))
-        renderer.scale = 3
-        guard let bytes = renderer.uiImage?.pngData() else { message = "Could not create the image. Please try again."; return }
-        do {
-            let file = FileManager.default.temporaryDirectory.appendingPathComponent("weekly-recap-\(recap.start.rawValue).png")
-            try bytes.write(to: file, options: .atomic); export = SharedImage(url: file)
-        } catch { message = error.localizedDescription }
+        guard !rendering else { return }
+        rendering = true; message = nil
+        let poster = RecapPoster(recap: recap, data: store.data, scheme: scheme).padding(16).background(BuddyStyle.canvas(scheme)).environment(\.colorScheme, scheme)
+        Task {
+            defer { rendering = false }
+            do { export = SharedImage(url: try await ImageExport.png(poster, width: 420, scale: 3, name: "weekly-recap-\(recap.start.rawValue).png")) }
+            catch { message = error.localizedDescription }
+        }
     }
 }
 

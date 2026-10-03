@@ -10,10 +10,17 @@ struct InsightsView: View {
     @State private var selected: UUID?
     @State private var summary: InsightsSummary?
     @State private var pairs: [InsightsSummary.LapsePair] = []
+    @State private var refreshing = false
+    /// Every habit's pairs for one range and snapshot, reused while switching between habits.
+    @State private var pairCache: (key: PairKey, pairs: [InsightsSummary.LapsePair])?
+    /// One calculation per range, habit, snapshot and day. A new request cancels the one before it.
+    private struct Request: Equatable { var range: InsightRange; var selected: UUID?; var revision: Int; var today: Day }
+    private struct PairKey: Equatable { var range: InsightRange; var revision: Int; var today: Day }
     enum InsightRange: CaseIterable { case month, quarter, year, all
         var title: String { switch self { case .month: "30 Days"; case .quarter: "90 Days"; case .year: "Year"; case .all: "All" } }
         func from(_ today: Day) -> Day { switch self { case .month: today.adding(-29); case .quarter: today.adding(-89); case .year: today.adding(-364); case .all: Habit.earliestStart } }
     }
+    private var request: Request { Request(range: range, selected: selected, revision: store.revision, today: Day()) }
     private var accent: Color { store.habit(selected ?? UUID()).map { BuddyStyle.color($0.color) } ?? BuddyStyle.purple }
     var body: some View {
         ScrollView {
@@ -28,23 +35,37 @@ struct InsightsView: View {
         .scrollIndicators(.hidden)
         .background(BuddyStyle.canvas(scheme)).toolbar(.hidden, for: .navigationBar)
         .safeAreaInset(edge: .top, spacing: 0) { PageBar(title: "Insights") { dismiss() } }
-        .task(id: "\(range)-\(selected?.uuidString ?? "all")") { await refresh() }
-        .onChange(of: store.data) { _, _ in Task { await refresh() } }
+        .task(id: request) { await refresh(request) }
     }
-    private func refresh() async {
-        let data = store.data, ids = selected.map { [$0] }, from = range.from(Day()), today = Day(), selected = selected
-        let result = await Task.detached(priority: .userInitiated) { () -> (InsightsSummary, [InsightsSummary.LapsePair]) in
-            let summary = InsightsSummary(data: data, habitIDs: ids, from: from, today: today)
-            guard let selected else { return (summary, summary.pairs) }
-            // A single habit can still slip together with others, so pairs always look across every habit.
-            let all = InsightsSummary(data: data, from: from, today: today, maxPairs: 100)
-            return (summary, Array(all.pairs.filter { $0.first == selected || $0.second == selected }.prefix(3)))
-        }.value
-        summary = result.0; pairs = result.1
+    private func refresh(_ request: Request) async {
+        refreshing = true
+        let data = store.data, from = request.range.from(request.today), today = request.today, selected = request.selected
+        let key = PairKey(range: request.range, revision: request.revision, today: today)
+        let cached = pairCache?.key == key ? pairCache?.pairs : nil
+        let result = await offMain { () -> (InsightsSummary, [InsightsSummary.LapsePair]) in
+            guard let selected else {
+                let summary = InsightsSummary(data: data, from: from, today: today, maxPairs: 100)
+                return (summary, summary.pairs)
+            }
+            // A single habit can still slip together with others, so its pairs come from every habit's.
+            let summary = InsightsSummary(data: data, habitIDs: [selected], from: from, today: today, includePairs: false)
+            return (summary, cached ?? InsightsSummary.lapsePairs(data: data, from: from, today: today, maxPairs: 100))
+        }
+        // A cancelled request leaves the newer one to publish.
+        guard let result else { return }
+        let (value, all) = result
+        pairCache = (key, all)
+        summary = value
+        pairs = Array(all.filter { selected == nil || $0.first == selected || $0.second == selected }.prefix(3))
+        refreshing = false
     }
     @ViewBuilder private func content(_ s: InsightsSummary) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("\(percent(s.total.rate))").font(BuddyFont.text(44, .heavy)).foregroundStyle(BuddyStyle.text(scheme)).monospacedDigit()
+            HStack(alignment: .firstTextBaseline) {
+                Text("\(percent(s.total.rate))").font(BuddyFont.text(44, .heavy)).foregroundStyle(BuddyStyle.text(scheme)).monospacedDigit()
+                Spacer()
+                if refreshing { ProgressView().controlSize(.small).accessibilityLabel("Updating") }
+            }
             Text(s.total.eligible == 0 ? "No tracked days in this range yet." : "\(s.total.done) of \(s.total.eligible) tracked days kept").font(BuddyFont.text(14)).foregroundStyle(BuddyStyle.secondaryText(scheme))
         }.padding(16).frame(maxWidth: .infinity, alignment: .leading).surface(padding: 0, radius: 20, tint: accent)
         weekdays(s)
@@ -124,7 +145,7 @@ struct InsightsView: View {
     }
     private func slipTogether() -> some View {
         ExploreSection(title: "Slip Together", detail: pairs.isEmpty ? "No two habits tend to slip on the same days. Missing one doesn't drag the others down." : "These habits are often missed on the same days. Pairing them up, or giving the first one a reminder, can protect both.") {
-            ForEach(pairs, id: \.first) { pair in
+            ForEach(pairs) { pair in
                 if let a = store.habit(pair.first), let b = store.habit(pair.second) {
                     HStack(spacing: 12) {
                         ZStack(alignment: .bottomTrailing) { HabitIcon(habit: a, size: 34); HabitIcon(habit: b, size: 26).background(BuddyStyle.panel(scheme), in: RoundedRectangle(cornerRadius: 8)).offset(x: 10, y: 8) }.padding(.trailing, 8)

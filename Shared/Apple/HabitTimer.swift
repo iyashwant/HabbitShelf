@@ -44,11 +44,30 @@ enum TimerSessions {
     }
     /// Ends a timer and its Live Activity without logging. A timer started since is left running.
     static func stop(_ session: TimerSession? = TimerSessions.current) async {
-        if current == session { current = nil; UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [notification]) }
+        // A finished session was already cleared when it was logged; its notification still goes.
+        if current == nil || current == session { current = nil; UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [notification]) }
         for activity in Activity<HabitTimerAttributes>.activities where session == nil || activity.content.state.start == session!.start {
             await activity.end(nil, dismissalPolicy: .immediate)
         }
         NotificationCenter.default.post(name: changed, object: nil)
+    }
+    private struct AlreadyFinished: Error {}
+    /// Logs a session exactly once. The session is claimed inside the store's locked transaction, so the app's
+    /// Finish and the Live Activity's can't both log it. Returns nil when it was already finished or cancelled.
+    static func finish(_ session: TimerSession, repository: BuddyRepository, at now: Date = Date()) throws -> BuddyData? {
+        var claimed = false
+        do {
+            return try repository.transaction { data in
+                guard current == session else { throw AlreadyFinished() }
+                _ = try Engine.logTimer(seconds: session.elapsed(now), habitID: session.habitID, day: session.day, data: &data)
+                current = nil; claimed = true
+            }
+        } catch is AlreadyFinished { return nil }
+        catch {
+            // Nothing was saved, so the timer keeps running and can be finished again.
+            if claimed && current == nil { current = session }
+            throw error
+        }
     }
 }
 
@@ -59,9 +78,9 @@ struct FinishTimerIntent: LiveActivityIntent {
     init() {}
     func perform() async throws -> some IntentResult {
         guard let session = TimerSessions.current else { return .result() }
-        let data = try AppEnvironment.repository.transaction { _ = try Engine.logTimer(seconds: session.elapsed(), habitID: session.habitID, day: session.day, data: &$0) }
+        let data = try TimerSessions.finish(session, repository: AppEnvironment.repository)
         await TimerSessions.stop(session)
-        await AppEnvironment.changed(data)
+        if let data { await AppEnvironment.changed(data) }
         return .result()
     }
 }

@@ -118,7 +118,8 @@ struct HabitEditorView: View {
             if rule.cadence == .none || rule.cadence == .daily { rule.days = 1 }
             habit.name = habit.name.trimmingCharacters(in: .whitespacesAndNewlines)
             habit.goals[habit.goals.count - 1] = rule
-            if store.change({ try Engine.saveHabit(habit, data: &$0) }) { dismiss() } else { validation=store.error; store.error=nil }
+            let saved = habit
+            if store.change({ try Engine.saveHabit(saved, data: &$0) }) { dismiss() } else { validation=store.error; store.error=nil }
         } catch { validation = error.localizedDescription }
     }
 }

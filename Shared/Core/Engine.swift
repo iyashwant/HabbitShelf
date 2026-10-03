@@ -126,11 +126,12 @@ public enum Engine {
     /// Weekly and monthly goals count consecutive successful periods; other habits count days like `stats`.
     /// The current period adds one once its target is met and keeps the streak while still reachable.
     /// A change of cadence or mode starts a new streak, and a first partial period needs only its tracked days.
-    public static func streak(_ habit: Habit, data: BuddyData, today: Day = Day()) -> StreakSummary {
+    /// `history`, when already read for this snapshot, supplies the day streak.
+    public static func streak(_ habit: Habit, data: BuddyData, today: Day = Day(), history: HabitHistory? = nil) -> StreakSummary {
         let end = min(today, habit.archived ?? today)
         let rule = habit.goal(on: end)
         guard habit.created <= end, rule.mode == .build, rule.cadence == .weekly || rule.cadence == .monthly else {
-            return StreakSummary(value: stats(habit, data: data, today: today).currentStreak, unit: .days)
+            return StreakSummary(value: (history?.stats ?? stats(habit, data: data, today: today)).currentStreak, unit: .days)
         }
         let weekly = rule.cadence == .weekly, weekStart = data.settings.weekStart
         var segmentStart = habit.created

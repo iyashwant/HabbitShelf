@@ -7,7 +7,7 @@ import UserNotifications
     init() { _ = BuddyIcons.registered; Task.detached(priority:.utility) { _ = BuddyIcons.suggester } }
     var body: some Scene {
         WindowGroup {
-            OverviewView().environmentObject(store).environmentObject(timer)
+            OverviewView().environmentObject(store).environmentObject(timer).environment(\.summaries, store.summaries)
                 .tint(BuddyStyle.purple)
                 .preferredColorScheme(store.data.settings.theme == .system ? nil : store.data.settings.theme == .dark ? .dark : .light)
         }

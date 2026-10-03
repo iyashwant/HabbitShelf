@@ -9,7 +9,7 @@ struct RoutinesView: View {
     @State private var open: Routine?
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
+            LazyVStack(alignment: .leading, spacing: 12) {
                 if store.data.routines.isEmpty {
                     ContentUnavailableView {
                         Label("No routines yet", systemImage: "list.bullet.rectangle")
@@ -41,7 +41,7 @@ struct RoutineCard: View {
     var open: () -> Void
     var body: some View {
         let progress = Engine.routineProgress(routine, data: store.data), color = BuddyStyle.color(routine.color)
-        let habits = routine.habitIDs.compactMap { id in store.data.active.first { $0.id == id } }
+        let habits = routine.habitIDs.compactMap { store.data.activeHabit($0) }
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
                 BuddyGlyph(symbol: routine.symbol, size: 24).foregroundStyle(color).frame(width: 46, height: 46).background(color.opacity(0.14), in: RoundedRectangle(cornerRadius: 13, style: .circular))
@@ -100,10 +100,10 @@ struct RoutineSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             if let routine = store.data.routines.first(where: { $0.id == routineID }) {
-                let habits = routine.habitIDs.compactMap { id in store.data.active.first { $0.id == id } }, progress = Engine.routineProgress(routine, data: store.data)
+                let habits = routine.habitIDs.compactMap { store.data.activeHabit($0) }, progress = Engine.routineProgress(routine, data: store.data)
                 SheetHeader(title: routine.name, trailingSymbol: "square-pen") { editor = routine }
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 10) {
+                    LazyVStack(alignment: .leading, spacing: 10) {
                         Text("\(progress.done) of \(progress.total) done today").font(BuddyFont.text(14)).foregroundStyle(BuddyStyle.secondaryText(scheme)).padding(.leading, 4)
                         ForEach(habits) { habit in HabitDayRow(habit: habit, day: Day()) { editing = $0 } }
                     }.padding(.horizontal, 16).padding(.bottom, 100)
@@ -156,12 +156,13 @@ struct RoutineEditorView: View {
         .overlay(alignment: .bottom) {
             PrimaryAction(title: "Save") {
                 routine.name = routine.name.trimmingCharacters(in: .whitespacesAndNewlines)
-                if store.change({ data in if let i = data.routines.firstIndex(where: { $0.id == routine.id }) { data.routines[i] = routine } else { data.routines.append(routine) } }) { dismiss() }
+                let saved = routine
+                if store.change({ data in if let i = data.routines.firstIndex(where: { $0.id == saved.id }) { data.routines[i] = saved } else { data.routines.append(saved) } }) { dismiss() }
             }.disabled(!valid).padding(.horizontal, 24).padding(.bottom, 6)
         }
         .sheet(isPresented: $icons) { IconPickerView(selection: $routine.symbol, color: BuddyStyle.color(routine.color)).buddySheet() }
         .confirmationDialog("Delete \(routine.name)?", isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button("Delete Routine", role: .destructive) { if store.change({ data in data.routines.removeAll { $0.id == routine.id } }) { dismiss() } }
+            Button("Delete Routine", role: .destructive) { let id = routine.id; if store.change({ data in data.routines.removeAll { $0.id == id } }) { dismiss() } }
         }
     }
     private func caption<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {

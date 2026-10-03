@@ -31,7 +31,7 @@ extension HabitWidgetContent {
 
     /// The kept rate over 30 days with the streak, best run and total; the medium size adds the 30 days as bars.
     @ViewBuilder func statsTile(_ habit: Habit) -> some View {
-        let rate = DayRate(habit, days: 30, data: data, today: today), m = Milestones(habit, data: data, today: today), streak = Engine.streak(habit, data: data, today: today)
+        let rate = DayRate(habit, days: 30, data: data, today: today), m = summaries.milestones(habit, data: data, today: today), streak = summaries.streak(habit, data: data, today: today)
         let percent = rate.eligible == 0 ? "–" : "\(Int((rate.rate * 100).rounded()))%", quit = habit.goal(on: today).mode == .quit
         let metrics = HStack(alignment: .top, spacing: 0) {
             metric("flame.fill", streak.value, streak.unit == .days ? "Streak" : streak.unit.rawValue)
@@ -89,7 +89,7 @@ extension HabitWidgetContent {
     func yearTile(_ habit: Habit) -> some View {
         let year = Int(today.rawValue.prefix(4)) ?? 2026, stats = Engine.yearStats(habit, year: year, data: data, today: today)
         let summary = "\(stats.completions) \(stats.completions == 1 ? "day" : "days") · \(Int((stats.rate * 100).rounded()))%"
-        let streak = Engine.streak(habit, data: data, today: today), month = DayRate(habit, days: today.startOfMonth.distance(to: today) + 1, data: data, today: today)
+        let streak = summaries.streak(habit, data: data, today: today), month = DayRate(habit, days: today.startOfMonth.distance(to: today) + 1, data: data, today: today)
         return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
                 check(habit, 34)
@@ -128,7 +128,7 @@ extension HabitWidgetContent {
 
     /// Progress toward the next streak badge, or the next check-in badge once streak badges run out.
     func badgeTile(_ habit: Habit) -> some View {
-        let m = Milestones(habit, data: data, today: today), goal = habit.goal(on: today)
+        let m = summaries.milestones(habit, data: data, today: today), goal = habit.goal(on: today)
         // Build habits without a streak goal never grow a streak, so they work toward check-in badges.
         let streaks = !(goal.mode == .build && goal.cadence == .none)
         let next: (step: Int, value: Int, caption: String)? = streaks && m.nextStreak != nil ? (m.nextStreak!, m.currentStreak, "Days in a row")
@@ -242,7 +242,7 @@ extension HabitWidgetContent {
 
     /// A routine's progress with Complete All; the medium size lists its habits with their checks.
     @ViewBuilder func routineTile(_ routine: Routine) -> some View {
-        let members = routine.habitIDs.compactMap { id in data.active.first { $0.id == id } }
+        let members = routine.habitIDs.compactMap { data.activeHabit($0) }
         let progress = Engine.routineProgress(routine, data: data, day: today, today: today), complete = progress.total > 0 && progress.done == progress.total
         let summary = VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
@@ -304,7 +304,7 @@ extension HabitWidgetContent {
                     caption(Day.monthYear.string(from: first.date))
                 }
                 Spacer(minLength: 4)
-                StreakBadge(summary: Engine.streak(habit, data: data, today: today), palette: palette, size: 20, trailing: true)
+                StreakBadge(summary: summaries.streak(habit, data: data, today: today), palette: palette, size: 20, trailing: true)
             }
             MonthCalendar(habit: habit, data: data, month: first, today: today, palette: palette).frame(maxHeight: .infinity)
             caption(rate.eligible == 0 ? "Nothing tracked yet" : "\(rate.done) of \(rate.eligible) days kept · \(Int((rate.rate * 100).rounded()))%")
@@ -398,6 +398,7 @@ struct MonthCalendar: View {
     var body: some View {
         let first = month.startOfMonth, offset = (first.weekday - data.settings.weekStart + 7) % 7
         let count = first.distance(to: first.endOfMonth) + 1, rows = (offset + count + 6) / 7
+        let marks = (0..<count).map { DayMark(habit, first.adding($0), data, today: today) }
         GeometryReader { proxy in
             let gap: CGFloat = 5, header: CGFloat = 16, width = (proxy.size.width - 6 * gap) / 7
             let height = min(width, (proxy.size.height - header - CGFloat(rows - 1) * gap) / CGFloat(rows))
@@ -407,7 +408,7 @@ struct MonthCalendar: View {
                     context.draw(Text(symbol).font(.system(size: 10, weight: .bold, design: .rounded)).foregroundStyle(palette.secondary), at: CGPoint(x: CGFloat(column) * (width + gap) + width / 2, y: header / 2 - 2))
                 }
                 for n in 0..<count {
-                    let slot = offset + n, day = first.adding(n), mark = DayMark(habit, day, data, today: today)
+                    let slot = offset + n, day = first.adding(n), mark = marks[n]
                     let rect = CGRect(x: CGFloat(slot % 7) * (width + gap), y: header + CGFloat(slot / 7) * (height + gap), width: width, height: height)
                     let path = Path(roundedRect: rect, cornerRadius: min(width, height) * 0.3)
                     if mark == .future { context.stroke(Path(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), cornerRadius: min(width, height) * 0.3), with: .color(palette.outline), lineWidth: 1) }
@@ -419,7 +420,7 @@ struct MonthCalendar: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(Day.monthYear.string(from: first.date)), \((0..<count).filter { DayMark(habit, first.adding($0), data, today: today) == .done }.count) days done")
+        .accessibilityLabel("\(Day.monthYear.string(from: first.date)), \(marks.filter { $0 == .done }.count) days done")
     }
 }
 

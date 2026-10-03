@@ -112,21 +112,27 @@ enum BuddyIcons {
         guard let url=Bundle.main.url(forResource:file,withExtension:"json"),let bytes=try? Data(contentsOf:url) else { return [] }
         return (try? JSONDecoder().decode([HabitIconEntry].self,from:bytes)) ?? []
     }
+    /// The catalogs load separately: controls and most habits need only Lucide, so the first icon drawn doesn't decode both.
+    private static let lucideEntries:[HabitIconEntry] = { _ = registered; return load("lucide-icons") }()
+    private static let fontAwesomeEntries:[HabitIconEntry] = { _ = registered; return load("habit-icons") }()
+    private static let lucideByID=Dictionary(uniqueKeysWithValues:lucideEntries.map{($0.id,$0)})
+    private static let fontAwesomeByID=Dictionary(uniqueKeysWithValues:fontAwesomeEntries.map{($0.id,$0)})
     /// Lucide line icons first (the reference's style), then the Font Awesome set kept for existing habits.
-    static let all:[HabitIconEntry] = { _ = registered; return load("lucide-icons")+load("habit-icons") }()
-    static let byID=Dictionary(uniqueKeysWithValues:all.map{($0.id,$0)})
+    static let all:[HabitIconEntry] = lucideEntries+fontAwesomeEntries
+    /// Each icon's ID, name and keywords, joined once for picker searches.
+    private static let searchText=all.map{([$0.id,$0.name]+$0.keywords).joined(separator:" ")}
     static let aliases=["leaf.fill":"leaf","heart.fill":"heart-circle-bolt","dumbbell.fill":"dumbbell","book.closed.fill":"book","drop.fill":"glass-water","figure.walk":"person-walking","moon.fill":"moon","sun.max.fill":"sun","pencil.tip":"pen-nib","laptopcomputer":"laptop","cup.and.saucer.fill":"mug-saucer","fork.knife":"utensils","brain.head.profile":"brain","guitars.fill":"guitar","music.note":"music","paintbrush.fill":"paintbrush","flame.fill":"fire","bolt.fill":"bolt","bed.double.fill":"bed","figure.mind.and.body":"spa","cross.case.fill":"kit-medical","pill.fill":"pills","carrot.fill":"carrot","bicycle":"bicycle","figure.run":"person-running","code":"code","wallet.pass.fill":"wallet","phone.down.fill":"phone-slash","nosign":"ban","smoke.fill":"smoking","gamecontroller.fill":"gamepad","camera.fill":"camera","dog.fill":"dog","house.fill":"house","star.fill":"star","globe":"globe","water.waves":"water"]
     /// SF Symbol names used by controls, mapped to the matching Lucide outline.
     static let chrome=["gearshape":"settings","chart.xyaxis.line":"chart-no-axes-combined","plus":"plus","chevron.left":"chevron-left","chevron.right":"chevron-right","square.and.pencil":"square-pen","xmark":"x","square.and.arrow.up":"share","flame.fill":"flame","flame":"flame","target":"target","checkmark":"check","calendar":"calendar","bell":"bell","note.text":"notebook-pen","archivebox":"archive","slider.horizontal.3":"sliders-horizontal","arrow.up.arrow.down":"arrow-up-down","trash":"trash","clock":"clock","folder.fill":"folder","square.grid.3x3.fill":"grid-3x3","pencil":"pencil","eraser":"eraser","timer":"timer","sparkles":"sparkles","trophy":"trophy","snowflake":"snowflake"]
-    static func entry(_ symbol:String)->HabitIconEntry? { byID[symbol] ?? aliases[symbol].flatMap{byID["fa:"+$0]} }
-    static func lucide(_ name:String)->String? { (byID["lu:"+name] ?? chrome[name].flatMap{byID["lu:"+$0]})?.glyph }
+    static func entry(_ symbol:String)->HabitIconEntry? { symbol.hasPrefix("lu:") ? lucideByID[symbol] : fontAwesomeByID[symbol] ?? aliases[symbol].flatMap{fontAwesomeByID["fa:"+$0]} }
+    static func lucide(_ name:String)->String? { (lucideByID["lu:"+name] ?? chrome[name].flatMap{lucideByID["lu:"+$0]})?.glyph }
     /// Ranks icons for a habit name: the curated keyword catalog, then Lucide's own names and keywords.
-    static let suggester=IconSuggester(icons:all.filter(\.lucide).map{IconSuggester.Entry(id:$0.id,name:$0.name,keywords:$0.keywords)})
+    static let suggester=IconSuggester(icons:lucideEntries.map{IconSuggester.Entry(id:$0.id,name:$0.name,keywords:$0.keywords)})
     /// Picker search: icons the habit-name matcher ranks for the query, then every other icon whose name or keywords contain it.
     static func search(_ text:String)->[HabitIconEntry] {
         guard !text.isEmpty else { return all }
         let ranked=suggester.suggest(text,limit:12),first=Set(ranked)
-        return ranked.compactMap{byID[$0]}+all.filter{!first.contains($0.id) && ([$0.id,$0.name]+$0.keywords).joined(separator:" ").localizedCaseInsensitiveContains(text)}
+        return ranked.compactMap{lucideByID[$0]}+zip(all,searchText).filter{!first.contains($0.0.id) && $0.1.localizedCaseInsensitiveContains(text)}.map(\.0)
     }
 }
 /// Outlines from the reference that differ from Lucide, drawn on a 24-point grid.

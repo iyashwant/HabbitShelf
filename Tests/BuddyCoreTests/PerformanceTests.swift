@@ -80,6 +80,8 @@ final class PerformanceTests: XCTestCase {
         let from = Day(rawValue: "2026-07-01")!
         let full = InsightsSummary(data: data, from: from, today: today), light = InsightsSummary(data: data, from: from, today: today, includePairs: false)
         XCTAssertTrue(light.pairs.isEmpty)
+        XCTAssertEqual(InsightsSummary.lapsePairs(data: data, from: from, today: today, maxPairs: 100), InsightsSummary(data: data, from: from, today: today, maxPairs: 100).pairs)
+        XCTAssertFalse(full.pairs.isEmpty, "The fixture's habits lapse on shared days")
         XCTAssertEqual(light.weekdays, full.weekdays); XCTAssertEqual(light.months, full.months); XCTAssertEqual(light.total, full.total); XCTAssertEqual(light.hours, full.hours)
     }
 
@@ -90,6 +92,20 @@ final class PerformanceTests: XCTestCase {
         try Engine.setAmount(1_000, habitID: ids[1], day: Day(rawValue: "2026-09-03")!, data: &data, today: today)
         XCTAssertEqual(StatisticsSummary(data: data, year: 2026, today: today).keptDays.map(\.rawValue).sorted(), ["2026-09-02", "2026-09-03"])
         XCTAssertEqual(StatisticsSummary(data: data, habitIDs: [ids[1]], year: 2026, today: today).keptDays.map(\.rawValue), ["2026-09-03"])
+    }
+
+    /// Baselines for fixed workloads, so a regression shows in the measured times (no time is asserted).
+    func testMeasureValidatingAHundredThousandRecords() {
+        var data = BuddyData()
+        for n in 0..<50 { var h = Habit(name: "H\(n)", created: today.adding(-1_999)); h.order = n; data.habits.append(h) }
+        for h in data.habits { for offset in 0..<2_000 { var r = Record(habitID: h.id, day: today.adding(-offset)); r.amount = 1_000; data.records[r.key] = r } }
+        measure { do { try DataValidation.validate(data, today: today) } catch { XCTFail("\(error)") } }
+    }
+    func testMeasureTenYearHistories() {
+        var data = BuddyData()
+        for n in 0..<10 { var h = Habit(name: "H\(n)", created: today.adding(-3_652)); h.order = n; h.goals[0].cadence = .daily; data.habits.append(h) }
+        for h in data.habits { for offset in stride(from: 0, to: 3_652, by: 2) { var r = Record(habitID: h.id, day: today.adding(-offset)); r.amount = 1_000; data.records[r.key] = r } }
+        measure { for h in data.habits { XCTAssertGreaterThan(Engine.history(h, data: data, today: today).total, 0) } }
     }
 
     /// The one-pass history must agree with the earlier day-by-day implementation on varied histories.

@@ -90,8 +90,31 @@ public struct InsightsSummary: Equatable, Sendable {
             }
             if pairs { tracked[habit.id] = seen; lapses[habit.id] = lapsed }
         }
+        pairs = Self.strongest(candidates, tracked: tracked, lapses: lapses, maxPairs: maxPairs)
+    }
+    /// Only the pairs, as the full summary would find them, without the weekday, hour and month figures.
+    public static func lapsePairs(data: BuddyData, from: Day, today: Day = Day(), pairLimit: Int = 30, maxPairs: Int = 3) -> [LapsePair] {
+        let candidates = Array(data.habits.sorted { $0.order < $1.order }.prefix(pairLimit))
+        var tracked: [UUID: Set<Day>] = [:], lapses: [UUID: Set<Day>] = [:]
+        for habit in candidates {
+            if Task.isCancelled { return [] }
+            let end = min(today, habit.archived ?? today), start = max(habit.created, from), prefix = Record.keyPrefix(habit.id)
+            var seen = Set<Day>(), lapsed = Set<Day>()
+            if start <= end {
+                for day in Day.range(start, end) where day < today {
+                    let p = Engine.progress(habit, day: day, data: data, today: today, prefix: prefix)
+                    guard p.available else { continue }
+                    seen.insert(day); if !p.success { lapsed.insert(day) }
+                }
+            }
+            tracked[habit.id] = seen; lapses[habit.id] = lapsed
+        }
+        return strongest(candidates, tracked: tracked, lapses: lapses, maxPairs: maxPairs)
+    }
+    private static func strongest(_ candidates: [Habit], tracked: [UUID: Set<Day>], lapses: [UUID: Set<Day>], maxPairs: Int) -> [LapsePair] {
+        var pairs: [LapsePair] = []
         for (i, a) in candidates.enumerated() {
-            if Task.isCancelled { return }
+            if Task.isCancelled { return [] }
             for b in candidates.dropFirst(i + 1) {
                 guard let seenA = tracked[a.id], let seenB = tracked[b.id] else { continue }
                 let both = seenA.intersection(seenB)
@@ -101,7 +124,7 @@ public struct InsightsSummary: Equatable, Sendable {
             }
         }
         pairs.sort { $0.share == $1.share ? $0.together > $1.together : $0.share > $1.share }
-        pairs = Array(pairs.prefix(maxPairs))
+        return Array(pairs.prefix(maxPairs))
     }
     /// Weekdays (1 = Sunday) with the highest and lowest kept rate; nil until a weekday has been tracked twice.
     public var bestWeekday: Int? { rankedWeekdays.last }

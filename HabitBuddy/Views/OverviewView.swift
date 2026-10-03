@@ -24,7 +24,10 @@ struct OverviewView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(spacing: 15) {
-                    if !store.loaded {
+                    if store.loading {
+                        // Storage is opening; the canvas stays empty rather than showing onboarding or no habits.
+                        Color.clear.frame(height: 1)
+                    } else if !store.loaded {
                         ContentUnavailableView("Your data needs attention", systemImage: "externaldrive.badge.exclamationmark", description: Text(store.error ?? "Open Settings to restore a backup."))
                     } else if habits.isEmpty {
                         ContentUnavailableView {
@@ -83,7 +86,7 @@ struct OverviewView: View {
             .sheet(item: $appearance) { HabitAppearanceView(habitID: $0.id).buddySheet() }
             .sheet(item: $notes) { NotesView(habitID: $0.id).buddySheet() }
             .sheet(item: $share) { ShareHabitView(habit: $0).buddySheet() }
-            .task { visualRoute() }
+            .task(id: store.loaded) { visualRoute() }
             .sheet(item: $daySelection) { DayEditorView(selection: $0) }
             .sheet(isPresented: $settings) { SettingsView().buddySheet() }
             .sheet(isPresented: $compactSettings) { CompactListSettingsView() }
@@ -96,7 +99,7 @@ struct OverviewView: View {
             // A Live Activity's Finish button logs from outside the app's store.
             .onReceive(NotificationCenter.default.publisher(for: TimerSessions.changed)) { _ in store.reload() }
             .onChange(of: scenePhase) { _, phase in
-                if phase == .active { store.reload(); Task { await NotificationService.reconcile(store.data) } }
+                if phase == .active { store.reload(reschedule: true) }
                 else if phase == .background { store.flushSync() }
             }
             .onOpenURL { url in
@@ -177,7 +180,7 @@ struct OverviewView: View {
                 Spacer()
                 Text("\(days.first!.shortTitle) — \(days.last!.shortTitle)").font(BuddyFont.mono(10.8)).tracking(1.45).foregroundStyle(BuddyStyle.tertiaryText(scheme))
             }
-            VStack(spacing: 0) {
+            LazyVStack(spacing: 0) {
                 HStack(spacing: 8) {
                     Text("\(habits.count) \(habits.count == 1 ? "HABIT" : "HABITS")").font(BuddyFont.mono(11.2)).tracking(1.2).foregroundStyle(BuddyStyle.tertiaryText(scheme))
                         .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 17.6)
@@ -189,18 +192,23 @@ struct OverviewView: View {
                     }
                 }.padding(.leading, 15.7).padding(.trailing, 15).frame(height: 53).padding(.top, 1)
                 ForEach(habits) { habit in
-                    line.frame(height: 1)
-                    HStack(spacing: 8) {
-                        Button { path.append(.habit(habit.id)) } label: {
-                            HStack(spacing: 11) { HabitIcon(habit: habit, size: 34); if store.data.settings.compactNames { Text(habit.name).font(BuddyFont.text(15.2)).lineLimit(1).foregroundStyle(BuddyStyle.text(scheme)) } }
-                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading).contentShape(Rectangle())
-                        }.buttonStyle(.plain)
-                        ForEach(days) { day in
-                            Button { tap(habit, day) } label: { DayTile(habit: habit, day: day, data: store.data, size: 30).frame(maxHeight: .infinity).contentShape(Rectangle()) }
-                                .buttonStyle(.plain).disabled(!habit.loggable(on: day, today: today))
-                                .contextMenu { Button("Edit amount and note") { daySelection = DaySelection(habit: habit, day: day) } }
-                        }
-                    }.padding(.leading, 15).padding(.trailing, 15).frame(height: 52).contextMenu { habitMenu(habit) }
+                    VStack(spacing: 0) {
+                        line.frame(height: 1)
+                        HStack(spacing: 4) {
+                            Button { path.append(.habit(habit.id)) } label: {
+                                HStack(spacing: 11) { HabitIcon(habit: habit, size: 34); if store.data.settings.compactNames { Text(habit.name).font(BuddyFont.text(15.2)).lineLimit(1).foregroundStyle(BuddyStyle.text(scheme)) } }
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading).contentShape(Rectangle())
+                            }.buttonStyle(.plain)
+                            // Each tile takes half the 8-point gap on both sides, so the whole 38-point pitch is tappable.
+                            HStack(spacing: 0) {
+                                ForEach(days) { day in
+                                    Button { tap(habit, day) } label: { DayTile(habit: habit, day: day, data: store.data, size: 30).frame(maxHeight: .infinity).padding(.horizontal, 4).contentShape(Rectangle()) }
+                                        .buttonStyle(.plain).disabled(!habit.loggable(on: day, today: today))
+                                        .contextMenu { Button("Edit amount and note") { daySelection = DaySelection(habit: habit, day: day) } }
+                                }
+                            }
+                        }.padding(.leading, 15).padding(.trailing, 11).frame(height: 52).contextMenu { habitMenu(habit) }
+                    }
                 }
             }.panel(radius: 20, border: 0.07)
         }
@@ -228,7 +236,7 @@ struct OverviewView: View {
                         WeekStrip(habit: habit, data: store.data, palette: palette, cell: 16)
                     }
                     Spacer(minLength: 4)
-                    StreakBadge(summary: Engine.streak(habit, data: store.data), palette: palette, size: 26, trailing: true)
+                    StreakBadge(summary: store.summaries.streak(habit, data: store.data), palette: palette, size: 26, trailing: true)
                 }
                 .padding(.horizontal, 14).padding(.vertical, 12).background(palette.background(shape)).contentShape(shape)
                 .onTapGesture { path.append(.habit(habit.id)) }.contextMenu { habitMenu(habit) }
@@ -262,7 +270,7 @@ struct OverviewView: View {
     private func loadSamples() { store.change { VisualSamples.populate(&$0) } }
     private func visualRoute() {
         #if DEBUG
-        guard !visualRouted,let screen=ProcessInfo.processInfo.environment["BUDDY_VISUAL_SCREEN"] else{return}
+        guard store.loaded,!visualRouted,let screen=ProcessInfo.processInfo.environment["BUDDY_VISUAL_SCREEN"] else{return}
         visualRouted=true
         let index=Int(ProcessInfo.processInfo.environment["BUDDY_VISUAL_HABIT"] ?? "0") ?? 0
         guard store.data.active.indices.contains(index) else{return}

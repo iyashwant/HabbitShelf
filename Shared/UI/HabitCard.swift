@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HabitCard: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.summaries) private var summaries
     let habit: Habit
     let data: BuddyData
     var appearance: CardAppearance?
@@ -30,7 +31,7 @@ struct HabitCard: View {
             }.padding(.leading,interactive && !a.weekdayLabels ? 0:15).padding(.trailing,15).padding(.top,12)
             if (a.streak || a.goal) && habit.currentGoal.cadence != .none {
                 HStack(spacing:8) {
-                    if a.streak { MetricChip(symbol:"flame",text:String(Engine.stats(habit,data:data).currentStreak),color:c) }
+                    if a.streak { MetricChip(symbol:"flame",text:String(summaries.stats(habit,data:data).currentStreak),color:c) }
                     if a.goal { MetricChip(symbol:"target",text:habit.currentGoal.summary,color:c) }
                     Spacer()
                     if a.categoryIcons { ForEach(data.categories.filter{habit.categories.contains($0.id)}){BuddyGlyph(symbol:$0.symbol,size:14).foregroundStyle(c)} }

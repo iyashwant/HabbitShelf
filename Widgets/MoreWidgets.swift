@@ -3,10 +3,12 @@ import AppIntents
 import SwiftUI
 import WidgetKit
 
-/// Refresh every 15 minutes and just after midnight, when "today" changes.
-func nextRefresh() -> Date {
-    let midnight = Calendar.current.startOfDay(for: Date().addingTimeInterval(86_400)).addingTimeInterval(60)
-    return min(Date().addingTimeInterval(900), midnight)
+/// Refresh every 15 minutes and just after midnight, when "today" changes. Calendar day addition finds the next
+/// midnight on 23- and 25-hour days too, where adding 86,400 seconds can land on the same day.
+func nextRefresh(now: Date = Date(), calendar: Calendar = .current) -> Date {
+    let today = calendar.startOfDay(for: now)
+    let midnight = calendar.date(byAdding: .day, value: 1, to: today).map { calendar.startOfDay(for: $0.addingTimeInterval(3_600)) } ?? now.addingTimeInterval(86_400)
+    return min(now.addingTimeInterval(900), midnight.addingTimeInterval(60))
 }
 func loadEntry(habitID: UUID? = nil, selectedIDs: [UUID]? = nil, routineID: UUID? = nil, theme: WidgetAppearance = .system) -> BuddyEntry {
     guard AppEnvironment.hasSharedContainer else { return BuddyEntry(date: Date(), data: BuddyData(), habitID: habitID, error: "Open Habit Buddy to set up widgets.", selectedIDs: selectedIDs, theme: theme, routineID: routineID) }

@@ -33,7 +33,7 @@ struct HabitDetailView: View {
                             ContributionHistory(habit:habit,data:store.data,shade:.detail,labelWidth:23.3,fade:15,shadeEdge:true)
                                 .padding(.leading,12.7).padding(.trailing,11).padding(.top,11).padding(.bottom,8)
                                 .surface(padding:0,radius:22,tint:c).padding(.top,16.7)
-                            HStack(spacing:8){MetricChip(symbol:"flame",text:String(Engine.stats(habit,data:store.data).currentStreak),color:c);MetricChip(symbol:"target",text:habit.currentGoal.summary,color:c)}.padding(.top,12)
+                            HStack(spacing:8){MetricChip(symbol:"flame",text:String(store.summaries.stats(habit,data:store.data).currentStreak),color:c);MetricChip(symbol:"target",text:habit.currentGoal.summary,color:c)}.padding(.top,12)
                             ForEach(months(habit),id:\.self){m in calendar(habit,m,proxy:proxy).padding(.top,20)}
                         }.padding(.horizontal,18).padding(.top,20.8).padding(.bottom,60)
                     }
@@ -178,12 +178,13 @@ struct DayEditorView: View {
     private func save() {
         do {
             let value = goal.tracking == .yesNo ? (complete ? Int64(1_000) : 0) : try Amount.parse(amount)
+            let locked = self.locked, id = habit.id, day = selection.day, note = self.note, freeze = self.freeze
             if store.change({ data in
-                if !locked { try Engine.setAmount(value, habitID: habit.id, day: selection.day, data: &data) }
-                if data.settings.notes { try Engine.note(note, habitID: habit.id, day: selection.day, data: &data) }
+                if !locked { try Engine.setAmount(value, habitID: id, day: day, data: &data) }
+                if data.settings.notes { try Engine.note(note, habitID: id, day: day, data: &data) }
                 // Logging the day as done replaces a freeze, so a freeze applies only to a day that stays missed.
-                if freeze != (data.record(habit.id, selection.day).frozen == true), let h = data.active.first(where: { $0.id == habit.id }), !freeze || Engine.canFreeze(h, day: selection.day, data: data) {
-                    try Engine.setFreeze(freeze, habitID: habit.id, day: selection.day, data: &data)
+                if freeze != (data.record(id, day).frozen == true), let h = data.activeHabit(id), !freeze || Engine.canFreeze(h, day: day, data: data) {
+                    try Engine.setFreeze(freeze, habitID: id, day: day, data: &data)
                 }
             }) { dismiss() }
         } catch { message = error.localizedDescription }

@@ -52,17 +52,18 @@ struct YearDots: View {
     var body: some View {
         let first = Day(rawValue: String(format: "%04d-01-01", year))!, last = min(Day(rawValue: String(format: "%04d-12-31", year))!, today)
         let count = max(0, first.distance(to: last) + 1), rows = max(1, (count + columns - 1) / columns), gapRatio: CGFloat = 0.22
+        let marks = (0..<count).map { DayMark(habit, first.adding($0), data, today: today) }
         Canvas { context, size in
             let cell = size.width / (CGFloat(columns) + CGFloat(columns - 1) * gapRatio), gap = cell * gapRatio
             for n in 0..<count {
-                let day = first.adding(n), mark = DayMark(habit, day, data, today: today)
+                let mark = marks[n]
                 let rect = CGRect(x: CGFloat(n % columns) * (cell + gap), y: CGFloat(n / columns) * (cell + gap), width: cell, height: cell)
                 context.fill(Path(roundedRect: rect, cornerRadius: cell * 0.3), with: .color(mark == .inactive ? palette.outline.opacity(0.6) : mark.fill(palette)))
             }
         }
         .aspectRatio((CGFloat(columns) + CGFloat(columns - 1) * gapRatio) / (CGFloat(rows) + CGFloat(rows - 1) * gapRatio), contentMode: .fit)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(year): \((0..<count).filter { DayMark(habit, first.adding($0), data, today: today) == .done }.count) days done")
+        .accessibilityLabel("\(year): \(marks.filter { $0 == .done }.count) days done")
     }
 }
 
@@ -75,6 +76,7 @@ struct YearCalendarView: View {
     @State private var year = Int(Day().rawValue.prefix(4))!
     @State private var export: SharedImage?
     @State private var message: String?
+    @State private var rendering = false
     var body: some View {
         Group {
             if let habit = store.habit(habitID) {
@@ -98,14 +100,14 @@ struct YearCalendarView: View {
         .sheet(item: $export) { image in NativeShareSheet(items: [image.url]) }
     }
     @MainActor private func share(_ habit: Habit) {
-        message = nil
-        let renderer = ImageRenderer(content: YearPoster(habit: habit, data: store.data, year: year, scheme: scheme).padding(16).background(BuddyStyle.canvas(scheme)).frame(width: 420).environment(\.colorScheme, scheme))
-        renderer.scale = 3
-        guard let bytes = renderer.uiImage?.pngData() else { message = "Could not create the image. Please try again."; return }
-        do {
-            let file = FileManager.default.temporaryDirectory.appendingPathComponent("\(habit.name)-\(year).png".replacingOccurrences(of: "/", with: "-"))
-            try bytes.write(to: file, options: .atomic); export = SharedImage(url: file)
-        } catch { message = error.localizedDescription }
+        guard !rendering else { return }
+        rendering = true; message = nil
+        let poster = YearPoster(habit: habit, data: store.data, year: year, scheme: scheme).padding(16).background(BuddyStyle.canvas(scheme)).environment(\.colorScheme, scheme)
+        Task {
+            defer { rendering = false }
+            do { export = SharedImage(url: try await ImageExport.png(poster, width: 420, scale: 3, name: "\(habit.name)-\(year).png")) }
+            catch { message = error.localizedDescription }
+        }
     }
 }
 struct SharedImage: Identifiable { let id = UUID(); let url: URL }

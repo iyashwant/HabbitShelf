@@ -10,7 +10,7 @@ struct HabitsCalendarView: View {
     var body: some View {
         let today = Day(), habits = store.data.active, weekStart = store.data.settings.weekStart
         let first = month.startOfMonth, offset = (first.weekday - weekStart + 7) % 7, count = first.distance(to: first.endOfMonth) + 1
-        let earliest = habits.map(\.created).min() ?? today
+        let earliest = habits.map(\.created).min() ?? today, model = MonthModel(habits: habits, data: store.data, first: first, count: count, today: today)
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
@@ -26,11 +26,11 @@ struct HabitsCalendarView: View {
                         ForEach(-offset..<0, id: \.self) { _ in Color.clear.frame(height: 64) }
                         ForEach(0..<count, id: \.self) { n in
                             let day = first.adding(n)
-                            Button { selected = day } label: { cell(day, habits, today) }.buttonStyle(FlatButtonStyle()).disabled(day > today)
+                            Button { selected = day } label: { cell(day, model.days[n], today) }.buttonStyle(FlatButtonStyle()).disabled(day > today)
                         }
                     }
                 }.padding(12).panel(radius: 22, border: 0.09)
-                summary(habits, first, count, today)
+                summary(model)
                 if !habits.isEmpty {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Habits").fieldCaption().foregroundStyle(BuddyStyle.secondaryText(scheme))
@@ -49,10 +49,27 @@ struct HabitsCalendarView: View {
         .safeAreaInset(edge: .top, spacing: 0) { PageBar(title: "Calendar") { dismiss() } }
         .sheet(item: $selected) { DayHabitsView(day: $0).buddySheet().presentationDetents([.medium, .large]) }
     }
-    private func cell(_ day: Day, _ habits: [Habit], _ today: Day) -> some View {
-        let tracked = habits.filter { $0.available(on: day, today: today) }
-        let done = tracked.filter { Engine.progress($0, day: day, data: store.data, today: today).success }
-        let share = tracked.isEmpty ? 0 : Double(done.count) / Double(tracked.count), shape = RoundedRectangle(cornerRadius: 12, style: .circular)
+    /// One pass over the month for both the day cells and the summary.
+    private struct MonthModel {
+        var days: [(tracked: Int, done: [Habit])] = []
+        var perfect = 0, kept = DayRate()
+        init(habits: [Habit], data: BuddyData, first: Day, count: Int, today: Day) {
+            for n in 0..<count {
+                let day = first.adding(n), tracked = habits.filter { $0.available(on: day, today: today) }
+                var done: [Habit] = []
+                for habit in tracked {
+                    let p = Engine.progress(habit, day: day, data: data, today: today)
+                    kept.add(p, today: day == today)
+                    if p.success { done.append(habit) }
+                }
+                if !tracked.isEmpty && done.count == tracked.count { perfect += 1 }
+                days.append((tracked.count, done))
+            }
+        }
+    }
+    private func cell(_ day: Day, _ counts: (tracked: Int, done: [Habit]), _ today: Day) -> some View {
+        let done = counts.done, tracked = counts.tracked
+        let share = tracked == 0 ? 0 : Double(done.count) / Double(tracked), shape = RoundedRectangle(cornerRadius: 12, style: .circular)
         return VStack(spacing: 5) {
             Text(String(Int(day.rawValue.suffix(2))!)).font(BuddyFont.mono(13, day == today ? .semibold : .regular))
                 .foregroundStyle(day > today ? BuddyStyle.text(scheme).opacity(0.2) : BuddyStyle.text(scheme))
@@ -74,16 +91,10 @@ struct HabitsCalendarView: View {
         .background(BuddyStyle.purple.opacity(share * (scheme == .dark ? 0.24 : 0.18)), in: shape)
         .overlay { if day == today { shape.strokeBorder(BuddyStyle.purple, lineWidth: 1.5) } }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(Day.longDay.string(from: day.date)), \(day > today ? "upcoming" : "\(done.count) of \(tracked.count) habits done")")
+        .accessibilityLabel("\(Day.longDay.string(from: day.date)), \(day > today ? "upcoming" : "\(done.count) of \(tracked) habits done")")
     }
-    private func summary(_ habits: [Habit], _ first: Day, _ count: Int, _ today: Day) -> some View {
-        var perfect = 0, kept = DayRate()
-        for day in Day.range(first, min(today, first.adding(count - 1))) {
-            let tracked = habits.filter { $0.available(on: day, today: today) }
-            var all = !tracked.isEmpty
-            for h in tracked { let p = Engine.progress(h, day: day, data: store.data, today: today); kept.add(p, today: day == today); if !p.success { all = false } }
-            if all { perfect += 1 }
-        }
+    private func summary(_ model: MonthModel) -> some View {
+        let perfect = model.perfect, kept = model.kept
         return HStack(spacing: 10) {
             stat("\(perfect)", perfect == 1 ? "Perfect day" : "Perfect days")
             stat(kept.eligible == 0 ? "–" : "\(Int((kept.rate * 100).rounded()))%", "Habit days kept")
@@ -110,7 +121,7 @@ struct DayHabitsView: View {
         VStack(spacing: 0) {
             SheetHeader(title: day == today ? "Today" : Day.longDay.string(from: day.date))
             ScrollView {
-                VStack(alignment: .leading, spacing: 10) {
+                LazyVStack(alignment: .leading, spacing: 10) {
                     Text(habits.isEmpty ? "No habits were tracked on this day." : "\(done) of \(habits.count) habits done").font(BuddyFont.text(14)).foregroundStyle(BuddyStyle.secondaryText(scheme)).padding(.leading, 4)
                     ForEach(habits) { habit in HabitDayRow(habit: habit, day: day) { editing = $0 } }
                 }.padding(.horizontal, 16).padding(.bottom, 30)

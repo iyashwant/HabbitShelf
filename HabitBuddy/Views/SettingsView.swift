@@ -71,14 +71,15 @@ struct SettingsView: View {
             }
             .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { outcome in
                 switch outcome {
-                case .success(let url):
-                    let access = url.startAccessingSecurityScopedResource(); defer { if access { url.stopAccessingSecurityScopedResource() } }
-                    do { try stage(Data(contentsOf: url)) } catch { result = error.localizedDescription }
+                case .success(let url): stage(url, scoped: true)
                 case .failure(let error): if (error as NSError).code != NSUserCancelledError { result = error.localizedDescription }
                 }
             }
             .confirmationDialog("Replace current habit data?", isPresented: $confirm, titleVisibility: .visible) {
-                Button("Replace and Save Recovery Snapshot", role: .destructive) { if let bytes = replacement, store.restore(bytes) { result = "Backup restored."; loadBackups() }; replacement = nil }
+                Button("Replace and Save Recovery Snapshot", role: .destructive) {
+                    if let bytes = replacement { Task { if await store.restore(bytes) { result = "Backup restored."; loadBackups() } } }
+                    replacement = nil
+                }
                 Button("Cancel", role: .cancel) { replacement = nil }
             } message: { Text(restoreDescription) }
             .confirmationDialog("Permanently delete this habit and all its history?", isPresented: Binding(get: { deleteHabit != nil }, set: { if !$0 { deleteHabit = nil } }), titleVisibility: .visible) {
@@ -136,8 +137,8 @@ struct SettingsView: View {
                     SettingsToggle(title: "Daily Check-In Reminder", isOn: Binding(get: { store.data.settings.checkIn != nil }, set: { enabled in store.change { $0.settings.checkIn = enabled ? Reminder() : nil }; if enabled { askNotifications() } }))
                     if let reminder = store.data.settings.checkIn {
                         SettingsLine { DatePicker("Time", selection: Binding(get: { Calendar.current.date(from: DateComponents(hour: reminder.hour, minute: reminder.minute)) ?? Date() }, set: { date in store.change { $0.settings.checkIn?.hour = Calendar.current.component(.hour, from: date); $0.settings.checkIn?.minute = Calendar.current.component(.minute, from: date) } }), displayedComponents: .hourAndMinute) }
-                        SettingsLine { TextField("Title", text: setting(\.checkInTitle)) }
-                        SettingsLine { TextField("Message", text: setting(\.checkInBody)) }
+                        SettingsLine { DraftField(title: "Title", saved: store.data.settings.checkInTitle) { text in store.change { $0.settings.checkInTitle = text } } }
+                        SettingsLine { DraftField(title: "Message", saved: store.data.settings.checkInBody) { text in store.change { $0.settings.checkInBody = text } } }
                     }
                     SettingsToggle(title: "Weekly Recap Reminder", isOn: Binding(get: { store.data.settings.recapReminder }, set: { enabled in store.change { $0.settings.recapReminder = enabled }; if enabled { askNotifications() } }))
                     SettingsRow(icon: "bell-ring", color: "cyan", title: "Enable Notifications") { askNotifications() }
@@ -167,7 +168,7 @@ struct SettingsView: View {
                     }
                     SettingsLine {
                         TextField("New category", text: $categoryName)
-                        Button("Add") { let name = categoryName.trimmingCharacters(in: .whitespacesAndNewlines); if store.change({ $0.categories.append(Category(name: name)) }) { categoryName = "" } }.disabled(categoryName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).tint(BuddyStyle.purple)
+                        Button("Add") { let category = Category(name: categoryName.trimmingCharacters(in: .whitespacesAndNewlines)); if store.change({ $0.categories.append(category) }) { categoryName = "" } }.disabled(categoryName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).tint(BuddyStyle.purple)
                     }
                 }
             }
@@ -188,22 +189,36 @@ struct SettingsView: View {
             SettingsPageView(title: "Data Import/Export") {
                 SettingsGroup {
                     SettingsRow(icon: "file-output", color: "indigo", title: "Export JSON Backup") {
-                        do { document = BackupDocument(bytes: try store.repository.export()); exporting = true }
-                        catch { result = error.localizedDescription }
+                        Task {
+                            do { document = BackupDocument(bytes: try await store.export()); exporting = true }
+                            catch { result = error.localizedDescription }
+                        }
                     }
                     SettingsRow(icon: "file-input", color: "blue", title: "Import JSON Backup") { importing = true }
                 }
                 SettingsNote("JSON includes habits, goals, progress, notes, categories, reminders and settings. A validated import replaces the current data after saving a recovery snapshot. Export periodically to protect against phone loss.")
                 SettingsGroup("On-device Backups (\(backups.count))") {
-                    ForEach(backups, id: \.path) { backup in SettingsRow(icon: "clock", color: "gray", title: backup.lastPathComponent) { do { try stage(Data(contentsOf: backup)) } catch { result = error.localizedDescription } } }
+                    ForEach(backups, id: \.path) { backup in SettingsRow(icon: "clock", color: "gray", title: backup.lastPathComponent) { stage(backup, scoped: false) } }
                     if backups.isEmpty { Text("Snapshots appear after the first saved day. Up to seven daily snapshots and three before-restore snapshots are kept.").font(BuddyFont.text(13)).foregroundStyle(BuddyStyle.secondaryText(scheme)).padding(16) }
                 }
             }
         }
     }
     private func askNotifications() { Task { do { denied = try await !NotificationService.request(); await NotificationService.reconcile(store.data) } catch { result = error.localizedDescription } } }
-    private func loadBackups() { do { backups = try store.repository.backups() } catch { result = error.localizedDescription } }
-    private func stage(_ bytes: Data) throws { let data = try DataValidation.decode(bytes); replacement = bytes; restoreDescription = "This backup contains \(data.habits.count) habits and \(data.records.count) day records."; confirm = true }
+    private func loadBackups() { Task { do { backups = try await store.backups() } catch { result = error.localizedDescription } } }
+    /// Reads and validates a backup off the main thread, then asks before replacing anything.
+    private func stage(_ url: URL, scoped: Bool) {
+        Task {
+            do {
+                let (bytes, data) = try await Task.detached(priority: .userInitiated) {
+                    let access = scoped && url.startAccessingSecurityScopedResource(); defer { if access { url.stopAccessingSecurityScopedResource() } }
+                    let bytes = try DataValidation.read(url)
+                    return (bytes, try DataValidation.decode(bytes))
+                }.value
+                replacement = bytes; restoreDescription = "This backup contains \(data.habits.count) habits and \(data.records.count) day records."; confirm = true
+            } catch { result = error.localizedDescription }
+        }
+    }
 }
 
 /// A settings sub-page: back control, centered title and grouped rows.
@@ -289,6 +304,22 @@ struct SettingsLine<Content: View>: View {
     @ViewBuilder var content: () -> Content
     var body: some View { HStack(spacing: 10) { content() }.font(BuddyFont.text(16)).foregroundStyle(BuddyStyle.text(scheme)).tint(BuddyStyle.purple).padding(.horizontal, 20).frame(minHeight: 53) }
 }
+/// Text saved when editing ends (Return, leaving the field or the page), not on every keystroke.
+struct DraftField: View {
+    let title: String
+    let saved: String
+    var commit: (String) -> Void
+    @State private var text = ""
+    @FocusState private var focused: Bool
+    var body: some View {
+        TextField(title, text: $text).focused($focused)
+            .onAppear { text = saved }
+            .onChange(of: saved) { _, value in if !focused { text = value } }
+            .onChange(of: focused) { _, now in if !now { save() } }
+            .onSubmit(save).onDisappear(perform: save)
+    }
+    private func save() { if text != saved { commit(text) } }
+}
 struct SettingsToggle: View {
     let title: String
     @Binding var isOn: Bool
@@ -350,7 +381,8 @@ struct CategoryEditorView: View {
             Spacer()
             PrimaryAction(title:"Save") {
                 category.name=category.name.trimmingCharacters(in:.whitespacesAndNewlines)
-                if store.change({data in if let i=data.categories.firstIndex(where:{$0.id==category.id}){data.categories[i]=category}}){dismiss()}
+                let saved=category
+                if store.change({data in if let i=data.categories.firstIndex(where:{$0.id==saved.id}){data.categories[i]=saved}}){dismiss()}
             }.disabled(category.name.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty)
         }.padding(20).background(BuddyStyle.canvas(scheme)).sheet(isPresented:$icons){IconPickerView(selection:$category.symbol,color:BuddyStyle.purple)}
     }

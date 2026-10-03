@@ -10,8 +10,18 @@ struct BuddyEntry: TimelineEntry {
     var selectedIDs: [UUID]?
     var theme: WidgetAppearance = .system
     var routineID: UUID?
-    var selectedHabits: [Habit] { guard let selectedIDs,!selectedIDs.isEmpty else{return data.active};return selectedIDs.compactMap{id in data.active.first{$0.id==id}} }
-    var habit: Habit? { data.active.first { $0.id == habitID } ?? (habitID == nil ? data.active.first : nil) }
+    /// Active habits in order, sorted once for the entry rather than on every lookup.
+    let active: [Habit]
+    init(date: Date, data: BuddyData, habitID: UUID?, error: String?, selectedIDs: [UUID]? = nil, theme: WidgetAppearance = .system, routineID: UUID? = nil) {
+        self.date = date; self.data = data; self.habitID = habitID; self.error = error; self.selectedIDs = selectedIDs; self.theme = theme; self.routineID = routineID
+        active = data.active
+    }
+    var selectedHabits: [Habit] {
+        guard let selectedIDs, !selectedIDs.isEmpty else { return active }
+        let byID = Dictionary(active.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return selectedIDs.compactMap { byID[$0] }
+    }
+    var habit: Habit? { active.first { $0.id == habitID } ?? (habitID == nil ? active.first : nil) }
     /// The chosen routine, or the first one until a routine is chosen.
     var routine: Routine? { data.routines.first { $0.id == routineID } ?? (routineID == nil ? data.routines.first : nil) }
 }
@@ -19,10 +29,7 @@ struct BuddyProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> BuddyEntry { entry(nil) }
     func snapshot(for configuration: ChooseHabitIntent, in context: Context) async -> BuddyEntry { entry(configuration.habit?.id,theme:configuration.theme) }
     func timeline(for configuration: ChooseHabitIntent, in context: Context) async -> Timeline<BuddyEntry> {
-        let current = entry(configuration.habit?.id,theme:configuration.theme)
-        let midnight = Calendar.current.startOfDay(for: Date()).addingTimeInterval(25 * 3_600)
-        let nextMidnight = Calendar.current.startOfDay(for: midnight)
-        return Timeline(entries: [current], policy: .after(min(Date().addingTimeInterval(900), nextMidnight)))
+        Timeline(entries: [entry(configuration.habit?.id,theme:configuration.theme)], policy: .after(nextRefresh()))
     }
     private func entry(_ id: UUID?,theme:WidgetAppearance = .system) -> BuddyEntry {
         guard AppEnvironment.hasSharedContainer else { return BuddyEntry(date: Date(), data: BuddyData(), habitID: id, error: "Configure App Group storage in Xcode.") }
@@ -90,7 +97,7 @@ struct WidgetHabitAction: View {
 struct CompactBuddyProvider: AppIntentTimelineProvider {
     func placeholder(in context:Context)->BuddyEntry { entry(nil,.system) }
     func snapshot(for configuration:ChooseCompactHabitsIntent,in context:Context) async->BuddyEntry { entry(configuration.habits?.map(\.id),configuration.theme) }
-    func timeline(for configuration:ChooseCompactHabitsIntent,in context:Context) async->Timeline<BuddyEntry> {Timeline(entries:[entry(configuration.habits?.map(\.id),configuration.theme)],policy:.after(Date().addingTimeInterval(900)))}
+    func timeline(for configuration:ChooseCompactHabitsIntent,in context:Context) async->Timeline<BuddyEntry> {Timeline(entries:[entry(configuration.habits?.map(\.id),configuration.theme)],policy:.after(nextRefresh()))}
     private func entry(_ ids:[UUID]?,_ theme:WidgetAppearance)->BuddyEntry {
         guard AppEnvironment.hasSharedContainer else{return BuddyEntry(date:Date(),data:BuddyData(),habitID:nil,error:"Open Habit Buddy to set up widgets.",selectedIDs:ids,theme:theme)}
         do{return BuddyEntry(date:Date(),data:try AppEnvironment.repository.load(),habitID:nil,error:nil,selectedIDs:ids,theme:theme)}catch{return BuddyEntry(date:Date(),data:BuddyData(),habitID:nil,error:"Open Habit Buddy to recover your data.",selectedIDs:ids,theme:theme)}

@@ -15,8 +15,10 @@ struct DashboardView: View {
     private var widgets: [DashboardWidget] { DashboardLayout.current(store).filter { $0.visible(in: store.data) } }
     var body: some View {
         GeometryReader { proxy in
-            let width = proxy.size.width - 32, side = (width - 16) / 2
+            let width = proxy.size.width - 32, side = (width - 16) / 2, widgets = widgets
             ScrollView {
+                // Not a lazy stack: in one, touching and holding a widget's check logged it instead of opening the
+                // widget's menu (iOS 27 simulator). The board holds at most 100 widgets.
                 VStack(alignment: .leading, spacing: 16) {
                     Text("Dashboard").font(BuddyFont.text(32, .heavy)).foregroundStyle(BuddyStyle.text(scheme)).padding(.top, 4)
                     if widgets.isEmpty {

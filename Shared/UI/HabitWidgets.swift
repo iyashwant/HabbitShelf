@@ -121,11 +121,13 @@ struct MonthDots: View {
     var body: some View {
         let first = month.startOfMonth, offset = (first.weekday - data.settings.weekStart + 7) % 7
         let count = first.distance(to: first.endOfMonth) + 1, rows = (offset + count + 6) / 7
+        // Read once for both the drawing and the VoiceOver label.
+        let marks = (0..<count).map { DayMark(habit, first.adding($0), data, today: today) }
         GeometryReader { proxy in
             let cell = min((proxy.size.width - 6 * gap) / 7, (proxy.size.height - CGFloat(rows - 1) * gap) / CGFloat(rows))
             Canvas { context, _ in
                 for n in 0..<count {
-                    let slot = offset + n, day = first.adding(n), mark = DayMark(habit, day, data, today: today)
+                    let slot = offset + n, mark = marks[n]
                     let rect = CGRect(x: CGFloat(slot % 7) * (cell + gap), y: CGFloat(slot / 7) * (cell + gap), width: cell, height: cell)
                     let path = Path(roundedRect: rect, cornerRadius: cell * 0.28)
                     if mark == .future { context.stroke(Path(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), cornerRadius: cell * 0.28), with: .color(palette.outline), lineWidth: 1) }
@@ -135,7 +137,7 @@ struct MonthDots: View {
         }
         .aspectRatio(7 / CGFloat(rows) * 0.999, contentMode: .fit)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(Day.monthYear.string(from: first.date)), \((0..<count).filter { DayMark(habit, first.adding($0), data, today: today) == .done }.count) days done")
+        .accessibilityLabel("\(Day.monthYear.string(from: first.date)), \(marks.filter { $0 == .done }.count) days done")
     }
 }
 
@@ -173,6 +175,8 @@ struct WeekColumns: View {
 
 /// The content of one dashboard or home-screen widget, without its background.
 struct HabitWidgetContent: View {
+    /// The app's cache of streaks and milestones; widgets compute them directly.
+    @Environment(\.summaries) var summaries
     let kind: DashboardKind
     /// One of the design's sizes; nil uses its default.
     var size: WidgetSize?
@@ -204,10 +208,10 @@ struct HabitWidgetContent: View {
     }
     @ViewBuilder private func single(_ habit: Habit) -> some View {
         switch kind {
-        case .streak: streakTile(habit, Engine.streak(habit, data: data, today: today))
-        case .month: if resolvedSize == .large { monthLarge(habit) } else { month(habit, Engine.streak(habit, data: data, today: today)) }
-        case .weeks: weeksTile(habit, Engine.streak(habit, data: data, today: today))
-        case .months: months(habit, Engine.streak(habit, data: data, today: today))
+        case .streak: streakTile(habit, summaries.streak(habit, data: data, today: today))
+        case .month: if resolvedSize == .large { monthLarge(habit) } else { month(habit, summaries.streak(habit, data: data, today: today)) }
+        case .weeks: weeksTile(habit, summaries.streak(habit, data: data, today: today))
+        case .months: months(habit, summaries.streak(habit, data: data, today: today))
         case .ring: ringTile(habit)
         case .stats: statsTile(habit)
         case .year: yearTile(habit)
@@ -325,7 +329,7 @@ struct HabitWidgetContent: View {
             }.padding(.bottom, medium ? 4 : 8)
             if habits.isEmpty { Text("Create habits in Habit Buddy.").font(BuddyFont.text(13)).foregroundStyle(palette.secondary).frame(maxWidth: .infinity, maxHeight: .infinity) }
             ForEach(habits.prefix(medium ? 3 : 6)) { habit in
-                let streak = Engine.streak(habit, data: data, today: today), rowPalette = rowPalette(habit)
+                let streak = summaries.streak(habit, data: data, today: today), rowPalette = rowPalette(habit)
                 HStack(spacing: 10) {
                     HabitCheck(habit: habit, data: data, today: today, size: medium ? 28 : 30, palette: rowPalette, onTap: onCheck.map { action in { action(habit) } })
                     VStack(alignment: .leading, spacing: medium ? 3 : 4) {

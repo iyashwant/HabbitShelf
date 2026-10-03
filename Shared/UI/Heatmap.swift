@@ -43,20 +43,9 @@ struct Heatmap: View {
             let step = pitch ?? max(5, (proxy.size.width - labelWidth + gap) / CGFloat(weeks))
             let tile = step - gap
             Canvas { context, _ in
-                let today = Day(), color = BuddyStyle.color(habit.color)
-                for col in 0..<weeks {
-                    let weekStart = first.adding(col * 7)
-                    for row in 0..<7 {
-                        let day = weekStart.adding(row)
-                        let progress = Engine.progress(habit, day: day, data: data, today: today)
-                        let rect = CGRect(x: labelWidth + CGFloat(col) * step, y: top + CGFloat(row) * step, width: tile, height: tile)
-                        context.fill(Path(roundedRect: rect, cornerRadius: tile * 0.3), with: .color(progress.frozen ? BuddyStyle.freeze.opacity(0.5) : color.opacity(shade.alpha(progress))))
-                    }
-                    // A month is labelled at the first week that starts inside it.
-                    if labels && monthLabels && Int(weekStart.rawValue.suffix(2))! <= 7 {
-                        let text = Text(Day.shortMonth.string(from: weekStart.date)).font(BuddyFont.mono(10)).foregroundStyle(Color(hex: 0x73737C))
-                        context.draw(text, at: CGPoint(x: labelWidth + CGFloat(col) * step, y: 6), anchor: .leading)
-                    }
+                let today = Day()
+                Self.drawWeeks(in: &context, habit: habit, first: first, columns: 0..<weeks, x: labelWidth, top: top, step: step, monthLabels: labels && monthLabels, shade: shade) {
+                    Engine.progress(habit, day: $0, data: data, today: today)
                 }
                 if labels && weekdayLabels {
                     for row in [1, 3, 5] {
@@ -70,6 +59,26 @@ struct Heatmap: View {
         .accessibilityLabel("\(habit.name), contribution grid, last \(weeks) weeks. Open the calendar to edit individual days.")
     }
     static func weekday(_ start: Int, _ row: Int) -> String { Calendar.current.shortWeekdaySymbols[(start - 1 + row) % 7] }
+    /// Draws weeks `columns` of a grid starting at `first`, column 0 at `x`. Month names start at the first week
+    /// beginning in that month; `labelsFrom` also draws names for earlier columns, which may run into this range.
+    static func drawWeeks(in context: inout GraphicsContext, habit: Habit, first: Day, columns: Range<Int>, labelsFrom: Int? = nil, x: CGFloat, top: CGFloat, step: CGFloat, monthLabels: Bool, shade: TileShade, progress: (Day) -> Progress) {
+        let color = BuddyStyle.color(habit.color), tile = step - 3, origin = columns.lowerBound
+        for col in columns {
+            let weekStart = first.adding(col * 7)
+            for row in 0..<7 {
+                let p = progress(weekStart.adding(row))
+                let rect = CGRect(x: x + CGFloat(col - origin) * step, y: top + CGFloat(row) * step, width: tile, height: tile)
+                context.fill(Path(roundedRect: rect, cornerRadius: tile * 0.3), with: .color(p.frozen ? BuddyStyle.freeze.opacity(0.5) : color.opacity(shade.alpha(p))))
+            }
+        }
+        guard monthLabels else { return }
+        for col in (labelsFrom ?? origin)..<columns.upperBound {
+            let weekStart = first.adding(col * 7)
+            guard weekStart.dayNumber <= 7 else { continue }
+            let text = Text(Day.shortMonth.string(from: weekStart.date)).font(BuddyFont.mono(10)).foregroundStyle(Color(hex: 0x73737C))
+            context.draw(text, at: CGPoint(x: x + CGFloat(col - origin) * step, y: 6), anchor: .leading)
+        }
+    }
 }
 
 struct DayTile: View {
@@ -114,10 +123,20 @@ struct ContributionHistory: View {
     var fade: CGFloat = 33
     /// Shade the leading edge with the canvas color instead of fading the tiles out (detail style).
     var shadeEdge = false
+    /// Tiles by day: the habit's own progress unless given, as for the all-habits statistics grid.
+    var source: ((Day) -> Progress)?
     private let pitch: CGFloat = 13
-    private var weeks: Int { max(30, (start ?? habit.created).startOfWeek(data.settings.weekStart).distance(to: end.startOfWeek(data.settings.weekStart)) / 7 + 1) }
+    /// The history is split into chunks of this many weeks, and only chunks near the visible part are created
+    /// and drawn, however far back the habit goes. All chunks are the same width, so the scroller knows its
+    /// length without measuring each one; the oldest starts up to a chunk early, in the faint pre-start shade.
+    static let chunk = 16
+    private var chunks: Int {
+        let weeks = max(30, (start ?? habit.created).startOfWeek(data.settings.weekStart).distance(to: end.startOfWeek(data.settings.weekStart)) / 7 + 1)
+        return (weeks + Self.chunk - 1) / Self.chunk
+    }
     private var top: CGFloat { monthLabels ? 18 : 0 }
     var body: some View {
+        let chunks = chunks, first = end.startOfWeek(data.settings.weekStart).adding(-(chunks * Self.chunk - 1) * 7)
         HStack(spacing: 0) {
             if weekdayLabels {
                 VStack(alignment: .leading, spacing: 0) {
@@ -127,14 +146,43 @@ struct ContributionHistory: View {
                 }.padding(.top, top).frame(width: labelWidth, alignment: .leading).accessibilityHidden(true)
             }
             ScrollView(.horizontal, showsIndicators: false) {
-                Heatmap(habit: habit, data: data, weeks: weeks, end: end, monthLabels: monthLabels, weekdayLabels: false, pitch: pitch, shade: shade)
-                    .frame(width: CGFloat(weeks) * pitch)
+                LazyHStack(spacing: 0) {
+                    ForEach(0..<chunks, id: \.self) { n in
+                        HeatmapChunk(habit: habit, data: data, first: first, columns: n * Self.chunk..<(n + 1) * Self.chunk, pitch: pitch, top: top, monthLabels: monthLabels, shade: shade, source: source)
+                            .frame(width: CGFloat(Self.chunk) * pitch, height: top + 7 * pitch)
+                    }
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(habit.name), contribution grid. Open the calendar to edit individual days.")
             }
             .defaultScrollAnchor(.trailing)
             .mask(HStack(spacing: 0) { LinearGradient(colors: [shadeEdge ? .black : .clear, .black], startPoint: .leading, endPoint: .trailing).frame(width: fade); Color.black })
             .overlay(alignment: .leading) { if shadeEdge { LinearGradient(colors: [BuddyStyle.canvas(scheme).opacity(0.7), BuddyStyle.canvas(scheme).opacity(0)], startPoint: .leading, endPoint: .trailing).frame(width: fade).allowsHitTesting(false) } }
         }
         .frame(height: top + 7 * pitch)
+    }
+}
+
+/// A few weeks of a contribution history, drawn only while near the visible part of the scroller.
+private struct HeatmapChunk: View {
+    let habit: Habit
+    let data: BuddyData
+    let first: Day
+    let columns: Range<Int>
+    let pitch: CGFloat
+    let top: CGFloat
+    let monthLabels: Bool
+    let shade: TileShade
+    let source: ((Day) -> Progress)?
+    var body: some View {
+        Canvas { context, _ in
+            let today = Day()
+            // Names from the last weeks of the chunk before can run into this one; each chunk draws its own part.
+            Heatmap.drawWeeks(in: &context, habit: habit, first: first, columns: columns, labelsFrom: max(0, columns.lowerBound - 3), x: 0, top: top, step: pitch, monthLabels: monthLabels, shade: shade) { day in
+                source?(day) ?? Engine.progress(habit, day: day, data: data, today: today)
+            }
+        }
+        .clipped()
     }
 }
 

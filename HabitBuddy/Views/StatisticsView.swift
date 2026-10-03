@@ -9,10 +9,11 @@ struct StatisticsView: View {
     @State private var year = Int(Day().rawValue.prefix(4))!
     @State private var review = false
     @State private var summary=StatisticsSummary()
+    /// What the summary was worked out for; a new request cancels the one before it.
+    private struct Request: Equatable { var selected: UUID?; var year: Int; var revision: Int }
     private var habits: [Habit] { store.data.habits.filter { selected == nil || $0.id == selected! } }
     private var start: Day { Day(rawValue: "\(year)-01-01")! }
     private var end: Day { min(Day(), Day(rawValue: "\(year)-12-31")!) }
-    private var days: [Day] { Day.range(start, end) }
     private var completions:Int { summary.completions }
     private var eligible:Int { summary.eligible }
     private var accent: Color { BuddyStyle.color(habits.first?.color ?? "mint") }
@@ -22,7 +23,7 @@ struct StatisticsView: View {
                 VStack(spacing: 15) {
                     HStack(spacing:10){if let h=store.data.habits.first(where:{$0.id==selected}){HabitIcon(habit:h,size:34);VStack(alignment:.leading,spacing:3){Text(h.name).font(.system(size:14,weight:.semibold));Text(h.detail).font(.system(size:11)).foregroundStyle(.secondary)}}else{Text("All Habits").font(.system(size:14,weight:.semibold))};Spacer()}.surface()
                     HStack { Button { year -= 1 } label: { Image(systemName: "chevron.left") }.disabled(year <= 1970); Spacer(); Text(String(year)).font(.system(size:15,weight:.semibold)); Spacer(); Button { year += 1 } label: { Image(systemName: "chevron.right") }.disabled(year >= Int(Day().rawValue.prefix(4))!) }.font(.system(size:12,design:.monospaced)).padding(.horizontal,12).padding(.vertical,8).background(Color.primary.opacity(0.035),in:Capsule())
-                    if let h = habits.first { ContributionHistory(habit:visualHabit(h),data:aggregateHeatmap(h),start:start,end:end).surface() }
+                    if let h = habits.first { ContributionHistory(habit:visualHabit(h),data:store.data,start:start,end:end,source:aggregateSource).surface() }
                     HStack { metric("Completions", "\(completions)", "number"); metric("Completion Rate", "\(eligible == 0 ? 0 : Int(Double(completions) / Double(eligible) * 100))", "percent") }
                     VStack(alignment: .leading, spacing: 18) {
                         Text("Completions / Month").font(.system(size:15,weight:.semibold))
@@ -60,29 +61,27 @@ struct StatisticsView: View {
                     #if DEBUG
                     if ProcessInfo.processInfo.environment["BUDDY_VISUAL_SCREEN"] == "statistics" { selected=store.data.active.first?.id }
                     #endif
-                    refreshSummary()
                 }
-                .onChange(of:selected){_,_ in refreshSummary()}
-                .onChange(of:year){_,_ in refreshSummary()}
-                .onChange(of:store.data){_,_ in refreshSummary()}
+                .task(id:Request(selected:selected,year:year,revision:store.revision)) {
+                    let data=store.data,ids=selected.map{[$0]},year=year
+                    if let value=await offMain({StatisticsSummary(data:data,habitIDs:ids,year:year)}) { summary=value }
+                }
                 .sheet(isPresented: $review) { YearReviewView(year: year, habits: habits) }
         }
     }
-    private func refreshSummary(){summary=StatisticsSummary(data:store.data,habitIDs:selected.map{[$0]},year:year)}
     private func monthlyCount(_ month:Int)->Int { summary.monthly[month-1] }
     private func metric(_ title: String, _ value: String, _ icon: String) -> some View {
         VStack(alignment: .leading, spacing: 13) { HStack { Spacer(); Image(systemName: icon).foregroundStyle(accent).padding(7).background(accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 8)) }; Text(value).font(.system(size:25,weight:.bold)).monospacedDigit(); Text(title).font(.system(size:11)).foregroundStyle(.secondary) }.frame(maxWidth: .infinity, alignment: .leading).surface()
     }
-    private func aggregateHeatmap(_ sample: Habit) -> BuddyData {
-        guard selected == nil else { return store.data }
-        var result = store.data
-        result.records = result.records.filter { $0.value.habitID != sample.id }
-        for day in days {
-            var record = Record(habitID: sample.id, day: day)
-            record.amount = habits.contains { $0.goal(on: day).mode == .build && Engine.progress($0, day: day, data: store.data).success } ? 1_000 : 0
-            result.records[record.key] = record
+    /// With every habit selected, a day is filled when any habit kept a build goal, from the summary's kept days.
+    private var aggregateSource: ((Day) -> Progress)? {
+        guard selected == nil else { return nil }
+        // Matches the habit-style grid: tracked from January 1 through today.
+        let kept = summary.keptDays, start = start, today = Day()
+        return { day in
+            let available = day >= start && day <= today, done = available && kept.contains(day)
+            return Progress(available: available, success: done, amount: done ? 1_000 : 0, target: 1_000, fraction: done ? 1 : 0, slip: false)
         }
-        return result
     }
     private func visualHabit(_ sample: Habit) -> Habit {
         guard selected == nil else { return sample }

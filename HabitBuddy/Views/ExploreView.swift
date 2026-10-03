@@ -7,18 +7,25 @@ struct ExploreView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
     @State private var timing = false
+    /// Counts for the tile captions, worked out off the main thread so the page opens at once.
+    @State private var summary: Summary?
+    private struct Summary: Sendable {
+        var kept: DayRate, notes: Int, badges: Int
+        init(data: BuddyData, today: Day) {
+            kept = WeekRecap(data: data, week: today, today: today).total
+            notes = data.records.values.reduce(0) { $0 + ($1.note.isEmpty ? 0 : 1) }
+            badges = data.active.reduce(0) { $0 + Milestones($1, data: data, today: today).earned }
+        }
+    }
     var body: some View {
-        let data = store.data, today = Day()
-        let recap = WeekRecap(data: data, week: today, today: today)
-        let notes = data.records.values.filter { !$0.note.isEmpty }.count
-        let badges = data.active.reduce(0) { $0 + Milestones($1, data: data, today: today).earned }
+        let data = store.data, recap = summary?.kept ?? DayRate(), notes = summary?.notes ?? 0, badges = summary?.badges ?? 0
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Explore").font(BuddyFont.text(32, .heavy)).foregroundStyle(BuddyStyle.text(scheme)).padding(.top, 4)
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
                     tile(.insights, "Insights", "sparkles", "violet", "Best and worst days, times and trends")
                     tile(.calendar, "Calendar", "calendar-days", "sky", "Every habit on one month")
-                    tile(.recap, "Weekly Recap", "calendar-check", "green", recap.total.eligible == 0 ? "Your week at a glance" : "This week \(Int((recap.total.rate * 100).rounded()))% kept")
+                    tile(.recap, "Weekly Recap", "calendar-check", "green", recap.eligible == 0 ? "Your week at a glance" : "This week \(Int((recap.rate * 100).rounded()))% kept")
                     if data.settings.notes { tile(.notes, "Notes", "notebook-pen", "amber", notes == 0 ? "Every day note in one place" : "\(notes) \(notes == 1 ? "note" : "notes"), searchable") }
                     tile(.milestones(nil), "Milestones", "trophy", "orange", badges == 0 ? "Streak and check-in badges" : "\(badges) \(badges == 1 ? "badge" : "badges") earned")
                     tile(.routines, "Routines", "list-todo", "teal", data.routines.isEmpty ? "Check off habits together" : "\(data.routines.count) \(data.routines.count == 1 ? "routine" : "routines")")
@@ -34,6 +41,10 @@ struct ExploreView: View {
                 .padding(.horizontal, 12).padding(.top, 8.8).padding(.bottom, 8).background(BuddyStyle.canvas(scheme))
         }
         .sheet(isPresented: $timing) { TimerView().buddySheet() }
+        .task(id: store.revision) {
+            let data = store.data, today = Day()
+            if let value = await offMain({ Summary(data: data, today: today) }) { summary = value }
+        }
     }
     private func tile(_ route: OverviewRoute, _ title: String, _ icon: String, _ color: String, _ detail: String) -> some View {
         NavigationLink(value: route) { label(title, icon, color, detail) }.buttonStyle(FlatButtonStyle())
