@@ -42,6 +42,12 @@ final class HabitBuddyUITests:XCTestCase {
         let name=app.textFields["Habit name"];name.tap();name.typeText("Test Habit");app.buttons["Choose Icon"].tap();let search=app.textFields["Search icons or emoji"];XCTAssertTrue(search.waitForExistence(timeout:10));search.tap();search.typeText("dumbbell");app.buttons["Dumbbell"].tap();XCTAssertEqual(name.value as? String,"Test Habit");app.buttons["Save"].tap();XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout:10));let saved=app.buttons["Log progress for Test Habit"];for _ in 0..<6{if saved.exists{break};app.swipeUp()};XCTAssertTrue(saved.exists)
     }
     func testNativeShareSheet() {
-        let app=launch("share");XCTAssertTrue(app.buttons["Share Habit"].firstMatch.waitForExistence(timeout:20));app.buttons["Share Habit"].firstMatch.tap();capture(app,"native-share");XCTAssertTrue(app.otherElements["native-share-sheet"].waitForExistence(timeout:15))
+        let app=launch("share"),share=app.buttons["share-habit-image"]
+        XCTAssertTrue(share.waitForExistence(timeout:20));share.tap()
+        let action=app.descendants(matching:.any).matching(NSPredicate(format:"label == %@ OR label == %@","Copy","Save Image")).firstMatch
+        let presented=action.waitForExistence(timeout:15)
+        capture(app,"native-share")
+        if !presented{print("SHARE_ACCESSIBILITY\n"+app.debugDescription)}
+        XCTAssertTrue(presented,"The exported PNG must open a native image-sharing action.")
     }
 }
