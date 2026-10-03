@@ -18,3 +18,7 @@ Use Xcode 27 and an iOS 27 iPhone simulator. Run `bash scripts/check-ios.sh`. Fo
 14. Compare reference and app screenshots on the same device width. Test small phone/landscape, large text, VoiceOver, light/dark, long titles and locale decimal input.
 
 The 35 reference acceptance checks are also retained under `research/habitkit/06_ios_plan/acceptance_checks.txt`. Entries describing Pro transactions remain outside the implemented commerce scope.
+
+## Automated native captures
+
+After selecting an installed iPhone simulator, run `xcodebuild -project HabitBuddy.xcodeproj -scheme HabitBuddy -destination "platform=iOS Simulator,name=iPhone 16" -derivedDataPath DerivedData -resultBundlePath VisualAudit.xcresult CODE_SIGNING_ALLOWED=NO test`. Substitute your simulator name if necessary. The shared scheme includes `HabitBuddyUITests`; it captures 13 principal dark screens, icon selection, two light screens and the native share sheet, using only synthetic fixture data. Test attachments are in the result bundle.

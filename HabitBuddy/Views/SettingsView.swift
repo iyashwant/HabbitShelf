@@ -22,6 +22,7 @@ struct SettingsView: View {
     @State private var result: String?
     @State private var backups: [URL] = []
     @State private var categoryName = ""
+    @State private var categoryEditor: Category?
     @State private var denied = false
     @State private var deleteHabit: Habit?
     private func setting<T>(_ key: WritableKeyPath<Settings, T>) -> Binding<T> {
@@ -39,7 +40,7 @@ struct SettingsView: View {
                 }
                 Section("Categories") {
                     ForEach(store.data.categories) { category in
-                        HStack { Label(category.name, systemImage: category.symbol); Spacer(); Button("Delete", role: .destructive) { store.change { Engine.deleteCategory(category.id, data: &$0) } }.font(.caption) }
+                        HStack { Button { categoryEditor=category } label: { HStack { BuddyGlyph(symbol:category.symbol,size:16);Text(category.name) } }.buttonStyle(.plain); Spacer(); Button("Delete", role: .destructive) { store.change { Engine.deleteCategory(category.id, data: &$0) } }.font(.caption) }
                     }
                     HStack { TextField("New category", text: $categoryName); Button("Add") { let name = categoryName.trimmingCharacters(in: .whitespacesAndNewlines); if store.change({ $0.categories.append(Category(name: name)) }) { categoryName = "" } }.disabled(categoryName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }
                 }
@@ -119,6 +120,7 @@ struct SettingsView: View {
                     }
                 }
                 .alert("Habit Buddy", isPresented: Binding(get: { result != nil }, set: { if !$0 { result = nil } })) { Button("OK") { result = nil } } message: { Text(result ?? "") }
+                .sheet(item:$categoryEditor){CategoryEditorView(category:$0)}
                 .onAppear { loadBackups() }
         }
     }
@@ -144,4 +146,25 @@ struct ReorderView: View {
     }
     private func moveUp(_ habit: Habit) { var ids = store.data.active.map(\.id); guard let index = ids.firstIndex(of: habit.id), index > 0 else { return }; ids.swapAt(index, index - 1); persist(ids) }
     private func persist(_ ids: [UUID]) { store.change { data in for (order, id) in ids.enumerated() { if let i = data.habits.firstIndex(where: { $0.id == id }) { data.habits[i].order = order } } } }
+}
+
+
+struct CategoryEditorView: View {
+    @EnvironmentObject private var store: AppStore
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.dismiss) private var dismiss
+    @State var category: Category
+    @State private var icons=false
+    var body: some View {
+        VStack(spacing:20) {
+            SheetHeader(title:"Edit Category")
+            Button { icons=true } label: { BuddyGlyph(symbol:category.symbol,size:36).foregroundStyle(BuddyStyle.purple).frame(width:88,height:88).background(BuddyStyle.purple.opacity(0.13),in:Circle()) }.buttonStyle(.plain).accessibilityLabel("Choose Category Icon")
+            TextField("Category name",text:$category.name).padding(14).background(Color.primary.opacity(0.06),in:RoundedRectangle(cornerRadius:14))
+            Spacer()
+            PrimaryAction(title:"Save") {
+                category.name=category.name.trimmingCharacters(in:.whitespacesAndNewlines)
+                if store.change({data in if let i=data.categories.firstIndex(where:{$0.id==category.id}){data.categories[i]=category}}){dismiss()}
+            }.disabled(category.name.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty)
+        }.padding(20).background(BuddyStyle.canvas(scheme)).sheet(isPresented:$icons){IconPickerView(selection:$category.symbol,color:BuddyStyle.purple)}
+    }
 }

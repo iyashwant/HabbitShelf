@@ -17,16 +17,22 @@ source = project.read_text()
 for folder in ["HabitBuddy", "Shared", "Widgets", "UITests"]:
     for path in (ROOT / folder).rglob("*.swift"):
         assert str(path.relative_to(ROOT)) in source, f"Source missing from project: {path}"
+for resource in (ROOT / "Shared/Resources").glob("*"):
+    assert str(resource.relative_to(ROOT)) in source, f"Resource missing from project: {resource}"
+icons=json.loads((ROOT / "Shared/Resources/habit-icons.json").read_text())
+assert len(icons)==len({i["id"] for i in icons}), "Duplicate icon IDs"
+assert all(i["name"] and i["unicode"] for i in icons), "Incomplete icon metadata"
 for extension in ["*.plist", "*.entitlements", "*.xcprivacy"]:
     for path in ROOT.rglob(extension):
         if ".build" not in path.parts: plistlib.loads(path.read_bytes())
 for path in ROOT.rglob("*.xcscheme"): ET.parse(path)
 for path in (ROOT / "research").rglob("*.json"): json.loads(path.read_text())
 research = ROOT / "research/habitkit"
-for line in (research / "CHECKSUMS.sha256").read_text().splitlines():
-    digest, name = line.split(None, 1)
-    path = research / name.lstrip("* ")
-    assert hashlib.sha256(path.read_bytes()).hexdigest() == digest, f"Research changed: {name}"
+for checksum in research.rglob("CHECKSUMS.sha256"):
+    for line in checksum.read_text().splitlines():
+        digest, name = line.split(None, 1)
+        path = checksum.parent / name.lstrip("* ")
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == digest, f"Research changed: {name}"
 class Links(HTMLParser):
     def __init__(self): super().__init__(); self.links = []
     def handle_starttag(self, tag, attrs):

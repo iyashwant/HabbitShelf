@@ -28,8 +28,14 @@ Completion rate counts eligible build dates through yesterday plus today if comp
 
 One-off local notifications cover a rolling seven-day window, with 60 earliest requests reserved below the system's pending-request limit. The UI reports omitted requests. Launch, logging and settings changes refresh the schedule. Today is suppressed after build success or quit failure. Settings permission denial preserves reminders and offers a system-settings link. Travel and DST are handled using local calendar components; continuous background rescheduling while the app is never opened is not guaranteed.
 
-Widgets request periodic/midnight refreshes and use the same repository and engine for writes. All seven Shortcut actions are defined in `HabitIntents.swift`. Get Progress returns JSON with exact amount strings, goal, remaining, unit, note and success. Numeric totals needing an editor should open the app; no keyboard runs inside a widget. Widgets and Siri execution still need real iPhone validation. Retrying a non-idempotent increment as a separate invocation intentionally adds another increment.
+Widgets request periodic/midnight refreshes and use the same repository and engine for writes. All seven Shortcut actions are defined in `HabitIntents.swift`; their phrase provider lives in the app-only `HabitShortcuts.swift` to avoid training duplicate extension phrases. Get Progress returns JSON with exact amount strings, goal, remaining, unit, note and success. Numeric totals needing an editor should open the app; no keyboard runs inside a widget. Widgets and Siri execution still need real iPhone validation. Retrying a non-idempotent increment as a separate invocation intentionally adds another increment.
 
 ## Project maintenance
 
 `scripts/generate-project.py` deterministically emits the checked-in app/widget project and shared scheme. It has no external dependency. `check-project.py` checks source membership, plist validity, research hashes and gallery links. Research folders are not app resources. UI styling lives in shared tokens rather than copied screenshot raster assets.
+
+## Visual audit fixtures
+
+Debug-only launch environment options select an isolated `VisualAudit` repository, deterministic synthetic habits and a civil date. `BUDDY_VISUAL_SCREEN`, `BUDDY_VISUAL_DATE` and `BUDDY_VISUAL_THEME` drive native UI capture; `BUDDY_VISUAL_RESET=false` verifies relaunch persistence. The fixture writes never touch the normal App Group/private habit repository. No private user data is captured or printed. UI test attachments retain PNG screenshots; JPEG chunks in CI logs allow reference review without an artifact download.
+
+Overview visibility fields decode with defaults so schema-one backups from before the new options remain readable. A habit can override its seven card appearance fields; reverting to defaults clears the optional override. Font Awesome Free 7.0.0 fonts, icon metadata and upstream license are included in both app and widget resource bundles. Third-party app screenshots remain outside both bundles.

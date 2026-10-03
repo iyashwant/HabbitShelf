@@ -9,3 +9,4 @@ xcuserdata/
 __pycache__/
 .agents/
 skills-lock.json
+*.xcresult/

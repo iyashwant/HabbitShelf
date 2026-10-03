@@ -81,7 +81,7 @@ struct OverviewView: View {
             HStack {
                 Button("All Habits") { category = nil }.buttonStyle(.bordered).tint(category == nil ? BuddyStyle.purple : .secondary)
                 ForEach(store.data.categories) { item in
-                    Button { category = item.id } label: { Label(item.name, systemImage: item.symbol) }
+                    Button { category = item.id } label: { HStack { BuddyGlyph(symbol:item.symbol,size:12);Text(item.name) } }
                         .buttonStyle(.bordered).tint(category == item.id ? BuddyStyle.purple : .secondary)
                 }
                 Button { reorder = true } label: { Image(systemName: "arrow.up.arrow.down") }.buttonStyle(.bordered).accessibilityLabel("Reorder habits")
@@ -155,7 +155,7 @@ struct OverviewView: View {
     }
     private var monthGrid: some View {
         LazyVGrid(columns:Array(repeating:GridItem(.flexible(),spacing:8),count:3),spacing:10) {
-            ForEach(habits) { habit in MonthHabitCard(habit:habit,data:store.data,onOpen:{path.append(habit.id)}).contextMenu{habitMenu(habit)} }
+            ForEach(habits) { habit in MonthHabitCard(habit:habit,data:store.data,onOpen:{path.append(habit.id)},onComplete:{tap(habit,Day())}).contextMenu{habitMenu(habit)} }
         }
     }
     @ViewBuilder private func habitMenu(_ habit: Habit) -> some View {
@@ -224,18 +224,32 @@ struct MonthHabitCard: View {
     let habit:Habit
     let data:BuddyData
     var onOpen:()->Void
+    var onComplete:()->Void
     @State private var month=Day().startOfMonth
     var body:some View {
-        Button(action:onOpen) {
-            VStack(alignment:.leading,spacing:8) {
-                HStack(spacing:5){HabitIcon(habit:habit,size:24);VStack(alignment:.leading,spacing:2){Text(habit.name).font(.system(size:10,weight:.medium)).lineLimit(1);Text(month.monthTitle).font(.system(size:8)).foregroundStyle(.secondary)}}
-                MiniMonth(habit:habit,data:data,month:month)
-            }.foregroundStyle(.primary).surface(padding:9,radius:16)
-        }.buttonStyle(.plain)
+        VStack(alignment:.leading,spacing:8) {
+            HStack(spacing:5) {
+                Button(action:onComplete){MonthIndicator(habit:habit,data:data)}.buttonStyle(.plain).accessibilityLabel("Log progress for \(habit.name)")
+                Button(action:onOpen){VStack(alignment:.leading,spacing:2){Text(habit.name).font(.system(size:11,weight:.medium)).lineLimit(1);Text(month.monthTitle).font(.system(size:9,design:.monospaced)).foregroundStyle(.secondary)}.frame(maxWidth:.infinity,alignment:.leading)}.buttonStyle(.plain)
+            }
+            Button(action:onOpen){MiniMonth(habit:habit,data:data,month:month)}.buttonStyle(.plain)
+        }.foregroundStyle(.primary).surface(padding:9,radius:16)
         .simultaneousGesture(DragGesture(minimumDistance:30).onEnded{v in if abs(v.translation.width)>abs(v.translation.height){shift(v.translation.width>0 ? -1:1)}})
         .accessibilityAction(named:"Previous month"){shift(-1)}.accessibilityAction(named:"Next month"){shift(1)}
     }
     private func shift(_ n:Int){let m=month.addingMonths(n);if m<=Day().startOfMonth && m>=habit.created.startOfMonth{month=m}}
+}
+struct MonthIndicator:View {
+    let habit:Habit
+    let data:BuddyData
+    var body:some View {
+        let p=Engine.progress(habit,day:Day(),data:data),c=BuddyStyle.color(habit.color)
+        Group {
+            if p.success { BuddyGlyph(symbol:habit.symbol,size:13).foregroundStyle(Color.black.opacity(0.7)).frame(width:26,height:26).background(c,in:Circle()) }
+            else if habit.currentGoal.tracking != .yesNo {CompletionBadge(habit:habit,data:data,size:26)}
+            else {Image(systemName:p.slip ? "xmark":"checkmark").font(.system(size:13)).foregroundStyle(.secondary).frame(width:26,height:26).background(Color.primary.opacity(0.035),in:Circle()).overlay{Circle().stroke(Color.primary.opacity(0.12),lineWidth:1)}}
+        }
+    }
 }
 struct HabitDrag: ViewModifier {
     let id:UUID

@@ -10,4 +10,4 @@ Video located: https://www.youtube.com/watch?v=IA3vicKNYqc — Bill McLean compa
 
 The rebuilt native UI adds the reference palette, licensed searchable icon catalog, progressive editor, full history, notes, appearance overrides, a direct system share flow, and configurable widgets. UI tests capture real app screens using isolated synthetic habits. The fixture date is 2026-08-18; release builds ignore these environment options. Native output and comparison results will be saved here after CI.
 
-A complete 1:1 match is not yet verified. Paywall/StoreKit, in-app language selection, category-icon editing, alternate mode-conversion policies, exact year-review layouts and actual iOS 27 device behavior remain outstanding. See `docs/PARITY.md` and `docs/VALIDATION.md`.
+A complete 1:1 match is not yet verified. Paywall/StoreKit, in-app language selection, alternate mode-conversion policies, exact year-review layouts and actual iOS 27 device behavior remain outstanding. See `docs/PARITY.md` and `docs/VALIDATION.md`.

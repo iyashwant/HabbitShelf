@@ -64,6 +64,17 @@ final class BuddyCoreTests: XCTestCase {
         XCTAssertEqual(decoded.habits,data.habits);XCTAssertEqual(decoded.settings.theme,.dark);XCTAssertFalse(decoded.settings.showDescriptions)
         XCTAssertTrue(decoded.settings.showLayoutSwitcher);XCTAssertTrue(decoded.settings.dragToReorder);XCTAssertTrue(decoded.settings.showMonthLabels)
     }
+    func testStatisticsSummaryUsesHistoricalSuccessAndRecordedHours() throws {
+        var (data,h)=fixture(tracking:.count,target:2_000)
+        try log(2_000,"2026-10-01",h,&data);try log(1_000,"2026-10-02",h,&data);try log(2_000,"2026-10-03",h,&data)
+        let key=Record.key(h.id,Day(rawValue:"2026-10-01")!);data.records[key]?.completionHour=7
+        data.records[Record.key(h.id,today)]?.completionHour=nil
+        let summary=StatisticsSummary(data:data,year:2026,today:today)
+        XCTAssertEqual(summary.completions,2);XCTAssertEqual(summary.eligible,6);XCTAssertEqual(summary.monthly[9],2);XCTAssertEqual(summary.hourly[7],1)
+        XCTAssertEqual(summary.currentStreak,1);XCTAssertEqual(summary.bestStreak,1)
+        XCTAssertEqual(StatisticsSummary(data:data,habitIDs:[],year:2026,today:today).completions,0)
+    }
+
     func testAppearanceAndOverviewSettingsRoundTrip() throws {
         var (data,_)=fixture();var appearance=CardAppearance();appearance.description=false;appearance.monthLabels=false;appearance.indicator=false
         data.habits[0].appearance=appearance;data.settings.compactNames=false;data.settings.dragToReorder=false;data.settings.showCategoryFilter=false

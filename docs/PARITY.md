@@ -13,7 +13,7 @@ The requested target is a 1:1 match to HabitKit on iOS 27. This matrix separates
 | Notes | Note-only, append/replace in Shortcuts, preserve on clear, setting hides without deleting | Dedicated newest-first notes list and calendar long press; compare interactions on device |
 | Overview | Cards, Compact 1–7 recent days, three-column/adaptive Month, reorder/category filter, numeric progress rings, yesterday complete/clear commands, global and per-habit card appearance switches, filter/switcher/name/drag settings | Pixel comparison and calendar headers still pending |
 | Grids/calendar | Civil dates, future/pre-start/paused states, partial fill, today outline, selected week start, month navigation | Full scrollable contribution history and months through habit creation; native geometry comparison pending |
-| Categories/archive | Multiple memberships, create/delete category, reorder habits, archive/restore, paused intervals, explicit delete | Category icon customization not implemented |
+| Categories/archive | Multiple memberships, create/delete category, reorder habits, archive/restore, paused intervals, explicit delete | Editable category names and icons; native interaction comparison pending |
 | Statistics | Habit/year selection, yearly grid, completions, rate, monthly area chart, current/best streak, completion-hour chart | Exact denominator/aggregate formulas need reference comparison; current formula documented |
 | Habit sharing | PNG rendering, theme/color, description, streak, completion indicator, native share | Confirm image dimensions and precise reference layout |
 | Year review | Multiple habit PNG with Cards / Compact / Grid / Poster formats | Format geometry is an approximation; exports with many habits need memory/device testing |

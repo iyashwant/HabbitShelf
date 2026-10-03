@@ -30,7 +30,7 @@ python3 scripts/check-project.py
 bash scripts/check-ios.sh  # Mac + Xcode 27
 ```
 
-The standalone Swift package tests the actual engine used by the app and widgets. All 41 tests passed on Linux and on the Mac runner. [GitHub Actions run 37073838015](https://github.com/iyashwant/habbit-buddy/actions/runs/37073838015) also passed the project/research checks and built the app and widgets for both simulator architectures. See [the validation record](docs/VALIDATION.md) for SDK details and pending runtime checks.
+The standalone Swift package tests the actual engine used by the app and widgets. The current 43 core tests pass on the Mac runner; the original 41 also passed on Linux. [GitHub Actions run 37073838015](https://github.com/iyashwant/habbit-buddy/actions/runs/37073838015) also passed the project/research checks and built the app and widgets for both simulator architectures. See [the validation record](docs/VALIDATION.md) for SDK details and pending runtime checks.
 
 ## Project map
 
@@ -42,9 +42,12 @@ The standalone Swift package tests the actual engine used by the app and widgets
 | `Shared/UI/` | Shared design tokens, icons, grid and day tiles |
 | `Widgets/` | Interactive WidgetKit extension |
 | `Tests/` | Domain and persistence tests |
-| `research/habitkit/` | All 64 collected reference files: screenshots, feature inventory, provenance and iOS plan |
+| `UITests/` | Real simulator screen capture, persistence, validation and native sharing checks |
+| `research/habitkit/` | Original 64-file research pack plus current App Store references, source audit and native comparison evidence |
 | `docs/` | Architecture, UI decisions, feature status and Mac testing checklist |
 | `scripts/` | Project generator, validation, Mac checks and UI-skill installer |
+
+The second visual pass is in [research/habitkit/07_visual_audit/](research/habitkit/07_visual_audit/). Its [gallery](research/habitkit/07_visual_audit/gallery.html) contains the current public App Store screenshots.
 
 Start the research at [research/habitkit/START_HERE.html](research/habitkit/START_HERE.html); open it locally for the linked galleries. Research images are excluded from app resources.
 

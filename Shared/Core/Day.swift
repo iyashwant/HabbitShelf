@@ -21,11 +21,12 @@ public struct Day: RawRepresentable, Codable, Hashable, Comparable, Identifiable
         let c = calendar.dateComponents([.year, .month, .day], from: date)
         rawValue = String(format: "%04d-%02d-%02d", c.year!, c.month!, c.day!)
     }
-    private static var formatter: DateFormatter {
+    // Immutable after initialization. DateFormatter is thread safe on supported Apple platforms.
+    private static let formatter: DateFormatter = {
         let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX")
         f.calendar = calendar; f.timeZone = TimeZone(secondsFromGMT: 0); f.dateFormat = "yyyy-MM-dd"
         f.isLenient = false; return f
-    }
+    }()
     public static var calendar: Calendar {
         var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(secondsFromGMT: 0)!
         return c

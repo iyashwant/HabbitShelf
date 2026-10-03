@@ -86,14 +86,25 @@ struct ContributionHistory: View {
     private var weeks: Int { max(24, (start ?? habit.created).startOfWeek(data.settings.weekStart).distance(to:end.startOfWeek(data.settings.weekStart))/7+1) }
     var body: some View {
         GeometryReader { proxy in
-            let left: CGFloat = weekdayLabels ? 22 : 0
-            let tile = max(2,(proxy.size.width-left-23*3)/24)
-            ScrollView(.horizontal,showsIndicators:false) {
-                Heatmap(habit:habit,data:data,weeks:weeks,end:end,monthLabels:monthLabels,weekdayLabels:weekdayLabels)
-                    .frame(width:left+CGFloat(weeks)*(tile+3)-3)
-            }.defaultScrollAnchor(.trailing)
+            let left:CGFloat=weekdayLabels ? 22:0
+            let tile=max(2,(proxy.size.width-left-23*3)/24)
+            HStack(spacing:0) {
+                if weekdayLabels {
+                    Canvas { context,_ in
+                        for row in [1,3,5] {
+                            let name=Calendar.current.shortWeekdaySymbols[(data.settings.weekStart-1+row)%7]
+                            context.draw(Text(name).font(.system(size:7,design:.monospaced)).foregroundStyle(.secondary),at:CGPoint(x:10,y:(monthLabels ? 17:0)+CGFloat(row)*(tile+3)+tile/2))
+                        }
+                    }.frame(width:22)
+                }
+                ScrollView(.horizontal,showsIndicators:false) {
+                    Heatmap(habit:habit,data:data,weeks:weeks,end:end,monthLabels:monthLabels,weekdayLabels:false)
+                        .frame(width:CGFloat(weeks)*(tile+3)-3)
+                }.defaultScrollAnchor(.trailing)
+            }
         }.frame(height:monthLabels ? 106:88)
     }
+
 }
 struct CalendarDay: View {
     let habit: Habit
