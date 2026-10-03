@@ -4,6 +4,11 @@ from pathlib import Path
 import hashlib
 import json
 import plistlib
+import argparse
+
+parser=argparse.ArgumentParser()
+parser.add_argument("--deployment-target",default="27.0",help="Explicit local/CI SDK fallback; checked-in project defaults to iOS 27")
+options=parser.parse_args()
 
 ROOT = Path(__file__).resolve().parent.parent
 PROJECT = ROOT / "HabitBuddy.xcodeproj"
@@ -48,7 +53,7 @@ for name, paths in [("App", app_sources + ["HabitBuddy/Info.plist", "HabitBuddy/
 assets = file("HabitBuddy/Assets.xcassets", "folder.assetcatalog")
 objects[groups[0]]["children"].append(assets)
 main_group = add("main-group", "PBXGroup", children=groups + [products], sourceTree="<group>")
-common_settings = {"SDKROOT": "iphoneos", "IPHONEOS_DEPLOYMENT_TARGET": "27.0", "SWIFT_VERSION": "5.0", "CLANG_ENABLE_MODULES": "YES", "CLANG_ENABLE_OBJC_ARC": "YES", "ENABLE_USER_SCRIPT_SANDBOXING": "YES", "SWIFT_STRICT_CONCURRENCY": "targeted", "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator", "TARGETED_DEVICE_FAMILY": "1", "MARKETING_VERSION": "1.0.0", "CURRENT_PROJECT_VERSION": "1", "CODE_SIGN_STYLE": "Automatic", "GENERATE_INFOPLIST_FILE": "NO"}
+common_settings = {"SDKROOT": "iphoneos", "IPHONEOS_DEPLOYMENT_TARGET": options.deployment_target, "SWIFT_VERSION": "5.0", "CLANG_ENABLE_MODULES": "YES", "CLANG_ENABLE_OBJC_ARC": "YES", "ENABLE_USER_SCRIPT_SANDBOXING": "YES", "SWIFT_STRICT_CONCURRENCY": "targeted", "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator", "TARGETED_DEVICE_FAMILY": "1", "MARKETING_VERSION": "1.0.0", "CURRENT_PROJECT_VERSION": "1", "CODE_SIGN_STYLE": "Automatic", "GENERATE_INFOPLIST_FILE": "NO"}
 
 def configurations(label, settings):
     configs = []

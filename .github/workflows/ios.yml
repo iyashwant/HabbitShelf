@@ -32,6 +32,7 @@ jobs:
             echo "::warning::Runner lacks the iOS 27 SDK. Source compilation and simulator captures use SDK $deployment; iOS 27 validation remains pending."
           fi
           echo "deployment=$deployment" >> "$GITHUB_OUTPUT"
+          python3 scripts/generate-project.py --deployment-target "$deployment"
           xcodebuild -project HabitBuddy.xcodeproj -scheme HabitBuddy \
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO \
@@ -41,12 +42,22 @@ jobs:
         run: |
           set -euo pipefail
           xcrun simctl list devices available -j > /tmp/buddy-devices.json
-          device="$(python3 - <<'PY'
-          import json
+          device="$(python3 - "${{ steps.sdk.outputs.deployment }}" <<'PY'
+          import json, re, sys
           data=json.load(open('/tmp/buddy-devices.json'))
-          phones=[d for runtime,items in data['devices'].items() if 'iOS' in runtime for d in items if d.get('isAvailable') and d['name'].startswith('iPhone')]
-          phones.sort(key=lambda d:(d['name']!='iPhone 16',d['name']))
-          assert phones,'No available iPhone simulator'
+          minimum=int(sys.argv[1].split('.')[0])
+          candidates=[]
+          for runtime,items in data['devices'].items():
+              if 'iOS-' not in runtime: continue
+              version=tuple(map(int,re.search(r'iOS-(\d+)-(\d+)',runtime).groups()))
+              if version[0]<minimum: continue
+              for d in items:
+                  if d.get('isAvailable') and d['name'].startswith('iPhone'): candidates.append((version,d))
+          candidates.sort(key=lambda item:(-item[0][0],-item[0][1],item[1]['name']!='iPhone 16',item[1]['name']))
+          assert candidates,'No compatible iPhone simulator: '+str(data['devices'].keys())
+          version,phone=candidates[0]
+          print('Selected '+phone['name']+' / iOS '+'.'.join(map(str,version)),file=sys.stderr)
+          phones=[phone]
           print(phones[0]['udid'])
           PY
           )"
