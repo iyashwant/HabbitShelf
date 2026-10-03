@@ -30,7 +30,7 @@ python3 scripts/check-project.py
 bash scripts/check-ios.sh  # Mac + Xcode 27
 ```
 
-The standalone Swift package tests the actual engine used by the app and widgets. The current 43 core tests pass on the Mac runner; the original 41 also passed on Linux. [GitHub Actions run 37073838015](https://github.com/iyashwant/habbit-buddy/actions/runs/37073838015) also passed the project/research checks and built the app and widgets for both simulator architectures. See [the validation record](docs/VALIDATION.md) for SDK details and pending runtime checks.
+The standalone Swift package tests the actual engine used by the app and widgets. [GitHub Actions run 37114456851](https://github.com/iyashwant/habbit-buddy/actions/runs/37114456851), source `e28db103`, passed **44 core tests and all 4 native UI tests**, the project/research checks, and the app/widget build for both simulator architectures. The UI tests cover completion persistence, editor validation and icon search, 16 screen captures, and the actual system image-sharing panel. See [the validation record](docs/VALIDATION.md) for SDK details and pending runtime checks.
 
 ## Project map
 
@@ -47,7 +47,7 @@ The standalone Swift package tests the actual engine used by the app and widgets
 | `docs/` | Architecture, UI decisions, feature status and Mac testing checklist |
 | `scripts/` | Project generator, validation, Mac checks and UI-skill installer |
 
-The second visual pass is in [research/habitkit/07_visual_audit/](research/habitkit/07_visual_audit/). Its [gallery](research/habitkit/07_visual_audit/gallery.html) contains the current public App Store screenshots.
+The second visual pass is in [research/habitkit/07_visual_audit/](research/habitkit/07_visual_audit/). Open its [gallery](research/habitkit/07_visual_audit/gallery.html) locally for the public App Store references and **17 real simulator screenshots**. The [comparison record](research/habitkit/07_visual_audit/COMPARISON.md) explains observed differences; the [contact sheet](research/habitkit/07_visual_audit/native_screens/contact-sheet.jpg) gives a quick overview. Captures use isolated synthetic data and include both themes. This evidence does not establish an exact 1:1 match.
 
 Start the research at [research/habitkit/START_HERE.html](research/habitkit/START_HERE.html); open it locally for the linked galleries. Research images are excluded from app resources.
 

@@ -1,0 +1,189 @@
+[
+  {
+    "file": "appearance-dark.jpg",
+    "bytes": 241751,
+    "sha256": "039441a8a1d6cb19912103955c8409438c910a96ef989a41a8d41914bebfdfb2",
+    "source_commit": "e28db103ec22d7082a2cb50abc835f8e48c9116e",
+    "actions_run": "37114456851",
+    "runtime": "iPhone 17 / iOS 26.5",
+    "fixture_date": "2026-08-18",
+    "data": "isolated synthetic fixtures",
+    "format": "JPEG quality 0.8; original PNG retained in XCTest attachment"
+  },
+  {
+    "file": "cards-dark.jpg",
+    "bytes": 385835,
+    "sha256": "081a486dacfa3173ebe05d1427e458d3d178ef8ec95dc34530ddf2e47d7c9474",
+    "source_commit": "e28db103ec22d7082a2cb50abc835f8e48c9116e",
+    "actions_run": "37114456851",
+    "runtime": "iPhone 17 / iOS 26.5",
+    "fixture_date": "2026-08-18",
+    "data": "isolated synthetic fixtures",
+    "format": "JPEG quality 0.8; original PNG retained in XCTest attachment"
+  },
+  {
+    "file": "cards-light.jpg",
+    "bytes": 362254,
+    "sha256": "0500b99f00b627ffc63c099301403488639690176837b041f00773c6e9f0cf1b",
+    "source_commit": "e28db103ec22d7082a2cb50abc835f8e48c9116e",
+    "actions_run": "37114456851",
+    "runtime": "iPhone 17 / iOS 26.5",
+    "fixture_date": "2026-08-18",
+    "data": "isolated synthetic fixtures",
+    "format": "JPEG quality 0.8; original PNG retained in XCTest attachment"
+  },
+  {
+    "file": "compact-dark.jpg",
+    "bytes": 223833,
+    "sha256": "cbd6b9e9b6406ee20b2510d6518982d86e55dda203c4a634259909624c23c68b",
+    "source_commit": "e28db103ec22d7082a2cb50abc835f8e48c9116e",
+    "actions_run": "37114456851",
+    "runtime": "iPhone 17 / iOS 26.5",
+    "fixture_date": "2026-08-18",
+    "data": "isolated synthetic fixtures",
+    "format": "JPEG quality 0.8; original PNG retained in XCTest attachment"
+  },
+  {
+    "file": "day-dark.jpg",
+    "bytes": 139311,
+    "sha256": "002eb124963f0a92f2db6935ed862b2beaa2a5f8afd43976d2b4a015b88a96bd",
+    "source_commit": "e28db103ec22d7082a2cb50abc835f8e48c9116e",
+    "actions_run": "37114456851",
+    "runtime": "iPhone 17 / iOS 26.5",
+    "fixture_date": "2026-08-18",
+    "data": "isolated synthetic fixtures",
+    "format": "JPEG quality 0.8; original PNG retained in XCTest attachment"
+  },
+  {
+    "file": "detail-dark.jpg",
+    "bytes": 240538,
+    "sha256": "b0b88938d778c4d41c75d07b0ad4c0ac74290efa2ac9e95ee6d95b55fd118b52",
+    "source_commit": "e28db103ec22d7082a2cb50abc835f8e48c9116e",
+    "actions_run": "37114456851",
+    "runtime": "iPhone 17 / iOS 26.5",
+    "fixture_date": "2026-08-18",
+    "data": "isolated synthetic fixtures",
+    "format": "JPEG quality 0.8; original PNG retained in XCTest attachment"
+  },
+  {
+    "file": "editor-dark.jpg",
+    "bytes": 199282,
+    "sha256": "17a5baac90a39d53b180c2dddc0ca92f6c3633b87febc9cbf7831dc2a1e2ea52",
+    "source_commit": "e28db103ec22d7082a2cb50abc835f8e48c9116e",
+    "actions_run": "37114456851",
+    "runtime": "iPhone 17 / iOS 26.5",
+    "fixture_date": "2026-08-18",
+    "data": "isolated synthetic fixtures",
+    "format": "JPEG quality 0.8; original PNG retained in XCTest attachment"
+  },
+  {
+    "file": "icons-dark.jpg",
+    "bytes": 236832,
+    "sha256": "779d3bae26301d30af04cc7c12695617bcc037adad186f561f48df2e9b2c35e0",
+    "source_commit": "e28db103ec22d7082a2cb50abc835f8e48c9116e",
+    "actions_run": "37114456851",
+    "runtime": "iPhone 17 / iOS 26.5",
+    "fixture_date": "2026-08-18",
+    "data": "isolated synthetic fixtures",
+    "format": "JPEG quality 0.8; original PNG retained in XCTest attachment"
+  },
+  {
+    "file": "month-dark.jpg",
+    "bytes": 280608,
+    "sha256": "a3ae75d46acdcfc0c96665f534abf0395e9aff8e600294b8f2c9811fd48be8c2",
+    "source_commit": "e28db103ec22d7082a2cb50abc835f8e48c9116e",
+    "actions_run": "37114456851",
+    "runtime": "iPhone 17 / iOS 26.5",
+    "fixture_date": "2026-08-18",
+    "data": "isolated synthetic fixtures",
+    "format": "JPEG quality 0.8; original PNG retained in XCTest attachment"
+  },
+  {
+    "file": "native-share.jpg",
+    "bytes": 173413,
+    "sha256": "6c78241dd1227424173969f692425e8246e831752d2003795c7f27d3b20037a6",
+    "source_commit": "e28db103ec22d7082a2cb50abc835f8e48c9116e",
+    "actions_run": "37114456851",
+    "runtime": "iPhone 17 / iOS 26.5",
+    "fixture_date": "2026-08-18",
+    "data": "isolated synthetic fixtures",
+    "format": "JPEG quality 0.8; original PNG retained in XCTest attachment"
+  },
+  {
+    "file": "new-habit-dark.jpg",
+    "bytes": 191154,
+    "sha256": "442330fe20346dc0b285fa4bcb11cd94cb9bf45c491091289d17a3788c3d6d8d",
+    "source_commit": "e28db103ec22d7082a2cb50abc835f8e48c9116e",
+    "actions_run": "37114456851",
+    "runtime": "iPhone 17 / iOS 26.5",
+    "fixture_date": "2026-08-18",
+    "data": "isolated synthetic fixtures",
+    "format": "JPEG quality 0.8; original PNG retained in XCTest attachment"
+  },
+  {
+    "file": "notes-dark.jpg",
+    "bytes": 235045,
+    "sha256": "5f79684602e8d66411540704a1d1510d3eab20dc4d2c7a18656644cde8ecd915",
+    "source_commit": "e28db103ec22d7082a2cb50abc835f8e48c9116e",
+    "actions_run": "37114456851",
+    "runtime": "iPhone 17 / iOS 26.5",
+    "fixture_date": "2026-08-18",
+    "data": "isolated synthetic fixtures",
+    "format": "JPEG quality 0.8; original PNG retained in XCTest attachment"
+  },
+  {
+    "file": "settings-dark.jpg",
+    "bytes": 216513,
+    "sha256": "89efe97a5f5e40cd52b4cf3e309319e4ab2d2f3a17031d5bc2e4a28577030ee7",
+    "source_commit": "e28db103ec22d7082a2cb50abc835f8e48c9116e",
+    "actions_run": "37114456851",
+    "runtime": "iPhone 17 / iOS 26.5",
+    "fixture_date": "2026-08-18",
+    "data": "isolated synthetic fixtures",
+    "format": "JPEG quality 0.8; original PNG retained in XCTest attachment"
+  },
+  {
+    "file": "share-dark.jpg",
+    "bytes": 264998,
+    "sha256": "e761ec701ef1e439d03a5d32d5b9ed485699e6e5d87ef24cb35625c9c05fa7de",
+    "source_commit": "e28db103ec22d7082a2cb50abc835f8e48c9116e",
+    "actions_run": "37114456851",
+    "runtime": "iPhone 17 / iOS 26.5",
+    "fixture_date": "2026-08-18",
+    "data": "isolated synthetic fixtures",
+    "format": "JPEG quality 0.8; original PNG retained in XCTest attachment"
+  },
+  {
+    "file": "statistics-dark.jpg",
+    "bytes": 252393,
+    "sha256": "6a152b6d79de2e5eee41fc8c03acb41562df04055411376e87ce27608f18d12a",
+    "source_commit": "e28db103ec22d7082a2cb50abc835f8e48c9116e",
+    "actions_run": "37114456851",
+    "runtime": "iPhone 17 / iOS 26.5",
+    "fixture_date": "2026-08-18",
+    "data": "isolated synthetic fixtures",
+    "format": "JPEG quality 0.8; original PNG retained in XCTest attachment"
+  },
+  {
+    "file": "welcome-dark.jpg",
+    "bytes": 242536,
+    "sha256": "16770aef5793ce7935d94b527ad557b59371531573a9fe3e145f152a9be8922d",
+    "source_commit": "e28db103ec22d7082a2cb50abc835f8e48c9116e",
+    "actions_run": "37114456851",
+    "runtime": "iPhone 17 / iOS 26.5",
+    "fixture_date": "2026-08-18",
+    "data": "isolated synthetic fixtures",
+    "format": "JPEG quality 0.8; original PNG retained in XCTest attachment"
+  },
+  {
+    "file": "welcome-light.jpg",
+    "bytes": 239623,
+    "sha256": "23782dabd2a494acbf438bc9e107a323d90c6d0a5828e603b92069f723614150",
+    "source_commit": "e28db103ec22d7082a2cb50abc835f8e48c9116e",
+    "actions_run": "37114456851",
+    "runtime": "iPhone 17 / iOS 26.5",
+    "fixture_date": "2026-08-18",
+    "data": "isolated synthetic fixtures",
+    "format": "JPEG quality 0.8; original PNG retained in XCTest attachment"
+  }
+]
