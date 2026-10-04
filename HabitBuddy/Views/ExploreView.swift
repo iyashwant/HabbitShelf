@@ -13,7 +13,9 @@ struct ExploreView: View {
         var kept: DayRate, notes: Int, badges: Int
         init(data: BuddyData, today: Day) {
             kept = WeekRecap(data: data, week: today, today: today).total
-            notes = data.records.values.reduce(0) { $0 + ($1.note.isEmpty ? 0 : 1) }
+            // Hidden habits' days stay in the records, so count only the notes of habits shown.
+            let shown = Set(data.habits.map(\.id))
+            notes = data.records.values.reduce(0) { $0 + ($1.note.isEmpty || !shown.contains($1.habitID) ? 0 : 1) }
             badges = data.active.reduce(0) { $0 + Milestones($1, data: data, today: today).earned }
         }
     }

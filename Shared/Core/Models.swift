@@ -289,15 +289,15 @@ public struct BuddyData: Codable, Equatable, Sendable {
     public var active: [Habit] { habits.filter { $0.archived == nil }.sorted { $0.order < $1.order } }
     /// One active habit by ID, without filtering and sorting every habit like `active`.
     public func activeHabit(_ id: UUID?) -> Habit? { habits.first { $0.id == id && $0.archived == nil } }
-    /// The data as screens and widgets show it: hidden habits and their days left out, and routines whose active
-    /// habits are all hidden. Other routines and dashboard widgets keep their IDs, which no longer find a hidden
-    /// habit. Writes always go to the full data.
+    /// The data as screens and widgets show it: hidden habits left out, and routines whose active habits are all
+    /// hidden. Other routines and dashboard widgets keep their IDs, which no longer find a hidden habit. Hidden
+    /// habits' days stay in `records`, where only their habit finds them; copying every record would cost each
+    /// check-in milliseconds on a long history. Code that walks all records must skip habits not in `habits`.
+    /// Writes always go to the full data.
     public var withoutHidden: BuddyData {
         guard habits.contains(where: \.isHidden) else { return self }
         var data = self
-        let hidden = Set(habits.filter(\.isHidden).map(\.id))
         data.habits.removeAll(where: \.isHidden)
-        data.records = records.filter { !hidden.contains($0.value.habitID) }
         data.routines.removeAll { routine in
             let members = routine.habitIDs.compactMap(activeHabit)
             return !members.isEmpty && members.allSatisfy(\.isHidden)

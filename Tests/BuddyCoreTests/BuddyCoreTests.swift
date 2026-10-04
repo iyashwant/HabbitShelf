@@ -205,7 +205,8 @@ final class BuddyCoreTests: XCTestCase {
         XCTAssertNoThrow(try DataValidation.validate(data, today: today))
         XCTAssertEqual(try DataValidation.decode(DataValidation.encode(data), today: today), data)
         let shown = data.withoutHidden
-        XCTAssertEqual(shown.active.map(\.id), [h.id]); XCTAssertTrue(shown.records.values.allSatisfy { $0.habitID == h.id })
+        XCTAssertEqual(shown.active.map(\.id), [h.id])
+        XCTAssertEqual(shown.records, data.records, "Records stay; only their habit finds them, and copying them would slow each check-in")
         XCTAssertEqual(shown.routines.map(\.habitIDs), [[h.id, g.id]], "Routines keep the hidden habit; one with only hidden habits is left out")
         XCTAssertFalse(shown.settings.dashboard![0].visible(in: shown)); XCTAssertTrue(shown.settings.dashboard![1].visible(in: shown))
         XCTAssertEqual(WeekRecap(data: shown, week: today, today: today).total, WeekRecap(data: { var d = data; d.habits.removeLast(); return d }(), week: today, today: today).total)
