@@ -8,6 +8,7 @@ struct OverviewView: View {
     @Environment(\.glass) private var glass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var switcher
+    @State private var switcherOpen = false
     /// A habit opens by zooming out of the card, row or tile that was tapped.
     @Namespace private var zoom
     @State private var path: [OverviewRoute] = []
@@ -179,31 +180,44 @@ struct OverviewView: View {
             }.font(BuddyFont.text(12))
         }
     }
-    /// The habit layouts, then Dashboard and Explore at the trailing end. Each opens in place under the switcher.
+    /// A single bubble showing the current view; tapping it opens the full switcher, and choosing a view closes it again.
     private var layoutSwitcher: some View {
         let layout = store.settings.layout
-        return HStack(spacing: 4) {
-            // Streaks and List share one button, shown with the List icon; the toggle at the bottom of that view switches between them.
-            ForEach(Layout.allCases.filter { !Self.streakViews.contains($0) || $0 == .list }, id: \.self) { item in
-                let merged = item == .list, selected = shown == .habits && (layout == item || (merged && Self.streakViews.contains(layout)))
-                switcherButton(item.rawValue, label: merged ? "Streaks, list, rings, weeks and year views" : "\(item.rawValue) view", selected: selected) {
-                    page = .habits
-                    if layout != item && !(merged && Self.streakViews.contains(layout)) { store.change { $0.settings.layout = item } }
-                } glyph: { LayoutGlyph(layout: item) }
+        func choose(_ action: @escaping () -> Void) -> () -> Void { { action(); withAnimation(.snappy(duration: 0.25)) { switcherOpen = false } } }
+        return HStack {
+            Spacer(minLength: 0)
+            HStack(spacing: 4) {
+                if switcherOpen {
+                    ForEach(Self.switcherLayouts, id: \.self) { item in
+                        switcherButton(item.rawValue, label: "\(item.rawValue) view", selected: shown == .habits && layout == item, action: choose {
+                            page = .habits
+                            if layout != item { store.change { $0.settings.layout = item } }
+                        }) { LayoutGlyph(layout: item) }
+                    }
+                    Capsule().fill(BuddyStyle.border(scheme, 0.12)).frame(width: 1, height: 20).padding(.horizontal, 2).accessibilityHidden(true)
+                    ForEach([HomePage.dashboard, .explore], id: \.self) { item in
+                        switcherButton(item.rawValue, label: item.title, selected: shown == item, action: choose { page = item }) { PageGlyph(page: item) }
+                    }
+                } else {
+                    switcherButton("bubble", label: "Switch view", selected: false, action: { withAnimation(.snappy(duration: 0.25)) { switcherOpen = true } }) {
+                        switch shown {
+                        case .habits: LayoutGlyph(layout: layout)
+                        default: PageGlyph(page: shown)
+                        }
+                    }
+                }
             }
-            Capsule().fill(BuddyStyle.border(scheme, 0.12)).frame(width: 1, height: 20).padding(.horizontal, 2).accessibilityHidden(true)
-            ForEach([HomePage.dashboard, .explore], id: \.self) { item in
-                switcherButton(item.rawValue, label: item.title, selected: shown == item) { page = item } glyph: { PageGlyph(page: item) }
-            }
+            .padding(.horizontal, switcherOpen ? 7 : 4).padding(.vertical, switcherOpen ? 6 : 4)
+            .animation(glass == nil ? nil : .spring(response: 0.35, dampingFraction: 1), value: shown == .habits ? layout.rawValue : shown.rawValue)
+            .glassChrome(in: Capsule(),
+                         fill: scheme == .dark ? AnyShapeStyle(LinearGradient(colors: [Color(hex: 0x2B2B2E), Color(hex: 0x1E1E21)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(.regularMaterial),
+                         border: scheme == .dark ? AnyShapeStyle(LinearGradient(colors: [Color(hex: 0x4B4B4D), Color(hex: 0x27272A)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(Color.black.opacity(0.08)))
+            Spacer(minLength: 0)
         }
-        .padding(.horizontal, 7).padding(.vertical, 6)
-        .animation(glass == nil ? nil : .spring(response: 0.35, dampingFraction: 1), value: shown == .habits ? layout.rawValue : shown.rawValue)
-        .glassChrome(in: Capsule(),
-                     fill: scheme == .dark ? AnyShapeStyle(LinearGradient(colors: [Color(hex: 0x2B2B2E), Color(hex: 0x1E1E21)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(.regularMaterial),
-                     border: scheme == .dark ? AnyShapeStyle(LinearGradient(colors: [Color(hex: 0x4B4B4D), Color(hex: 0x27272A)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(Color.black.opacity(0.08)))
-        // Six buttons fit a 375-point phone: they narrow from 48 points to fit inside a 16-point margin.
         .padding(.horizontal, 16).padding(.bottom, 16)
     }
+    /// The habit layouts the open switcher offers.
+    static let switcherLayouts: [Layout] = [.cards, .compact, .month]
     /// Switches the merged Streaks and List view between its two-column tiles and its rows.
     private var streakListToggle: some View {
         HStack(spacing: 2) {
