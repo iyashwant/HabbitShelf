@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Every year of a habit as a card of days, newest first, with its longest run and completion.
 struct YearHistoryView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
     let habitID: UUID
@@ -69,7 +69,7 @@ struct YearDots: View {
 
 /// Twelve months of one year on a single page, ready to share as an image.
 struct YearCalendarView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
     let habitID: UUID

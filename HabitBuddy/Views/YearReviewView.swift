@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct YearReviewView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accent) private var accent
     let year: Int

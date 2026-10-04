@@ -2,8 +2,8 @@ import SwiftUI
 
 /// Time a session for a habit: a countdown or a stopwatch that logs the elapsed time when finished.
 struct TimerView: View {
-    @EnvironmentObject private var store: AppStore
-    @EnvironmentObject private var timer: TimerController
+    @Environment(AppStore.self) private var store
+    @Environment(TimerController.self) private var timer
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accent) private var accent
     @State var habitID: UUID?

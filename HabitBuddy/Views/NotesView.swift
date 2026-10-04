@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct NotesView:View {
-    @EnvironmentObject private var store:AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
     let habitID:UUID
@@ -24,10 +24,10 @@ struct NotesView:View {
     }
 }
 struct HabitAppearanceView:View {
-    @EnvironmentObject private var store:AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.colorScheme) private var scheme
     let habitID:UUID
-    private func option(_ key:WritableKeyPath<CardAppearance,Bool>)->Binding<Bool>{Binding(get:{store.habit(habitID)?.cardAppearance(store.data.settings)[keyPath:key] ?? true},set:{value in store.change{data in if let i=data.habits.firstIndex(where:{$0.id==habitID}){var a=data.habits[i].cardAppearance(data.settings);a[keyPath:key]=value;data.habits[i].appearance=a}}})}
+    private func option(_ key:WritableKeyPath<CardAppearance,Bool>)->Binding<Bool>{Binding(get:{store.habit(habitID)?.cardAppearance(store.settings)[keyPath:key] ?? true},set:{value in store.change{data in if let i=data.habits.firstIndex(where:{$0.id==habitID}){var a=data.habits[i].cardAppearance(data.settings);a[keyPath:key]=value;data.habits[i].appearance=a}}})}
     var body:some View {
         VStack(spacing:0){SheetHeader(title:"Appearance");ScrollView{VStack(spacing:20){if let h=store.habit(habitID){HabitCard(habit:h,data:store.data,interactive:false)};VStack(spacing:14){Toggle("Description",isOn:option(\.description));Toggle("Streak",isOn:option(\.streak));Toggle("Streak Goal",isOn:option(\.goal));Toggle("Completion Indicator",isOn:option(\.indicator));Toggle("Month Labels",isOn:option(\.monthLabels));Toggle("Weekday Labels",isOn:option(\.weekdayLabels));Toggle("Category Icons",isOn:option(\.categoryIcons))}.font(.system(size:14)).surface();Button("Use Overview Defaults"){store.change{data in if let i=data.habits.firstIndex(where:{$0.id==habitID}){data.habits[i].appearance=nil}}}}.padding(20)}}.background(BuddyStyle.canvas(scheme))
     }

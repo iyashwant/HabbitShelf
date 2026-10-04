@@ -3,7 +3,7 @@ import Charts
 
 /// Patterns in the history: strongest and weakest weekdays, time of day, the monthly trend and habits that slip together.
 struct InsightsView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accent) private var appAccent
@@ -75,7 +75,7 @@ struct InsightsView: View {
         slipTogether()
     }
     private func weekdays(_ s: InsightsSummary) -> some View {
-        let names = Calendar.current.weekdaySymbols, order = (0..<7).map { (store.data.settings.weekStart - 1 + $0) % 7 + 1 }
+        let names = Calendar.current.weekdaySymbols, order = (0..<7).map { (store.settings.weekStart - 1 + $0) % 7 + 1 }
         let detail: String = {
             guard let best = s.bestWeekday else { return "Track a couple of weeks to see your strongest and weakest days." }
             // Within five points, naming a best and worst day would read more into the data than is there.

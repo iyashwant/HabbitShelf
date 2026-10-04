@@ -2,14 +2,14 @@ import SwiftUI
 
 /// Every habit on one month: each day shows a dot per completed habit, shaded by the share done.
 struct HabitsCalendarView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accent) private var accent
     @State private var month = Day().startOfMonth
     @State private var selected: Day?
     var body: some View {
-        let today = Day(), habits = store.visible.active, weekStart = store.data.settings.weekStart
+        let today = Day(), habits = store.visible.active, weekStart = store.settings.weekStart
         let first = month.startOfMonth, offset = (first.weekday - weekStart + 7) % 7, count = first.distance(to: first.endOfMonth) + 1
         let earliest = habits.map(\.created).min() ?? today, model = MonthModel(habits: habits, data: store.visible, first: first, count: count, today: today)
         ScrollView {
@@ -112,7 +112,7 @@ struct HabitsCalendarView: View {
 
 /// All habits tracked on one day, each with its own check, for logging or backfilling that day.
 struct DayHabitsView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.colorScheme) private var scheme
     let day: Day
     @State private var editing: DaySelection?
@@ -135,7 +135,7 @@ struct DayHabitsView: View {
 
 /// A habit with its goal and a check for one day. Yes/no and add-one habits log in place; others open the day editor.
 struct HabitDayRow: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.colorScheme) private var scheme
     let habit: Habit
     let day: Day

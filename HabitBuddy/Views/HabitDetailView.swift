@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct HabitDetailView: View {
-    @EnvironmentObject private var store:AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
     let id:UUID
@@ -48,7 +48,7 @@ struct HabitDetailView: View {
                                 Button("Milestones",systemImage:"trophy"){milestones=true}
                                 if TimerUnit(habit.currentGoal) != nil && habit.archived == nil {Button("Start Timer",systemImage:"timer"){timing=true}}
                                 Button("Appearance",systemImage:"slider.horizontal.3"){appearance=true}
-                                if store.data.settings.notes{Button("Notes",systemImage:"note.text"){notes=true}}
+                                if store.settings.notes{Button("Notes",systemImage:"note.text"){notes=true}}
                                 Button("Share Habit",systemImage:"square.and.arrow.up"){share=true}
                                 Button(habit.archived == nil ? "Archive":"Restore",systemImage:"archivebox"){store.archive(habit.id,restore:habit.archived != nil)}
                             } label:{LucideIcon("settings",size:17).frame(width:38,height:38).glassChrome(in:Circle(),fill:BuddyStyle.control(scheme),border:AnyShapeStyle(BuddyStyle.controlBorder(scheme))).foregroundStyle(BuddyStyle.text(scheme))}.accessibilityLabel("Habit Options")
@@ -82,13 +82,13 @@ struct HabitDetailView: View {
     }
     private func calendar(_ h:Habit,_ m:Day,proxy:ScrollViewProxy)->some View {
         VStack(spacing:0) {
-            let first=m.startOfWeek(store.data.settings.weekStart),today=Day()
-            HStack(spacing:6.33){ForEach(0..<7,id:\.self){i in Text(Heatmap.weekday(store.data.settings.weekStart,i)).font(BuddyFont.mono(11.6)).foregroundStyle(Color(hex:scheme == .dark ? 0xA0A0A8:0x6E6E75)).frame(maxWidth:.infinity)}}
+            let first=m.startOfWeek(store.settings.weekStart),today=Day()
+            HStack(spacing:6.33){ForEach(0..<7,id:\.self){i in Text(Heatmap.weekday(store.settings.weekStart,i)).font(BuddyFont.mono(11.6)).foregroundStyle(Color(hex:scheme == .dark ? 0xA0A0A8:0x6E6E75)).frame(maxWidth:.infinity)}}
                 .padding(.top,16.5).padding(.bottom,8.3)
             LazyVGrid(columns:Array(repeating:GridItem(.flexible(),spacing:6.33),count:7),spacing:5.33){
                 ForEach(Day.range(first,first.adding(41))){day in
                     Button{tap(h,day)}label:{CalendarDay(habit:h,day:day,data:store.data,inMonth:day.month==m.month)}.buttonStyle(FlatButtonStyle()).disabled(!h.loggable(on:day,today:today))
-                        .contextMenu{if store.data.settings.notes{Button("Add or Edit Note"){selection=DaySelection(habit:h,day:day)}};Button("Edit Progress"){selection=DaySelection(habit:h,day:day)}}
+                        .contextMenu{if store.settings.notes{Button("Add or Edit Note"){selection=DaySelection(habit:h,day:day)}};Button("Edit Progress"){selection=DaySelection(habit:h,day:day)}}
                 }
             }
             HStack(spacing:10.3) {
@@ -101,7 +101,7 @@ struct HabitDetailView: View {
                 MonthArrow(next:false){month=m.addingMonths(-1);proxy.scrollTo("calendar-top",anchor:.top)}.disabled(m<=Habit.earliestStart.startOfMonth)
                 MonthArrow(next:true){month=m.addingMonths(1);proxy.scrollTo("calendar-top",anchor:.top)}.disabled(m>=Day().startOfMonth.addingMonths(12))
             }.padding(.leading,1.7).padding(.trailing,2.4).padding(.top,14.3)
-            if store.data.settings.notes{Text("Press and hold a day to add a note").font(BuddyFont.text(13)).tracking(-0.17).foregroundStyle(BuddyStyle.tertiaryText(scheme)).padding(.top,9.5)}
+            if store.settings.notes{Text("Press and hold a day to add a note").font(BuddyFont.text(13)).tracking(-0.17).foregroundStyle(BuddyStyle.tertiaryText(scheme)).padding(.top,9.5)}
         }.padding(.horizontal,13.5).padding(.bottom,11.5).panel(radius:24,border:0.09)
     }
     private func tap(_ h:Habit,_ day:Day){let g=h.goal(on:day),p=Engine.progress(h,day:day,data:store.data);if g.mode != h.currentGoal.mode || g.mode == .quit || g.tap == .enterTotal || (g.tracking != .yesNo && p.success){selection=DaySelection(habit:h,day:day)}else{store.quickLog(h,day:day)}}
@@ -139,7 +139,7 @@ struct MonthJumpView:View {
     var body:some View {VStack{SheetHeader(title:"Choose Month");DatePicker("Month",selection:$date,in:earliest.localDate...Day().localDate,displayedComponents:.date).datePickerStyle(.graphical);PrimaryAction(title:"Go"){month=Day(date).startOfMonth;dismiss()}}.padding(20).onAppear{date=max(earliest,month).localDate}}
 }
 struct DayEditorView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     let selection: DaySelection
     @State private var amount = "0"
@@ -160,15 +160,15 @@ struct DayEditorView: View {
                     if locked { Text("This date belongs to an earlier habit mode. Its progress is preserved.").font(.caption).foregroundStyle(.secondary) }
                     else { Button("Clear Progress") { amount = "0"; complete = false } }
                 }
-                if store.data.settings.freezesPerMonth > 0 && (Engine.canFreeze(habit, day: selection.day, data: store.data) || store.data.record(habit.id, selection.day).frozen == true) {
-                    let used = Engine.freezesUsed(habit, month: selection.day, data: store.data), allowance = store.data.settings.freezesPerMonth
+                if store.settings.freezesPerMonth > 0 && (Engine.canFreeze(habit, day: selection.day, data: store.data) || store.data.record(habit.id, selection.day).frozen == true) {
+                    let used = Engine.freezesUsed(habit, month: selection.day, data: store.data), allowance = store.settings.freezesPerMonth
                     Section {
                         Toggle("Freeze Streak", isOn: $freeze).disabled(!freeze && used >= allowance)
                     } header: { Text("Streak freeze") } footer: {
                         Text("\(max(0, allowance - used)) of \(allowance) freezes left in \(Calendar.current.monthSymbols[Int(selection.day.rawValue.dropFirst(5).prefix(2))! - 1]). A frozen day keeps the streak going but still counts as missed in your completion rate.")
                     }
                 }
-                if store.data.settings.notes { Section("Day note") { TextEditor(text: $note).frame(minHeight: 140); Text("A note does not change progress.").font(.caption).foregroundStyle(.secondary) } }
+                if store.settings.notes { Section("Day note") { TextEditor(text: $note).frame(minHeight: 140); Text("A note does not change progress.").font(.caption).foregroundStyle(.secondary) } }
                 if let text = message ?? store.error { Text(text).foregroundStyle(.red) }
             }.navigationTitle("Edit Day").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Save") { save() } } }

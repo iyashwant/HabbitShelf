@@ -518,10 +518,17 @@
 			"path" = "UITests/HabitBuddyUITests.swift";
 			"sourceTree" = "SOURCE_ROOT";
 		};
+		"A5FDFAEA117FE269C1AF3DCF" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "UITests/PerformanceUITests.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
 		"5A349263041B6A939BD7831F" = {
 			"isa" = "PBXGroup";
 			"children" = (
 				"ED3592E287B5154C3B09AD9E",
+				"A5FDFAEA117FE269C1AF3DCF",
 			);
 			"name" = "UITests";
 			"sourceTree" = "<group>";
@@ -772,11 +779,16 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "ED3592E287B5154C3B09AD9E";
 		};
+		"141FB8699308E9FE1B3B3F0C" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "A5FDFAEA117FE269C1AF3DCF";
+		};
 		"6A9A13ED4251A50653DE9C4F" = {
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = "2147483647";
 			"files" = (
 				"6FAC3BF5EB9D7BAE53242AB2",
+				"141FB8699308E9FE1B3B3F0C",
 			);
 			"runOnlyForDeploymentPostprocessing" = "0";
 		};

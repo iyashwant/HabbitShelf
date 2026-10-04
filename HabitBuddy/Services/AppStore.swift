@@ -1,18 +1,24 @@
+import Observation
 import SwiftUI
 import WidgetKit
 import os
 
 /// The app's habit data. Changes show at once; saving runs in order on a background queue, so file locks,
 /// reads, validation and writes never hold up a tap. If a save fails, its change is undone and reported.
-@MainActor final class AppStore: ObservableObject {
+///
+/// Views redraw only for the properties they read: a screen that reads `settings` alone doesn't redraw for a
+/// check-in, and one that reads `data` redraws for every change.
+@MainActor @Observable final class AppStore {
     /// What the screens show: the latest saved snapshot with any changes still being saved applied on top.
     /// Set only through `publish`, which records which habits changed.
-    @Published private(set) var data = BuddyData() { didSet { revision &+= 1 } }
-    @Published var error: String?
-    @Published var loaded = false
+    private(set) var data = BuddyData()
+    /// `data.settings`, replaced only when the settings change.
+    private(set) var settings = BuddyData().settings
+    var error: String?
+    var loaded = false
     /// True until the first read from disk finishes, so launch shows neither onboarding nor an empty list early.
-    @Published private(set) var loading = true
-    @Published var sharedStorageAvailable = AppEnvironment.hasSharedContainer
+    private(set) var loading = true
+    var sharedStorageAvailable = AppEnvironment.hasSharedContainer
     /// Increases with every published snapshot. Screens key background work on it instead of comparing snapshots.
     private(set) var revision = 0
     /// `data` as the screens show it: hidden habits and their days left out. Worked out once per snapshot,
@@ -21,27 +27,34 @@ import os
         if visibleRevision != revision { visibleData = data.withoutHidden; visibleRevision = revision }
         return visibleData
     }
-    private var visibleData = BuddyData()
-    private var visibleRevision = -1
-    /// Streaks, stats and milestones, computed once per habit and kept until that habit changes.
+    @ObservationIgnored private var visibleData = BuddyData()
+    @ObservationIgnored private var visibleRevision = -1
+    /// Streaks, stats and milestones per habit, worked out in the background (see `HabitSummaries`).
     let summaries = HabitSummaries(caching: true)
     let repository = AppEnvironment.repository
     private let worker: PersistenceWorker
     /// The latest snapshot read from or written to disk.
-    private var committed = BuddyData()
+    @ObservationIgnored private var committed = BuddyData()
     /// Changes shown but not yet saved, oldest first, with the habits whose days each one edits (nil if unknown).
-    private var pending: [(id: Int, habits: Set<UUID>?, change: Change)] = []
-    private var nextChange = 0
+    @ObservationIgnored private var pending: [(id: Int, habits: Set<UUID>?, change: Change)] = []
+    @ObservationIgnored private var nextChange = 0
     /// What the saved changes touched since the screen last took a saved snapshot, which it does when the queue drains.
-    private var savedHabits: Set<UUID>? = []
-    private var savedElsewhere = false
+    @ObservationIgnored private var savedHabits: Set<UUID>? = []
+    @ObservationIgnored private var savedElsewhere = false
     /// Counts changes per habit, and for every habit at once (`allVersion`) when a change can't tell which it touched.
+    /// Views read them through `version(_:)`, so a habit's views redraw when its summary arrives too.
     private var habitVersions: [UUID: Int] = [:]
     private var allVersion = 0
-    private var syncScope: SyncScope = []
-    private var sync: Task<Void, Never>?
-    private var syncPending = false
-    private var backgroundTask = UIBackgroundTaskIdentifier.invalid
+    @ObservationIgnored private var syncScope: SyncScope = []
+    /// The habits whose widgets the changes since the last sync may alter, or nil when any may.
+    @ObservationIgnored private var syncHabits: Set<UUID>? = []
+    @ObservationIgnored private var sync: Task<Void, Never>?
+    @ObservationIgnored private var syncPending = false
+    @ObservationIgnored private var backgroundTask = UIBackgroundTaskIdentifier.invalid
+    @ObservationIgnored private var summaryRefresh: Task<Void, Never>?
+    @ObservationIgnored private var summaryRefreshQueued = false
+    /// From launch until the habits first show, as a "First load" interval in Instruments' os_signpost track.
+    @ObservationIgnored private var firstLoad: OSSignpostIntervalState?
     private let haptic = UIImpactFeedbackGenerator(style: .light)
     /// A change runs twice: on the screen's snapshot now, then on the latest saved snapshot on the persistence
     /// queue. Capture values (not `@State` or other view state), and decide from the `data` it is given.
@@ -49,6 +62,7 @@ import os
     init() {
         worker = PersistenceWorker(repository)
         haptic.prepare()
+        summaries.onStale = { [weak self] in self?.scheduleSummaryRefresh() }
         #if DEBUG
         if let screen=ProcessInfo.processInfo.environment["BUDDY_VISUAL_SCREEN"],ProcessInfo.processInfo.environment["BUDDY_VISUAL_RESET"] != "false" {
             do { committed=try repository.transaction{$0=VisualSamples.audit(screen)};publish(committed,everything:true);loaded=true } catch { self.error=error.localizedDescription }
@@ -56,18 +70,26 @@ import os
             return
         }
         #endif
+        firstLoad = Self.interactions.beginInterval("First load")
         reload()
     }
     /// Reads the latest saved data, after any queued saves, keeping changes that are still being saved.
     /// `reschedule` then refreshes reminders from it, as when the app returns to the foreground.
     func reload(reschedule: Bool = false) {
-        worker.load { [weak self] result in
+        worker.load(summarize: !loaded) { [weak self] result in
             guard let self else { return }
             switch result {
             case .success(let saved):
                 committed = saved.data
+                let first = !loaded
                 // An unchanged file redraws nothing; one written by a widget or Shortcut redraws every habit.
-                publish(rebased(), touched: [], everything: saved.changedElsewhere || !loaded); loaded = true
+                publish(rebased(), touched: [], everything: saved.changedElsewhere || first); loaded = true
+                if let results = saved.summaries { summaries.install(results, for: Set(results.keys), today: Day()) }
+                else if first { prefetchSummaries() }
+                if first, let interval = firstLoad {
+                    firstLoad = nil
+                    DispatchQueue.main.async { Self.interactions.endInterval("First load", interval) }
+                }
                 if reschedule { Task { await NotificationService.reconcile(saved.data) } }
             case .failure(let failure): error = failure.localizedDescription; loaded = false
             }
@@ -89,7 +111,9 @@ import os
         var next = data
         do { try block(&next); if validate { try DataValidation.validate(next) } }
         catch { self.error = error.localizedDescription; return false }
-        syncScope.formUnion(SyncScope(from: data, to: next))
+        let scope = SyncScope(from: data, to: next)
+        syncScope.formUnion(scope)
+        if scope.contains(.widgets) { syncHabits = Self.widgetHabits(from: data, to: next, touched: habits).flatMap { habits in syncHabits?.union(habits) } }
         let id = nextChange
         nextChange += 1
         pending.append((id, habits, block))
@@ -128,7 +152,41 @@ import os
             allVersion &+= 1
             summaries.reset()
         }
+        if settings != next.settings { settings = next.settings }
         data = next
+        revision &+= 1
+        if !summaries.staleHabits.isEmpty { scheduleSummaryRefresh() }
+    }
+    /// Works out stale summaries off the main thread once the current update finishes. Their views keep the previous
+    /// results until then, and redraw when the new ones arrive.
+    private func scheduleSummaryRefresh() {
+        guard !summaryRefreshQueued else { return }
+        summaryRefreshQueued = true
+        // Not during a view update, where a summary read may ask for this.
+        Task { [weak self] in self?.refreshSummaries() }
+    }
+    /// After launch, works out the summaries the first screen didn't need, for the screens opened next.
+    private func prefetchSummaries() {
+        let snapshot = data, revision = revision, today = Day(), habits = Set(snapshot.active.map(\.id))
+        Task { [weak self] in
+            // Results from an older snapshot could be out of date, and the screens work out what they need anyway.
+            guard let results = await offMain(priority: .utility, { HabitSummaries.compute(habits, data: snapshot, today: today) }), let self, self.revision == revision else { return }
+            summaries.fill(results, today: today)
+        }
+    }
+    private func refreshSummaries() {
+        summaryRefreshQueued = false
+        let habits = summaries.staleHabits
+        guard !habits.isEmpty else { return }
+        summaryRefresh?.cancel()
+        let snapshot = data, revision = revision, today = Day()
+        summaryRefresh = Task { [weak self] in
+            guard let results = await offMain({ HabitSummaries.compute(habits, data: snapshot, today: today) }), let self else { return }
+            // A newer snapshot came out meanwhile: work them out again from it.
+            guard self.revision == revision else { scheduleSummaryRefresh(); return }
+            summaries.install(results, for: habits, today: today)
+            for id in habits { habitVersions[id, default: 0] &+= 1 }
+        }
     }
     /// The habits whose definition or days differ, or nil when every habit may have. Collections a change left
     /// alone still share storage with the old snapshot, so comparing them is immediate.
@@ -140,6 +198,13 @@ import os
             let before = Dictionary(old.habits.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
             for habit in new.habits where before[habit.id] != habit { habits.insert(habit.id) }
         }
+        return habits
+    }
+    /// The habits whose widgets a change may alter, or nil when any may. Adding, removing or reordering habits
+    /// changes what a widget showing every habit lists, so it counts as any.
+    private static func widgetHabits(from old: BuddyData, to new: BuddyData, touched: Set<UUID>?) -> Set<UUID>? {
+        guard let habits = changedHabits(from: old, to: new, touched: touched) else { return nil }
+        if old.habits != new.habits && !old.habits.map(\.id).elementsEqual(new.habits.map(\.id)) { return nil }
         return habits
     }
     /// Changes when the habit or its days change on screen. Views compare it to skip redrawing for other habits' changes.
@@ -164,9 +229,9 @@ import os
             guard !Task.isCancelled else { return }
             await previous?.value
             guard let self else { return }
-            let scope = syncScope
-            syncScope = []; syncPending = false
-            await AppEnvironment.changed(committed, scope: scope)
+            let scope = syncScope, habits = syncHabits
+            syncScope = []; syncHabits = []; syncPending = false
+            await AppEnvironment.changed(committed, scope: scope, habits: habits)
             endBackgroundTaskIfIdle()
         }
     }
@@ -186,8 +251,14 @@ import os
     @discardableResult func setAmount(_ value: Int64, _ id: UUID, _ day: Day) -> Bool {
         log([id]) { try Engine.setAmount(value, habitID: id, day: day, data: &$0) }
     }
+    /// Each check-in tap shows in Instruments' os_signpost track as a "Check-in" interval, from the tap until the main
+    /// thread has run the screen update that shows it. `PerformanceUITests` measures it.
+    private static let interactions = OSSignposter(subsystem: "com.iyashwant.habbitbuddy", category: "Interaction")
     /// A yes/no habit toggles and a count adds one, judged from the latest saved amount when it is saved.
     @discardableResult func quickLog(_ habit: Habit, day: Day = Day()) -> Bool {
+        let interval = Self.interactions.beginInterval("Check-in")
+        // Runs once the run loop has finished this turn, including SwiftUI's update and the commit to the screen.
+        defer { DispatchQueue.main.async { Self.interactions.endInterval("Check-in", interval) } }
         let id = habit.id
         let result = withAnimation(UIAccessibility.isReduceMotionEnabled ? nil : .snappy(duration: 0.22)) {
             log([id]) { data in
@@ -215,7 +286,7 @@ import os
         do {
             committed = try await worker.replace { try $0.restore(bytes) } ?? committed
             publish(rebased(), everything: true); loaded = true
-            syncScope = .all; scheduleSync(); return true
+            syncScope = .all; syncHabits = nil; scheduleSync(); return true
         } catch { self.error = error.localizedDescription; return false }
     }
     /// Logs a running timer once, even if the Live Activity's Finish runs at the same time.
@@ -224,7 +295,7 @@ import os
         do {
             guard let value = try await worker.replace({ try TimerSessions.finish(session, repository: $0, at: now) }) else { return true }
             committed = value; publish(rebased(), everything: true)
-            syncScope = .all; scheduleSync(); return true
+            syncScope = .all; syncHabits = syncHabits?.union([session.habitID]); scheduleSync(); return true
         } catch { self.error = error.localizedDescription; return false }
     }
     func export() async throws -> Data { try await worker.run { try $0.export() } }
@@ -241,13 +312,16 @@ final class PersistenceWorker: @unchecked Sendable {
     private var latest: BuddyData?
     /// A snapshot read or saved, and whether the file held changes this worker didn't make, written since by a
     /// widget, Shortcut, Live Activity or other user of the repository.
-    struct Snapshot { let data: BuddyData; let changedElsewhere: Bool }
+    struct Snapshot { let data: BuddyData; let changedElsewhere: Bool; var summaries: [UUID: HabitSummaries.Result]? = nil }
     init(_ repository: BuddyRepository) { self.repository = repository }
-    func load(completion: @escaping @MainActor (Result<Snapshot, Error>) -> Void) {
+    /// With `summarize`, also works out every active habit's summary when the first screen shows streaks, so launch
+    /// draws without reading histories on the main thread.
+    func load(summarize: Bool = false, completion: @escaping @MainActor (Result<Snapshot, Error>) -> Void) {
         submit({ [self] repository in
             let data = try repository.load()
             defer { latest = data }
-            return Snapshot(data: data, changedElsewhere: data != latest)
+            let summaries = summarize && HabitSummaries.firstScreenReads(data) ? HabitSummaries.compute(Set(data.active.map(\.id)), data: data, today: Day()) : nil
+            return Snapshot(data: data, changedElsewhere: data != latest, summaries: summaries)
         }, completion: completion)
     }
     /// Runs `change` in a locked transaction on the latest file.

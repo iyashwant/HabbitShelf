@@ -1,13 +1,15 @@
 import SwiftUI
 
 struct OverviewView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accent) private var accent
     @Environment(\.glass) private var glass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var switcher
+    /// A habit opens by zooming out of the card, row or tile that was tapped.
+    @Namespace private var zoom
     @State private var path: [OverviewRoute] = []
     @State private var editor: Habit?
     @State private var appearance: Habit?
@@ -49,7 +51,7 @@ struct OverviewView: View {
         return arranged.compactMap { byID[$0] } + shown.filter { !placed.contains($0.id) }
     }
     /// The page under the bottom switcher. With the switcher hidden, Dashboard and Explore are pushed from the top bar instead.
-    private var shown: HomePage { store.data.settings.showLayoutSwitcher ? page : .habits }
+    private var shown: HomePage { store.settings.showLayoutSwitcher ? page : .habits }
     var body: some View {
         NavigationStack(path: $path) {
             ZStack {
@@ -60,13 +62,13 @@ struct OverviewView: View {
                 }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                if store.data.settings.showLayoutSwitcher {
+                if store.settings.showLayoutSwitcher {
                     layoutSwitcher.opacity(lifted ? 0 : 1).allowsHitTesting(!lifted).animation(.snappy(duration: 0.25), value: lifted)
                 }
             }
             .navigationDestination(for: OverviewRoute.self) { route in
                 switch route {
-                case .habit(let id): HabitDetailView(id: id)
+                case .habit(let id): HabitDetailView(id: id).navigationTransition(.zoom(sourceID: id, in: zoom))
                 case .dashboard: DashboardView { path.append($0) }
                 case .explore: ExploreView()
                 case .insights: InsightsView()
@@ -91,7 +93,7 @@ struct OverviewView: View {
             .sheet(isPresented: $reorder) { ReorderView() }
             .sheet(item: $routine) { RoutineSheet(routineID: $0.id).buddySheet(partial: true).presentationDetents([.medium, .large]) }
             .sheet(isPresented: $timing) { TimerView().buddySheet() }
-            .fullScreenCover(isPresented: Binding(get: { store.loaded && !store.data.settings.onboarding }, set: { _ in })) { WelcomeView() }
+            .fullScreenCover(isPresented: Binding(get: { store.loaded && !store.settings.onboarding }, set: { _ in })) { WelcomeView() }
             .alert("Couldn’t complete the action", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) { Button("OK") { store.error = nil } } message: { Text(store.error ?? "") }
             // A Live Activity's Finish button logs from outside the app's store.
             .onReceive(NotificationCenter.default.publisher(for: TimerSessions.changed)) { _ in store.reload() }
@@ -133,9 +135,9 @@ struct OverviewView: View {
                         if store.data.habits.isEmpty { Button("Try sample habits") { loadSamples() } }
                     }.padding(.top, 70)
                 } else {
-                    if store.data.settings.showCategoryFilter && !store.data.categories.isEmpty { categoryFilter }
+                    if store.settings.showCategoryFilter && !store.data.categories.isEmpty { categoryFilter }
                     if !store.visible.routines.isEmpty { RoutineStrip { routine = $0 } }
-                    switch store.data.settings.layout {
+                    switch store.settings.layout {
                     case .cards: LazyVStack(spacing: 15.3) { ForEach(habits) { habit in card(habit) } }
                     case .compact: compact
                     case .month: monthGrid
@@ -145,11 +147,11 @@ struct OverviewView: View {
                 }
             }.padding(.horizontal, 8).padding(.bottom, 110)
         }
-        .sensoryFeedback(.selection, trigger: arranged) { old, new in old != nil && new != nil && store.data.settings.haptics }
+        .sensoryFeedback(.selection, trigger: arranged) { old, new in old != nil && new != nil && store.settings.haptics }
         .background(BuddyStyle.canvas(scheme))
         .toolbar(.hidden, for: .navigationBar)
         .homeBar(settings: { settings = true }) {
-            if !store.data.settings.showLayoutSwitcher {
+            if !store.settings.showLayoutSwitcher {
                 CircleControl(symbol: "compass", label: "Explore") { open(.explore) }
                 CircleControl(symbol: "layout-dashboard", label: "Dashboard") { open(.dashboard) }
             }
@@ -171,7 +173,7 @@ struct OverviewView: View {
     }
     /// The habit layouts, then Dashboard and Explore at the trailing end. Each opens in place under the switcher.
     private var layoutSwitcher: some View {
-        let layout = store.data.settings.layout
+        let layout = store.settings.layout
         return HStack(spacing: 4) {
             ForEach(Layout.allCases, id: \.self) { item in
                 switcherButton(item.rawValue, label: "\(item.rawValue) view", selected: shown == .habits && layout == item) {
@@ -212,7 +214,7 @@ struct OverviewView: View {
     }
     /// Opens Dashboard or Explore: in place from the bottom switcher, or pushed while the switcher is hidden.
     private func open(_ item: HomePage) {
-        if store.data.settings.showLayoutSwitcher { page = item } else if item != .habits { path.append(item == .dashboard ? .dashboard : .explore) }
+        if store.settings.showLayoutSwitcher { page = item } else if item != .habits { path.append(item == .dashboard ? .dashboard : .explore) }
     }
     /// With Drag to Reorder on, holding any part of a card opens its menu, and moving the finger then lifts the card:
     /// the menus are inside the card and the drag is around it, the order in which iOS hands a hold over to a drag. The
@@ -220,7 +222,8 @@ struct OverviewView: View {
     @ViewBuilder private func card(_ habit: Habit) -> some View {
         let card = HabitCard(habit:habit,data:store.data,version:store.version(habit.id),onOpen:{path.append(.habit(habit.id))},onComplete:{tap(habit,Day())}) { habitMenu(habit) }
             .equatable()
-        if store.data.settings.dragToReorder {
+            .matchedTransitionSource(id: habit.id, in: zoom) { $0.clipShape(RoundedRectangle(cornerRadius: 24, style: .circular)) }
+        if store.settings.dragToReorder {
             let lifting = arranged != nil && dragged == habit.id
             card.onDrag {
                 // Asked again during the drag; the card lifted first stays the dragged one.
@@ -269,7 +272,7 @@ struct OverviewView: View {
         else { daySelection = DaySelection(habit: habit, day: day) }
     }
     private var compact: some View {
-        let today = Day(), days = Day.range(today.adding(-(store.data.settings.recentDays - 1)), today)
+        let today = Day(), days = Day.range(today.adding(-(store.settings.recentDays - 1)), today)
         let line = BuddyStyle.border(scheme, 0.105)
         return VStack(spacing: 12) {
             HStack {
@@ -295,9 +298,10 @@ struct OverviewView: View {
                 ForEach(habits) { habit in
                     VStack(spacing: 0) {
                         line.frame(height: 1)
-                        CompactRow(habit: habit, data: store.data, version: store.version(habit.id), days: days, today: today, names: store.data.settings.compactNames,
+                        CompactRow(habit: habit, data: store.data, version: store.version(habit.id), days: days, today: today, names: store.settings.compactNames,
                                    onOpen: { path.append(.habit(habit.id)) }, onTap: { tap(habit, $0) }, onEdit: { daySelection = DaySelection(habit: habit, day: $0) }) { habitMenu(habit) }
                             .equatable()
+                            .matchedTransitionSource(id: habit.id, in: zoom)
                     }
                 }
             }.panel(radius: 20, border: 0.07)
@@ -310,6 +314,7 @@ struct OverviewView: View {
                 let palette = WidgetPalette(.tinted, scheme: scheme, tint: BuddyStyle.color(habit.color)), shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
                 HabitWidgetContent(kind: .streak, habit: habit, data: store.data, palette: palette, versions: [store.version(habit.id)], onCheck: { tap($0, Day()) })
                     .equatable().frame(height: 158).background(palette.background(shape)).contentShape(shape)
+                    .matchedTransitionSource(id: habit.id, in: zoom) { $0.clipShape(shape) }
                     .onTapGesture { path.append(.habit(habit.id)) }.contextMenu { habitMenu(habit) }
             }
         }
@@ -320,6 +325,7 @@ struct OverviewView: View {
             ForEach(habits) { habit in
                 StreakListRow(habit: habit, data: store.data, version: store.version(habit.id)) { tap(habit, Day()) }
                     .equatable().contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .matchedTransitionSource(id: habit.id, in: zoom) { $0.clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous)) }
                     .onTapGesture { path.append(.habit(habit.id)) }.contextMenu { habitMenu(habit) }
             }
         }
@@ -333,14 +339,14 @@ struct OverviewView: View {
     }
     private var monthGrid: some View {
         LazyVGrid(columns:Array(repeating:GridItem(.flexible(),spacing:8),count:3),spacing:10) {
-            ForEach(habits) { habit in MonthHabitCard(habit:habit,data:store.data,version:store.version(habit.id),onOpen:{path.append(.habit(habit.id))},onComplete:{tap(habit,Day())}).equatable().contextMenu{habitMenu(habit)} }
+            ForEach(habits) { habit in MonthHabitCard(habit:habit,data:store.data,version:store.version(habit.id),onOpen:{path.append(.habit(habit.id))},onComplete:{tap(habit,Day())}).equatable().matchedTransitionSource(id:habit.id,in:zoom){$0.clipShape(RoundedRectangle(cornerRadius:16,style:.circular))}.contextMenu{habitMenu(habit)} }
         }
     }
     @ViewBuilder private func habitMenu(_ habit: Habit) -> some View {
         Button("Edit Habit", systemImage: "pencil") { editor = habit }
         Button("Appearance",systemImage:"slider.horizontal.3"){appearance=habit}
         Button("Share Habit",systemImage:"square.and.arrow.up"){share=habit}
-        if store.data.settings.notes { Button("Notes",systemImage:"note.text"){notes=habit} }
+        if store.settings.notes { Button("Notes",systemImage:"note.text"){notes=habit} }
         Button("Reorder Habits",systemImage:"arrow.up.arrow.down"){reorder=true}
         Button("Edit Today", systemImage: "calendar") { daySelection = DaySelection(habit: habit, day: Day()) }
         Button("Complete Yesterday", systemImage: "checkmark") { store.log([habit.id]) { try Engine.complete(habit.id, day: Day().adding(-1), data: &$0) } }.disabled(!habit.loggable(on: Day().adding(-1), today: Day()))
@@ -586,7 +592,7 @@ extension Day {
 /// Opened from the compact list's "Last N days" pill: how many recent days it shows, whether habit names show
 /// beside the icons, and which habits are hidden everywhere.
 struct CompactListSettingsView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accent) private var accent
     @State private var hiding = false
@@ -599,7 +605,7 @@ struct CompactListSettingsView: View {
                 .fixedSize(horizontal: false, vertical: true).padding(.top, 9.7)
             HStack(spacing: 5) {
                 ForEach(1...7, id: \.self) { count in
-                    let on = store.data.settings.recentDays == count, shape = RoundedRectangle(cornerRadius: 12, style: .circular)
+                    let on = store.settings.recentDays == count, shape = RoundedRectangle(cornerRadius: 12, style: .circular)
                     Button { store.change { $0.settings.recentDays = count } } label: {
                         Text("\(count)").font(BuddyFont.mono(12.5)).foregroundStyle(on ? accent.foreground : BuddyStyle.tertiaryText(scheme))
                             .frame(maxWidth: .infinity, minHeight: 40).background(on ? accent.color : .clear, in: shape)
@@ -609,7 +615,7 @@ struct CompactListSettingsView: View {
             }.padding(.top, 10.9)
             Text("Configure whether the habit names will be hidden or not").font(BuddyFont.text(14)).tracking(-0.1).foregroundStyle(note)
                 .fixedSize(horizontal: false, vertical: true).padding(.top, 21)
-            SegmentedChoice(selection: Binding(get: { store.data.settings.compactNames }, set: { shown in store.change { $0.settings.compactNames = shown } }), options: [(false, "Hidden"), (true, "Shown")])
+            SegmentedChoice(selection: Binding(get: { store.settings.compactNames }, set: { shown in store.change { $0.settings.compactNames = shown } }), options: [(false, "Hidden"), (true, "Shown")])
                 .padding(.top, 10.9)
             Text("Configure which habits are hidden everywhere").font(BuddyFont.text(14)).tracking(-0.1).foregroundStyle(note)
                 .fixedSize(horizontal: false, vertical: true).padding(.top, 21)
@@ -624,7 +630,7 @@ struct CompactListSettingsView: View {
 }
 /// Opens Hide Habits; shaped like the segmented control above it, with the number hidden.
 struct HiddenHabitsRow: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.colorScheme) private var scheme
     let action: () -> Void
     var body: some View {
@@ -649,7 +655,7 @@ struct HiddenHabitsRow: View {
 /// Every active habit with a check to hide it. A hidden habit leaves every screen and widget until it is shown again;
 /// its history, reminders, routines and Shortcuts carry on.
 struct HideHabitsView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accent) private var accent
     var body: some View {

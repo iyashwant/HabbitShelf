@@ -363,4 +363,18 @@ final class HabitBuddyUITests:XCTestCase {
         if !presented{print("SHARE_ACCESSIBILITY\n"+app.debugDescription)}
         XCTAssertTrue(presented,"The exported PNG must open a native image-sharing action.")
     }
+    func testHoldingAChecksOpensTheMenuInEveryLayout() {
+        // Each hold starts from a fresh launch, as in the card test.
+        for screen in ["streaks","list","month"] {
+            let app=launch(screen),check=app.buttons["Log progress for Gym Day"]
+            XCTAssertTrue(check.waitForExistence(timeout:20));let before=check.value as? String
+            check.press(forDuration:1.2);XCTAssertTrue(app.buttons["Complete Yesterday"].waitForExistence(timeout:5),"Holding the check in the \(screen) layout opens the habit menu")
+            XCTAssertFalse(app.buttons["Back"].exists,"rather than the habit");XCTAssertEqual(check.value as? String,before,"without logging (\(screen))")
+            app.terminate()
+        }
+        let app=launch("compact"),tile=app.buttons.matching(NSPredicate(format:"label BEGINSWITH '2026-08-18,'")).firstMatch
+        XCTAssertTrue(tile.waitForExistence(timeout:20));let before=tile.label
+        tile.press(forDuration:1.2);XCTAssertTrue(app.buttons["Edit amount and note"].waitForExistence(timeout:5),"Holding a compact day opens its menu")
+        XCTAssertEqual(tile.label,before,"without logging the day")
+    }
 }

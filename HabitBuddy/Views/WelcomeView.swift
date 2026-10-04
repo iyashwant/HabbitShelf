@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct WelcomeView:View {
-    @EnvironmentObject private var store:AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accent) private var accent
     private let features=[("square.grid.3x3.fill","See your progress","A tile for every day. A grid that grows with you.","mint"),("checkmark","One tap to check in","Log today's habit right from the overview.","cyan"),("paintbrush","Make it yours","Choose an icon, a color, and a goal.","violet"),("flame","Build a steady streak","Daily, weekly, or monthly goals at your pace.","orange"),("chart.xyaxis.line","Understand your habits","Look back at completions and consistency.","blue"),("bell","A gentle reminder","Choose the days and times that work for you.","yellow"),("rectangle.3.group","Home screen widgets","Keep your habits close at hand.","pink"),("lock","Private by design","Your habits stay on your device. No account needed.","teal")]

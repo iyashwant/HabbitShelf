@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Streak and check-in badges: for one habit, or a list of every habit's progress.
 struct MilestonesView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
     let habitID: UUID?
@@ -68,8 +68,8 @@ struct MilestonesView: View {
         ExploreSection(title: habit.currentGoal.mode == .quit ? "Clean Days" : "Check-ins") {
             grid(Milestones.totalSteps.map { step in (step, step == 1 ? "FIRST" : "TOTAL", step <= m.total, Double(m.total) / Double(step), m.totalReached[step]) }, color)
         }
-        if store.data.settings.freezesPerMonth > 0 && habit.currentGoal.mode == .build && habit.currentGoal.cadence == .daily {
-            let used = Engine.freezesUsed(habit, month: today, data: store.data), left = max(0, store.data.settings.freezesPerMonth - used)
+        if store.settings.freezesPerMonth > 0 && habit.currentGoal.mode == .build && habit.currentGoal.cadence == .daily {
+            let used = Engine.freezesUsed(habit, month: today, data: store.data), left = max(0, store.settings.freezesPerMonth - used)
             HStack(spacing: 12) {
                 LucideIcon("snowflake", size: 20).foregroundStyle(BuddyStyle.freeze).frame(width: 40, height: 40).background(BuddyStyle.freeze.opacity(0.14), in: RoundedRectangle(cornerRadius: 11))
                 VStack(alignment: .leading, spacing: 2) {

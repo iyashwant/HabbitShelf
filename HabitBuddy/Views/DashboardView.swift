@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 /// A board of habit widgets laid out like the home screen: small widgets take half a row, medium a full row
 /// and large a full row at double height.
 struct DashboardView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accent) private var accent
     /// Opens Settings while the board is shown in place by the bottom switcher; nil when it's pushed, with a back control.
@@ -56,7 +56,7 @@ struct DashboardView: View {
             .onDrop(of: [.utf8PlainText], delegate: BoardDrop(over: hover, drop: drop, leave: leave))
         }.scrollIndicators(.hidden)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { screenHeight = $0 }
-        .sensoryFeedback(.selection, trigger: arranged) { old, new in old != nil && new != nil && store.data.settings.haptics }
+        .sensoryFeedback(.selection, trigger: arranged) { old, new in old != nil && new != nil && store.settings.haptics }
         .onChange(of: arranged != nil) { _, lifted in lifting(lifted) }
         .background(BuddyStyle.canvas(scheme)).toolbar(.hidden, for: .navigationBar)
         .switcherPageBar(settings: settings) { pushed in
@@ -276,13 +276,13 @@ extension ContainerValues {
 enum DashboardLayout {
     /// Small and medium widgets are as tall as a small one is wide; large ones span two rows.
     static func height(_ widget: DashboardWidget, side: CGFloat) -> CGFloat { widget.resolvedSize == .large ? side * 2 + 16 : side }
-    @MainActor static func current(_ store: AppStore) -> [DashboardWidget] { store.data.settings.dashboard ?? DashboardWidget.defaults(for: store.visible.active) }
+    @MainActor static func current(_ store: AppStore) -> [DashboardWidget] { store.settings.dashboard ?? DashboardWidget.defaults(for: store.visible.active) }
     /// The first edit stores the arrangement, so later habit changes don't reshuffle it.
     @MainActor static func save(_ store: AppStore, _ widgets: [DashboardWidget]?) { store.change { $0.settings.dashboard = widgets } }
 }
 
 struct DashboardEditorView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accent) private var accent
     @State private var configuring: DashboardWidget?
@@ -339,7 +339,7 @@ struct DashboardEditorView: View {
 
 /// Choose a widget design, its size, what it shows, its title, style and color, with a live preview.
 struct WidgetConfigurator: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accent) private var accent

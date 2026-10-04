@@ -2,7 +2,7 @@ import SwiftUI
 import UserNotifications
 
 struct HabitEditorView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accent) private var accent

@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Every day note across habits, newest first and grouped by month, with search and a habit filter.
 struct NotesTimelineView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
     @State private var query = ""

@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Groups of habits checked off together, such as a morning routine.
 struct RoutinesView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accent) private var accent
@@ -36,7 +36,7 @@ struct RoutinesView: View {
 }
 
 struct RoutineCard: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.colorScheme) private var scheme
     let routine: Routine
     var open: () -> Void
@@ -71,7 +71,7 @@ struct RoutineCard: View {
 
 /// Completes every open build habit in a routine today.
 struct CompleteAllButton: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.accent) private var accent
     let routine: Routine
     var compact = false
@@ -94,7 +94,7 @@ struct CompleteAllButton: View {
 
 /// A routine's habits with their checks, for checking them off one at a time or all at once.
 struct RoutineSheet: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.colorScheme) private var scheme
     @Environment(\.glass) private var glass
     let routineID: UUID
@@ -122,7 +122,7 @@ struct RoutineSheet: View {
 }
 
 struct RoutineEditorView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accent) private var accent
@@ -177,7 +177,7 @@ struct RoutineEditorView: View {
 
 /// Routine chips above the overview. Tapping one opens its habits.
 struct RoutineStrip: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.colorScheme) private var scheme
     var open: (Routine) -> Void
     var body: some View {

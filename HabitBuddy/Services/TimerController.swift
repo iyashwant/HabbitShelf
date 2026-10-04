@@ -1,12 +1,13 @@
 import ActivityKit
+import Observation
 import SwiftUI
 import UserNotifications
 
 /// Starts and finishes habit timers, with a Live Activity and an end-of-countdown notification.
-@MainActor final class TimerController: ObservableObject {
-    @Published private(set) var session: TimerSession?
-    @Published var message: String?
-    private var observer: NSObjectProtocol?
+@MainActor @Observable final class TimerController {
+    private(set) var session: TimerSession?
+    var message: String?
+    @ObservationIgnored private var observer: NSObjectProtocol?
     init() {
         #if DEBUG
         // Visual fixtures start without a leftover timer from an earlier run.

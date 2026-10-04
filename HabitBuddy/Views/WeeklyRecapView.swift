@@ -2,7 +2,7 @@ import SwiftUI
 
 /// A week of every habit, compared with the week before, ready to share as an image.
 struct WeeklyRecapView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
     /// Set on appear: the current week on its last day, otherwise the last finished week.
@@ -12,7 +12,7 @@ struct WeeklyRecapView: View {
     @State private var message: String?
     @State private var rendering = false
     var body: some View {
-        let today = Day(), weekStart = store.data.settings.weekStart, current = today.startOfWeek(weekStart)
+        let today = Day(), weekStart = store.settings.weekStart, current = today.startOfWeek(weekStart)
         let start = week.startOfWeek(weekStart), recap = WeekRecap(data: store.visible, week: start, today: today)
         let earliest = (store.visible.habits.map(\.created).min() ?? today).startOfWeek(weekStart)
         let lastDay = Calendar.current.weekdaySymbols[(weekStart + 5) % 7]
@@ -27,7 +27,7 @@ struct WeeklyRecapView: View {
                 }
                 RecapPoster(recap: recap, data: store.visible, scheme: scheme)
                 VStack(spacing: 0) {
-                    SettingsToggle(title: "Remind me on \(lastDay)s", isOn: Binding(get: { store.data.settings.recapReminder }, set: { value in store.change { $0.settings.recapReminder = value }; if value { Task { _ = try? await NotificationService.request(); await NotificationService.reconcile(store.data) } } }))
+                    SettingsToggle(title: "Remind me on \(lastDay)s", isOn: Binding(get: { store.settings.recapReminder }, set: { value in store.change { $0.settings.recapReminder = value }; if value { Task { _ = try? await NotificationService.request(); await NotificationService.reconcile(store.data) } } }))
                 }.panel(radius: 20, border: 0.1)
                 Text("A notification at 7 PM on the last day of each week, when the recap is ready.").font(BuddyFont.text(12.5)).foregroundStyle(BuddyStyle.tertiaryText(scheme)).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 6)
                 if let message { Text(message).font(BuddyFont.text(13)).foregroundStyle(.red) }

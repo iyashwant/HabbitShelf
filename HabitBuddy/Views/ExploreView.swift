@@ -2,8 +2,8 @@ import SwiftUI
 
 /// The hub for the views beyond the overview: patterns, the shared calendar, recaps, notes, badges, routines and the timer.
 struct ExploreView: View {
-    @EnvironmentObject private var store: AppStore
-    @EnvironmentObject private var timer: TimerController
+    @Environment(AppStore.self) private var store
+    @Environment(TimerController.self) private var timer
     @Environment(\.colorScheme) private var scheme
     /// Opens Settings while Explore is shown in place by the bottom switcher; nil when it's pushed, with a back control.
     var settings: (() -> Void)? = nil

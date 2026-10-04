@@ -4,7 +4,7 @@ import ImageIO
 import UniformTypeIdentifiers
 
 struct ShareHabitView:View {
-    @EnvironmentObject private var store:AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.colorScheme) private var scheme
     let habit:Habit
     @State private var dark=true
@@ -36,7 +36,7 @@ struct ShareHabitView:View {
             .sheet(item:$export){image in NativeShareSheet(items:[image.url])}
     }
     private var shareCard:some View {
-        var a=habit.cardAppearance(store.data.settings);a.description=description;a.streak=streak;a.goal=streak;a.indicator=indicator;a.monthLabels=false;a.weekdayLabels=false
+        var a=habit.cardAppearance(store.settings);a.description=description;a.streak=streak;a.goal=streak;a.indicator=indicator;a.monthLabels=false;a.weekdayLabels=false
         return VStack(alignment:.trailing,spacing:12){HabitCard(habit:habit,data:store.data,appearance:a,interactive:false);Label("Habit Buddy",systemImage:"square.grid.3x3.fill").font(.system(size:10,weight:.semibold)).foregroundStyle(.white)}.padding(20).background(BuddyStyle.color(color)).environment(\.colorScheme,dark ? .dark:.light)
     }
     @MainActor private func render(){

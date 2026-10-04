@@ -13,7 +13,7 @@ struct BackupDocument: FileDocument {
 enum SettingsPage: Hashable { case general, overview, checkIn, theme, categories, archive, data }
 
 struct SettingsView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
     @Environment(\.openURL) private var openURL
@@ -36,7 +36,7 @@ struct SettingsView: View {
     let start: SettingsPage?
     init(start: SettingsPage? = nil) { self.start = start }
     private func setting<T>(_ key: WritableKeyPath<Settings, T>) -> Binding<T> {
-        Binding(get: { store.data.settings[keyPath: key] }, set: { value in store.change { $0.settings[keyPath: key] = value } })
+        Binding(get: { store.settings[keyPath: key] }, set: { value in store.change { $0.settings[keyPath: key] = value } })
     }
     var body: some View {
         NavigationStack(path: $path) {
@@ -107,11 +107,11 @@ struct SettingsView: View {
         case .general:
             SettingsPageView(title: "General") {
                 SettingsGroup {
-                    SettingsMenu(title: "First Day of Week", value: Calendar.current.weekdaySymbols[store.data.settings.weekStart - 1]) { ForEach(1...7, id: \.self) { d in Button(Calendar.current.weekdaySymbols[d - 1]) { setting(\.weekStart).wrappedValue = d } } }
+                    SettingsMenu(title: "First Day of Week", value: Calendar.current.weekdaySymbols[store.settings.weekStart - 1]) { ForEach(1...7, id: \.self) { d in Button(Calendar.current.weekdaySymbols[d - 1]) { setting(\.weekStart).wrappedValue = d } } }
                     SettingsToggle(title: "Outline Today", isOn: setting(\.showToday))
                     SettingsToggle(title: "Day Notes", isOn: setting(\.notes))
                     SettingsToggle(title: "Haptic Feedback", isOn: setting(\.haptics))
-                    SettingsMenu(title: "Streak Freezes", value: store.data.settings.freezesPerMonth == 0 ? "Off" : "\(store.data.settings.freezesPerMonth) a month") {
+                    SettingsMenu(title: "Streak Freezes", value: store.settings.freezesPerMonth == 0 ? "Off" : "\(store.settings.freezesPerMonth) a month") {
                         Button("Off") { setting(\.freezesPerMonth).wrappedValue = 0 }
                         ForEach(1...3, id: \.self) { n in Button("\(n) a month") { setting(\.freezesPerMonth).wrappedValue = n } }
                     }
@@ -121,7 +121,7 @@ struct SettingsView: View {
         case .overview:
             SettingsPageView(title: "Overview") {
                 SettingsGroup("Layout") {
-                    SettingsMenu(title: "Default View", value: store.data.settings.layout.title) {
+                    SettingsMenu(title: "Default View", value: store.settings.layout.title) {
                         ForEach(Layout.allCases, id: \.self) { layout in Button(layout.title) { setting(\.layout).wrappedValue = layout } }
                     }
                     SettingsStepper(title: "Compact View Days", value: setting(\.recentDays), range: 1...7)
@@ -143,13 +143,13 @@ struct SettingsView: View {
         case .checkIn:
             SettingsPageView(title: "Daily Check-In") {
                 SettingsGroup {
-                    SettingsToggle(title: "Daily Check-In Reminder", isOn: Binding(get: { store.data.settings.checkIn != nil }, set: { enabled in store.change { $0.settings.checkIn = enabled ? Reminder() : nil }; if enabled { askNotifications() } }))
-                    if let reminder = store.data.settings.checkIn {
+                    SettingsToggle(title: "Daily Check-In Reminder", isOn: Binding(get: { store.settings.checkIn != nil }, set: { enabled in store.change { $0.settings.checkIn = enabled ? Reminder() : nil }; if enabled { askNotifications() } }))
+                    if let reminder = store.settings.checkIn {
                         SettingsLine { DatePicker("Time", selection: Binding(get: { Calendar.current.date(from: DateComponents(hour: reminder.hour, minute: reminder.minute)) ?? Date() }, set: { date in store.change { $0.settings.checkIn?.hour = Calendar.current.component(.hour, from: date); $0.settings.checkIn?.minute = Calendar.current.component(.minute, from: date) } }), displayedComponents: .hourAndMinute) }
-                        SettingsLine { DraftField(title: "Title", saved: store.data.settings.checkInTitle) { text in store.change { $0.settings.checkInTitle = text } } }
-                        SettingsLine { DraftField(title: "Message", saved: store.data.settings.checkInBody) { text in store.change { $0.settings.checkInBody = text } } }
+                        SettingsLine { DraftField(title: "Title", saved: store.settings.checkInTitle) { text in store.change { $0.settings.checkInTitle = text } } }
+                        SettingsLine { DraftField(title: "Message", saved: store.settings.checkInBody) { text in store.change { $0.settings.checkInBody = text } } }
                     }
-                    SettingsToggle(title: "Weekly Recap Reminder", isOn: Binding(get: { store.data.settings.recapReminder }, set: { enabled in store.change { $0.settings.recapReminder = enabled }; if enabled { askNotifications() } }))
+                    SettingsToggle(title: "Weekly Recap Reminder", isOn: Binding(get: { store.settings.recapReminder }, set: { enabled in store.change { $0.settings.recapReminder = enabled }; if enabled { askNotifications() } }))
                     SettingsRow(icon: "bell-ring", color: "cyan", title: "Enable Notifications") { askNotifications() }
                     if denied { SettingsRow(icon: "settings", color: "gray", title: "Allow in System Settings") { openURL(URL(string: UIApplication.openSettingsURLString)!) } }
                 }
@@ -353,20 +353,20 @@ struct SettingsNote: View {
 
 /// Appearance and the app accent. A choice shows across the app at once.
 struct ThemeSettings: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.accent) private var accent
     /// The color picker's choice, saved once it stops changing: dragging reports many colors a second.
     @State private var picked: UInt32?
     /// Liquid Glass changes from the sliders and the tint picker, saved once they stop changing like `picked`.
     @State private var glassDraft: GlassSettings?
-    private var saved: String? { store.data.settings.accent }
+    private var saved: String? { store.settings.accent }
     private var custom: Bool { saved.flatMap(AccentCode.hex) != nil }
-    private var glass: GlassSettings { glassDraft ?? store.data.settings.glass ?? GlassSettings() }
+    private var glass: GlassSettings { glassDraft ?? store.settings.glass ?? GlassSettings() }
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             SettingsGroup("Appearance") {
                 ForEach(Theme.allCases, id: \.self) { theme in
-                    SettingsRow(icon: theme == .system ? "smartphone" : theme == .light ? "sun" : "moon", color: theme == .dark ? "indigo" : theme == .light ? "amber" : "gray", title: theme.rawValue.capitalized, chevron: false, selected: store.data.settings.theme == theme) { store.change { $0.settings.theme = theme } }
+                    SettingsRow(icon: theme == .system ? "smartphone" : theme == .light ? "sun" : "moon", color: theme == .dark ? "indigo" : theme == .light ? "amber" : "gray", title: theme.rawValue.capitalized, chevron: false, selected: store.settings.theme == theme) { store.change { $0.settings.theme = theme } }
                 }
             }
             SettingsNote("System follows your iPhone's appearance.")
@@ -439,7 +439,7 @@ struct ThemeSettings: View {
     }
     private func draftGlass(_ change: (inout GlassSettings) -> Void) { var value = glass; change(&value); glassDraft = value }
     private func commitGlass() {
-        guard let glassDraft, glassDraft != store.data.settings.glass else { return }
+        guard let glassDraft, glassDraft != store.settings.glass else { return }
         store.change { $0.settings.glass = glassDraft }
     }
     private func choose(_ code: String?) { picked = nil; store.change { $0.settings.accent = code } }
@@ -511,7 +511,7 @@ private extension Color {
 }
 
 struct ReorderView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         NavigationStack {
@@ -532,7 +532,7 @@ struct ReorderView: View {
 
 
 struct CategoryEditorView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accent) private var accent
     @Environment(\.dismiss) private var dismiss

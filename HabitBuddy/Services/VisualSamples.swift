@@ -1,18 +1,19 @@
 import Foundation
 
 enum VisualSamples {
-    static func populate(_ data:inout BuddyData) {
+    /// Ten habits with `days` of history (220 for the sample habits and the screenshots).
+    static func populate(_ data:inout BuddyData,days:Int=220) {
         guard data.habits.isEmpty else{return}
         let definitions=[("Gym Day","Every other day, no excuses.","heart.fill","mint"),("Push-Ups","A little stronger every day.","dumbbell.fill","rose"),("Journal","Three lines to clear my mind.","pencil.tip","teal"),("Deep Work","Four focused blocks.","laptopcomputer","blue"),("Drink Water","Stay hydrated.","drop.fill","sky"),("Read","One chapter at a time.","book.closed.fill","amber"),("Meditate","Ten quiet minutes.","figure.mind.and.body","violet"),("Coding","Make something every day.","code","yellow"),("No Doomscrolling","Put the phone down.","phone.down.fill","pink"),("Daily Walk","Get outside.","figure.walk","cyan")]
         for (n,item) in definitions.enumerated() {
-            var h=Habit(name:item.0,created:Day().adding(-220));h.id=UUID(uuidString:String(format:"00000000-0000-0000-0000-%012d",n+1))!;h.detail=item.1;h.symbol=item.2;h.color=item.3;h.order=n;h.goals[0].cadence = .daily
+            var h=Habit(name:item.0,created:Day().adding(-days));h.id=UUID(uuidString:String(format:"00000000-0000-0000-0000-%012d",n+1))!;h.detail=item.1;h.symbol=item.2;h.color=item.3;h.order=n;h.goals[0].cadence = .daily
             if n==0{h.goals[0].cadence = .weekly;h.goals[0].days=3}
             if n==2{h.goals[0].cadence = .monthly;h.goals[0].days=20}
             if [1,3,4].contains(n){h.goals[0].tracking = .count;h.goals[0].target=Int64(n==1 ? 3:n==3 ? 4:8)*1_000}
             if n==6{h.goals[0].tracking = .measure;h.goals[0].target=10_000;h.goals[0].unit="minutes";h.goals[0].tap = .enterTotal}
             if n==8{h.goals[0].mode = .quit}
             data.habits.append(h)
-            for offset in 0...220 {
+            for offset in 0...days {
                 let day=Day().adding(-offset);var r=Record(habitID:h.id,day:day)
                 let complete=(offset*13+n*7)%11<8
                 r.amount=h.currentGoal.mode == .quit ? (complete ? 0:1_000):complete ? h.currentGoal.target:0
@@ -56,9 +57,20 @@ enum VisualSamples {
         glass.tintStrength=parts.count>2 ? Double(parts[2]):nil
         return glass
     }
+    /// The sample habits and twenty more daily habits over five years, about 40,000 logged days, for the performance
+    /// tests (`BUDDY_VISUAL_FIXTURE=large`).
+    static func large(_ data:inout BuddyData) {
+        populate(&data,days:1_826)
+        let colors=["mint","rose","teal","blue","sky","amber","violet","yellow","pink","cyan"]
+        for n in 10..<30 {
+            var h=Habit(name:"Habit \(n+1)",created:Day().adding(-1_826));h.id=UUID(uuidString:String(format:"00000000-0000-0000-0000-%012d",n+1))!;h.symbol="book.closed.fill";h.color=colors[n%10];h.order=n;h.goals[0].cadence = .daily
+            data.habits.append(h)
+            for offset in 0...1_826 where (offset*13+n*7)%11<8 { var r=Record(habitID:h.id,day:Day().adding(-offset));r.amount=1_000;data.records[r.key]=r }
+        }
+    }
     static func audit(_ screen:String)->BuddyData {
         var data=BuddyData()
-        if ProcessInfo.processInfo.environment["BUDDY_VISUAL_FIXTURE"] == "reference" { reference(&data) } else { populate(&data) }
+        switch ProcessInfo.processInfo.environment["BUDDY_VISUAL_FIXTURE"] { case "reference": reference(&data); case "large": large(&data); default: populate(&data) }
 data.settings.onboarding=screen != "welcome";data.settings.theme=ProcessInfo.processInfo.environment["BUDDY_VISUAL_THEME"] == "light" ? .light:.dark
         data.settings.accent=ProcessInfo.processInfo.environment["BUDDY_VISUAL_ACCENT"].flatMap{$0.isEmpty ? nil:$0}
         data.settings.glass=ProcessInfo.processInfo.environment["BUDDY_VISUAL_GLASS"].flatMap(visualGlass)
