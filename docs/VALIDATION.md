@@ -168,3 +168,31 @@ Not checked:
 - dragging on an iPhone;
 - iOS 26, since no iOS 26 simulator runtime is installed;
 - text dragged in from another app being refused.
+
+## Hold-then-drag for habit cards, 4 October 2026 (local Mac)
+
+Checked with **Xcode 27.0 (27A266a)** on a dedicated **iPhone 18 Pro simulator, iOS 27**, with the Mac otherwise quiet (load average 6–8).
+
+- **The menus stay on the card's parts; the drag goes around the whole card.** With the menu inside and the drag outside, a hold that opened a part's menu handed over to the drag, as on the dashboard, and the whole card was the lifted preview. Earlier layouts in the previous section put the drag on the grid or inside the menu, and the card never moved.
+- **The direction matters, as elsewhere in iOS.** Holding Gym Day's name opened the menu below the row, over Push-Ups. Dragging down onto Push-Ups moved into the menu and highlighted its items (Edit Today), three tries out of three, and the card didn't lift. Dragging Push-Ups up onto Gym Day lifted it on the first try.
+- **Live captures during that drag** showed:
+  - the menu with the whole card lifted;
+  - the menu closing and the switcher fading as the finger moved;
+  - the dashed outline taking the top place while Gym Day slid down;
+  - the drop leaving Push-Ups first.
+- **`testHoldingACardOpensItsMenu`** now also holds the grid. With Drag to Reorder on, the grid opens the menu, without logging or opening the habit.
+- **`testDraggingACardReordersHabits`** replaces the grid-drag test. It holds Push-Ups' name, drags up onto Gym Day's grid, checks the card moved and the menu closed, and that the order survives a relaunch. Like the dashboard test, it gets three tries from a fresh launch. It passed 3 of 3, each on the first try.
+- **XCUITest waits 60 s after a hold on anything that can be dragged.** This also applies to the dashboard change above, where it went unnoticed.
+  - On the dashboard, a hold that opened the menu took 61 s with a drag attached (`onDrag` or `draggable`) and 2–3 s without. Tapping a menu item took 64 s against 1 s. A tap 3 s later went through at once.
+  - XCUITest logs "App animations complete notification not received" and carries on. Nothing moves on screen, and writing state when the drag is prepared isn't the cause; the drag lift iOS prepares while the menu is open is the likely one, but that isn't confirmed.
+  - So `testHoldingACardOpensItsMenu` takes about 227 s instead of 20 s, and `testWidgetCustomization` about 155 s instead of 26 s (measured on `ab5fbb6`, where it passed 4 of 4).
+- **`testWidgetCustomization` with the drag passed 5 of 7, then 2 of 2 after the change below.**
+  - One failure: the menu wasn't there after the hold.
+  - The other: a quick check icon was missing just after a fresh build. Three later rounds that listed the Gym Day buttons around the same tap always found all four.
+  - Its hold now gets a second try.
+- Full UI run before that retry: **21 passed, 1 skipped (opt-in Home Screen gallery), 1 failure** (`testWidgetCustomization`, the missing menu). Afterwards, `testWidgetCustomization`, `testDraggingACardReordersHabits` and `testHoldingACardOpensItsMenu` each passed twice.
+
+Not checked:
+- dragging on an iPhone, including how a finger moving down past the menu behaves;
+- whether the slow holds affect anything outside XCUITest;
+- iOS 26.

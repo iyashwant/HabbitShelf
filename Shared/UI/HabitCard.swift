@@ -9,17 +9,13 @@ struct HabitCard<Menu: View>: View {
     var version: HabitVersion?
     var appearance: CardAppearance?
     var interactive = true
-    /// Lets the history grid be dragged to reorder habits; the overview takes the drop on the whole card. The grid then
-    /// has no menu: where a menu and a drag shared the touch, holding opened the menu and moving never started a drag
-    /// (iOS 27 simulator).
-    var draggable = false
     /// Compared only, so cards redraw when the date changes; the parts read today's date themselves.
     var today = Day()
     var onOpen: () -> Void = {}
     var onComplete: () -> Void = {}
     /// The habit's menu, for holding the card's rows. The name and the check carry it themselves: in a lazy list,
-    /// holding a button inside a menu area ran the button instead of opening the menu (iOS 27 simulator). The grid
-    /// carries it only when it can't be dragged.
+    /// holding a button inside a menu area ran the button instead of opening the menu (iOS 27 simulator). To drag the
+    /// card, the overview puts the drag around the whole card, outside these menus.
     @ViewBuilder var menu: () -> Menu
     var body: some View {
         let a=appearance ?? habit.cardAppearance(data.settings),c=BuddyStyle.color(habit.color)
@@ -39,8 +35,7 @@ struct HabitCard<Menu: View>: View {
             // The grid bleeds to the card's leading edge, where older weeks fade out.
             Group {
                 if interactive {
-                    let grid=ContributionHistory(habit:habit,data:data,monthLabels:a.monthLabels,weekdayLabels:a.weekdayLabels).onTapGesture(perform:onOpen)
-                    if draggable { grid.draggable(habit.id.uuidString) } else { grid.contextMenu(menuItems:menu) }
+                    ContributionHistory(habit:habit,data:data,monthLabels:a.monthLabels,weekdayLabels:a.weekdayLabels).onTapGesture(perform:onOpen).contextMenu(menuItems:menu)
                 }
                 else { Heatmap(habit:habit,data:data,monthLabels:a.monthLabels,weekdayLabels:a.weekdayLabels,pitch:13,fit:true) }
             }.padding(.leading,interactive && !a.weekdayLabels ? 0:15).padding(.trailing,15).padding(.top,12)
@@ -67,6 +62,6 @@ extension HabitCard: Equatable {
     /// Without a version every update redraws the card. Actions are left out: they act on the same habit.
     static func == (a: HabitCard, b: HabitCard) -> Bool {
         guard let version = a.version, version == b.version else { return false }
-        return a.habit == b.habit && a.today == b.today && a.appearance == b.appearance && a.interactive == b.interactive && a.draggable == b.draggable
+        return a.habit == b.habit && a.today == b.today && a.appearance == b.appearance && a.interactive == b.interactive
     }
 }

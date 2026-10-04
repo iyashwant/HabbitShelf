@@ -110,15 +110,10 @@ struct DashboardView: View {
         Button("Duplicate", systemImage: "plus.square.on.square") { duplicate(widget) }
         Button("Remove Widget", systemImage: "trash", role: .destructive) { DashboardLayout.save(store, DashboardLayout.current(store).filter { $0.id != widget.id }) }
     }
-    /// The lifted widget's ID. Only this app sees it, so dropping the widget on another app does nothing.
     private func lift(_ widget: DashboardWidget) -> NSItemProvider {
         // Asked again during the drag; the widget lifted first stays the dragged one.
         if arranged == nil { dragged = widget.id }
-        let provider = NSItemProvider(), id = Data(widget.id.uuidString.utf8)
-        for type in [UTType.utf8PlainText.identifier, Self.widgetType] {
-            provider.registerDataRepresentation(forTypeIdentifier: type, visibility: .ownProcess) { done in done(id, nil); return nil }
-        }
-        return provider
+        return NSItemProvider(dragging: widget.id, marked: Self.widgetType)
     }
     /// Habit designs open their habit, the badge its milestones, the week the recap and a routine its habits.
     private func tap(_ widget: DashboardWidget) {
@@ -267,7 +262,7 @@ private struct BoardDrop: DropDelegate {
     let over: (CGPoint) -> Void
     let drop: () -> Void
     let leave: () -> Void
-    func validateDrop(info: DropInfo) -> Bool { info.itemProviders(for: [.utf8PlainText]).contains { $0.hasItemConformingToTypeIdentifier(DashboardView.widgetType) } }
+    func validateDrop(info: DropInfo) -> Bool { info.carries(DashboardView.widgetType) }
     func dropUpdated(info: DropInfo) -> DropProposal? { over(info.location); return DropProposal(operation: .move) }
     func dropExited(info: DropInfo) { leave() }
     func performDrop(info: DropInfo) -> Bool { drop(); return true }
@@ -554,4 +549,21 @@ extension DashboardWidget {
         if kind == .routine, let routine = data.routines.first(where: { $0.id == routineID }) { return BuddyStyle.color(routine.color) }
         return Accent(data.settings.accent).color
     }
+}
+
+extension NSItemProvider {
+    /// An ID dragged within the app, marked with the kind of thing lifted. Only this app sees it, so dropping it on
+    /// another app does nothing.
+    convenience init(dragging id: UUID, marked marker: String) {
+        self.init()
+        let data = Data(id.uuidString.utf8)
+        for type in [UTType.utf8PlainText.identifier, marker] {
+            registerDataRepresentation(forTypeIdentifier: type, visibility: .ownProcess) { done in done(data, nil); return nil }
+        }
+    }
+}
+
+extension DropInfo {
+    /// Whether the drag is something lifted in this app and marked with `type`; text from another app isn't.
+    func carries(_ type: String) -> Bool { itemProviders(for: [.utf8PlainText]).contains { $0.hasItemConformingToTypeIdentifier(type) } }
 }

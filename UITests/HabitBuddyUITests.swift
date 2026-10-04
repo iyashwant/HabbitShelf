@@ -71,9 +71,9 @@ final class HabitBuddyUITests:XCTestCase {
     }
     func testHoldingACardOpensItsMenu() {
         // Each hold starts from a fresh launch: tapping outside didn't always close the menu in the simulator.
-        for part in ["name","check"] {
+        for part in ["name","check","grid"] {
             let app=launch("cards"),check=app.buttons["Log progress for Gym Day"],menu=app.buttons["Complete Yesterday"]
-            let held=part=="name" ? app.buttons.matching(NSPredicate(format:"label BEGINSWITH 'Gym Day'")).firstMatch:check
+            let held=part=="name" ? app.buttons.matching(NSPredicate(format:"label BEGINSWITH 'Gym Day'")).firstMatch:part=="check" ? check:grid(app,"Gym Day")
             XCTAssertTrue(held.waitForExistence(timeout:20));let before=check.value as? String
             held.press(forDuration:1.2);XCTAssertTrue(menu.waitForExistence(timeout:5),"Holding a card's \(part) opens the habit menu")
             XCTAssertFalse(app.buttons["Back"].exists,"rather than the habit");XCTAssertEqual(check.value as? String,before,"without logging")
@@ -81,14 +81,26 @@ final class HabitBuddyUITests:XCTestCase {
         }
     }
     private func grid(_ app:XCUIApplication,_ habit:String)->XCUIElement { app.otherElements.matching(NSPredicate(format:"label BEGINSWITH %@",habit+", contribution grid")).firstMatch }
-    func testDraggingACardByItsGridReordersHabits() {
-        let app=launch("cards")
-        func gymFirst()->Bool { app.buttons.matching(NSPredicate(format:"label BEGINSWITH 'Gym Day'")).firstMatch.frame.minY<app.buttons.matching(NSPredicate(format:"label BEGINSWITH 'Push-Ups'")).firstMatch.frame.minY }
-        XCTAssertTrue(grid(app,"Gym Day").waitForExistence(timeout:20));XCTAssertTrue(gymFirst())
-        grid(app,"Gym Day").press(forDuration:1.0,thenDragTo:grid(app,"Push-Ups"),withVelocity:.slow,thenHoldForDuration:1.0)
-        let moved=expectation(for:NSPredicate{_,_ in !gymFirst()},evaluatedWith:nil);wait(for:[moved],timeout:10)
+    /// Holding a card's name opens its menu; moving on lifts the card, the others make room, and dropping it saves the order.
+    /// The drag goes up: the menu opens below the name, and moving into it picks its items instead, as elsewhere in iOS.
+    func testDraggingACardReordersHabits() {
+        var app=launch("cards")
+        func name(_ habit:String)->XCUIElement { app.buttons.matching(NSPredicate(format:"label BEGINSWITH %@",habit)).firstMatch }
+        func gymFirst()->Bool { name("Gym Day").frame.minY<name("Push-Ups").frame.minY }
+        // A synthesized hold sometimes leaves the menu open instead of handing the touch to the drag (iOS 27 simulator),
+        // so the drag gets three tries, each from a fresh launch.
+        var moved=false
+        for attempt in 1...3 where !moved {
+            if attempt>1 {app.terminate();app=launch("cards")}
+            XCTAssertTrue(name("Push-Ups").waitForExistence(timeout:20));XCTAssertTrue(gymFirst())
+            name("Push-Ups").press(forDuration:1.0,thenDragTo:grid(app,"Gym Day"),withVelocity:.slow,thenHoldForDuration:1.0)
+            moved=XCTWaiter().wait(for:[expectation(for:NSPredicate{_,_ in !gymFirst()},evaluatedWith:nil)],timeout:5) == .completed
+            if !moved {print("Card drag attempt \(attempt) didn't move the card")}
+        }
+        XCTAssertTrue(moved,"Moving away from the menu after holding a card's name drags the card");XCTAssertFalse(app.buttons["Complete Yesterday"].exists,"and closes the menu")
+        capture(app,"cards-dragged")
         app.terminate();app.launchEnvironment["BUDDY_VISUAL_RESET"]="false";app.launch()
-        XCTAssertTrue(grid(app,"Gym Day").waitForExistence(timeout:20));XCTAssertFalse(gymFirst(),"The new order is saved")
+        XCTAssertTrue(name("Gym Day").waitForExistence(timeout:20));XCTAssertFalse(gymFirst(),"The new order is saved")
     }
     func testCompactRowNameOpensHabitMenu() {
         let app=launch("compact"),name=app.buttons["Gym Day"]
@@ -232,7 +244,11 @@ final class HabitBuddyUITests:XCTestCase {
         XCTAssertTrue(app.buttons["Edit Dashboard"].waitForExistence(timeout:10));XCTAssertEqual(pushUps.count,before+1,"The small quick check shows the chosen habits")
         let gym=app.buttons.matching(identifier:"Log progress for Gym Day"),added=gym.element(boundBy:gym.count-1);for _ in 0..<8{if added.isHittable{break};app.swipeUp()}
         XCTAssertEqual(added.value as? String,"Not done");added.tap();XCTAssertEqual(added.value as? String,"Done","A quick check icon logs today")
-        added.press(forDuration:1.2);let duplicate=app.buttons["Duplicate"];XCTAssertTrue(duplicate.waitForExistence(timeout:10));duplicate.tap()
+        // Widgets can be dragged, so XCUITest waits out its 60-second idle timeout after a hold that opens the menu. Once in
+        // seven runs the menu wasn't there afterwards (iOS 27 simulator), so the hold gets a second try.
+        let duplicate=app.buttons["Duplicate"]
+        for _ in 0..<2 where !duplicate.exists {added.press(forDuration:1.2);_=duplicate.waitForExistence(timeout:10)}
+        XCTAssertTrue(duplicate.exists);duplicate.tap()
         XCTAssertTrue(app.buttons["Edit Dashboard"].waitForExistence(timeout:10));XCTAssertEqual(pushUps.count,before+2,"Duplicate adds a copy of the widget")
         capture(app,"dashboard-quick-check-added")
     }

@@ -25,9 +25,29 @@ struct OverviewView: View {
     @State private var category: UUID?
     @State private var month = Day().startOfMonth
     @State private var page = HomePage.habits
-    /// While a dashboard widget is dragged, the switcher fades and lets the drag through to the widgets beneath it.
+    /// Whether a dashboard widget is lifted. While a widget or card is dragged, the switcher fades and lets the drag
+    /// through to the widgets or cards beneath it.
     @State private var liftingWidget = false
-    private var habits: [Habit] { store.visible.active.filter { category == nil || $0.categories.contains(category!) } }
+    private var lifted: Bool { liftingWidget || arranged != nil }
+    /// The card being dragged, and the order shown while it's over the cards; the order is saved when it's dropped.
+    @State private var dragged: UUID?
+    @State private var arranged: [UUID]?
+    /// The card under the finger, and the one the dragged card last took the place of. That one is passed over until
+    /// another card is entered, so a taller card that slides back under a resting finger doesn't swap straight back.
+    @State private var hovered: UUID?
+    @State private var swapped: UUID?
+    /// Keeps the order shown once a dragged card has been off the cards for a moment.
+    @State private var settling: Task<Void, Never>?
+    /// Marks a card lifted from the overview, so text dragged in from another app moves nothing.
+    static let habitType = "com.iyashwant.habbitbuddy.habit-card"
+    /// The habits in the chosen category, in their saved order.
+    private var filtered: [Habit] { store.visible.active.filter { category == nil || $0.categories.contains(category!) } }
+    private var habits: [Habit] {
+        let shown = filtered
+        guard let arranged else { return shown }
+        let byID = Dictionary(shown.map { ($0.id, $0) }) { first, _ in first }, placed = Set(arranged)
+        return arranged.compactMap { byID[$0] } + shown.filter { !placed.contains($0.id) }
+    }
     /// The page under the bottom switcher. With the switcher hidden, Dashboard and Explore are pushed from the top bar instead.
     private var shown: HomePage { store.data.settings.showLayoutSwitcher ? page : .habits }
     var body: some View {
@@ -41,7 +61,7 @@ struct OverviewView: View {
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if store.data.settings.showLayoutSwitcher {
-                    layoutSwitcher.opacity(liftingWidget ? 0 : 1).allowsHitTesting(!liftingWidget).animation(.snappy(duration: 0.25), value: liftingWidget)
+                    layoutSwitcher.opacity(lifted ? 0 : 1).allowsHitTesting(!lifted).animation(.snappy(duration: 0.25), value: lifted)
                 }
             }
             .navigationDestination(for: OverviewRoute.self) { route in
@@ -125,6 +145,7 @@ struct OverviewView: View {
                 }
             }.padding(.horizontal, 8).padding(.bottom, 110)
         }
+        .sensoryFeedback(.selection, trigger: arranged) { old, new in old != nil && new != nil && store.data.settings.haptics }
         .background(BuddyStyle.canvas(scheme))
         .toolbar(.hidden, for: .navigationBar)
         .homeBar(settings: { settings = true }) {
@@ -193,15 +214,54 @@ struct OverviewView: View {
     private func open(_ item: HomePage) {
         if store.data.settings.showLayoutSwitcher { page = item } else if item != .habits { path.append(item == .dashboard ? .dashboard : .explore) }
     }
-    private func card(_ habit: Habit) -> some View {
-        HabitCard(habit:habit,data:store.data,version:store.version(habit.id),draggable:store.data.settings.dragToReorder,onOpen:{path.append(.habit(habit.id))},onComplete:{tap(habit,Day())}) { habitMenu(habit) }
+    /// With Drag to Reorder on, holding any part of a card opens its menu, and moving the finger then lifts the card:
+    /// the menus are inside the card and the drag is around it, the order in which iOS hands a hold over to a drag. The
+    /// other cards make room as it passes over them.
+    @ViewBuilder private func card(_ habit: Habit) -> some View {
+        let card = HabitCard(habit:habit,data:store.data,version:store.version(habit.id),onOpen:{path.append(.habit(habit.id))},onComplete:{tap(habit,Day())}) { habitMenu(habit) }
             .equatable()
-            .modifier(HabitDrop(enabled:store.data.settings.dragToReorder) { source in
-                var ids=store.visible.active.map(\.id)
-                guard let from=ids.firstIndex(of:source),let to=ids.firstIndex(of:habit.id),from != to else{return}
-                ids.remove(at:from);ids.insert(source,at:to)
-                store.change { $0.reorder(ids) }
-            })
+        if store.data.settings.dragToReorder {
+            let lifting = arranged != nil && dragged == habit.id
+            card.onDrag {
+                // Asked again during the drag; the card lifted first stays the dragged one.
+                if arranged == nil { dragged = habit.id }
+                return NSItemProvider(dragging: habit.id, marked: Self.habitType)
+            }
+            .onDrop(of: [.utf8PlainText], delegate: CardDrop(target: habit.id, enter: enter, drop: drop, leave: leave))
+            // While it's lifted, its place shows where it will land.
+            .opacity(lifting ? 0 : 1)
+            .background { if lifting { RoundedRectangle(cornerRadius: 24, style: .circular).strokeBorder(BuddyStyle.border(scheme, 0.2), style: StrokeStyle(lineWidth: 1.5, dash: [6, 5])) } }
+        } else { card }
+    }
+    /// The dragged card takes the place of the card under the finger.
+    private func enter(_ target: UUID) {
+        settling?.cancel(); settling = nil; hovered = target
+        guard let dragged else { return }
+        var order = habits.map(\.id)
+        if arranged == nil { arranged = order }
+        if target == dragged { swapped = nil; return }
+        guard target != swapped, let from = order.firstIndex(of: dragged), let to = order.firstIndex(of: target) else { return }
+        order.move(fromOffsets: [from], toOffset: to > from ? to + 1 : to)
+        swapped = target
+        withAnimation(.snappy(duration: 0.3)) { arranged = order }
+    }
+    private func drop() { settle(); dragged = nil }
+    /// The drag left a card. The cards stay put: it may be crossing to the next card, iOS also reports a leave when the
+    /// switcher fades, and holding a card at the bottom scrolls until the finger is below the last one. If the drag
+    /// doesn't reach another card, the order shown is kept, as when a Home Screen icon is let go.
+    private func leave(_ target: UUID) {
+        guard hovered == target else { return }
+        hovered = nil
+        settling?.cancel()
+        settling = Task { try? await Task.sleep(for: .milliseconds(300)); if !Task.isCancelled { settle() } }
+    }
+    /// Saves the order shown. Habits in other categories and hidden habits keep their places among the rest.
+    private func settle() {
+        settling?.cancel(); settling = nil
+        if let arranged, arranged != filtered.map(\.id) {
+            store.change { $0.reorder(arranged) }
+        }
+        withAnimation(.snappy(duration: 0.3)) { arranged = nil }; hovered = nil; swapped = nil
     }
     private func tap(_ habit: Habit, _ day: Day) {
         let goal = habit.goal(on: day), p = Engine.progress(habit, day: day, data: store.data)
@@ -506,14 +566,17 @@ struct StreakListRow: View, Equatable {
     }
     static func == (a: Self, b: Self) -> Bool { a.version == b.version && a.habit == b.habit && a.today == b.today }
 }
-/// Takes a habit dropped on a card and moves it to that card's place. Cards are dragged by their history grid.
-struct HabitDrop: ViewModifier {
-    let enabled:Bool
-    let move:(UUID)->Void
-    @ViewBuilder func body(content:Content)->some View {
-        if enabled{content.dropDestination(for:String.self){items,_ in guard let first=items.first,let source=UUID(uuidString:first) else{return false};move(source);return true}}
-        else{content}
-    }
+/// Follows a habit card dragged over another card; dropping it saves the order.
+private struct CardDrop: DropDelegate {
+    let target: UUID
+    let enter: (UUID) -> Void
+    let drop: () -> Void
+    let leave: (UUID) -> Void
+    func validateDrop(info: DropInfo) -> Bool { info.carries(OverviewView.habitType) }
+    func dropEntered(info: DropInfo) { enter(target) }
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
+    func dropExited(info: DropInfo) { leave(target) }
+    func performDrop(info: DropInfo) -> Bool { drop(); return true }
 }
 extension Day {
     var noteTitle:String { self==Day() ? "Today":Day.longDay.string(from:date) }
