@@ -60,14 +60,19 @@ struct OverviewView: View {
             ZStack {
                 if store.settings.showLayoutSwitcher {
                     // Swiping sideways moves between the pages the bottom switcher lists.
-                    TabView(selection: Binding(get: { page }, set: { page = $0 })) {
-                        habitsPage.tag(HomePage.habits)
-                        DashboardView(settings: { settings = true }, lifting: { liftingWidget = $0 }) { path.append($0) }.tag(HomePage.dashboard)
-                        ExploreView(settings: { settings = true }).tag(HomePage.explore)
+                    // A paging scroll view, not a page-style TabView: that drops the top safe area the bars rely on.
+                    ScrollView(.horizontal) {
+                        LazyHStack(spacing: 0) {
+                            habitsPage.containerRelativeFrame(.horizontal).id(HomePage.habits)
+                            DashboardView(settings: { settings = true }, lifting: { liftingWidget = $0 }) { path.append($0) }
+                                .containerRelativeFrame(.horizontal).id(HomePage.dashboard)
+                            ExploreView(settings: { settings = true }).containerRelativeFrame(.horizontal).id(HomePage.explore)
+                        }.scrollTargetLayout()
                     }
-                    .tabViewStyle(.page(indexDisplayMode: .never))
-                    .ignoresSafeArea(.container, edges: .bottom)
-                    .animation(.snappy, value: page)
+                    .scrollTargetBehavior(.paging)
+                    .scrollPosition(id: Binding(get: { page }, set: { if let v = $0 { page = v } }))
+                    .scrollIndicators(.hidden)
+                    .scrollBounceBehavior(.basedOnSize)
                 } else {
                     habitsPage
                 }
