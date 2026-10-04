@@ -188,7 +188,7 @@ struct OverviewView: View {
         let layout = store.settings.layout
         return HStack(spacing: 4) {
             // Streaks and List share one button, shown with the List icon; the toggle at the bottom of that view switches between them.
-            ForEach(Layout.allCases.filter { !Self.streakViews.contains($0) || $0 == .list }, id: \.self) { item in
+            ForEach(Layout.allCases.filter { ($0 != .weeks && !Self.streakViews.contains($0)) || $0 == .list }, id: \.self) { item in
                 let merged = item == .list, selected = shown == .habits && (layout == item || (merged && Self.streakViews.contains(layout)))
                 switcherButton(item.rawValue, label: merged ? "Streaks, list, rings and year views" : "\(item.rawValue) view", selected: selected) {
                     page = .habits
