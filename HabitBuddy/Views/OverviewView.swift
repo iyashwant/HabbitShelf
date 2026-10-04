@@ -220,7 +220,7 @@ struct OverviewView: View {
                         if !on { store.change { $0.settings.layout = item } }
                         withAnimation(.snappy(duration: 0.25)) { toggleOpen = false }
                     } label: {
-                        toggleGlyph(item).foregroundStyle(on ? accent.foreground : .primary)
+                        toggleGlyph(item).foregroundStyle(on ? accent.foreground : Color(hex: scheme == .dark ? 0xECECEC : 0x1C1C1E))
                             .frame(width: 44, height: 32)
                             .background { if on { Capsule().fill(accent.color) } }
                             .contentShape(Capsule())
@@ -230,7 +230,7 @@ struct OverviewView: View {
             } else {
                 // Collapsed to a bubble showing the current view; tapping it opens the full set.
                 Button { withAnimation(.snappy(duration: 0.25)) { toggleOpen = true } } label: {
-                    toggleGlyph(current).foregroundStyle(.primary)
+                    toggleGlyph(current).foregroundStyle(Color(hex: scheme == .dark ? 0xECECEC : 0x1C1C1E))
                         .frame(width: 44, height: 32).contentShape(Capsule())
                 }.buttonStyle(.plain).accessibilityLabel("\(current.title) view. Show all streak views")
             }
