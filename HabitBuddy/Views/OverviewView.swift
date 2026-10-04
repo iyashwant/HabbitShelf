@@ -9,6 +9,8 @@ struct OverviewView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var switcher
     @State private var toggleOpen = false
+    /// Horizontal centre of the Explore button in the bottom switcher, so the streak bubble can sit directly above it.
+    @State private var exploreMidX: CGFloat = 0
     /// A habit opens by zooming out of the card, row or tile that was tapped.
     @Namespace private var zoom
     @State private var path: [OverviewRoute] = []
@@ -156,7 +158,7 @@ struct OverviewView: View {
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if store.loaded, !habits.isEmpty, Self.streakViews.contains(store.settings.layout) {
-                HStack(spacing: 0) { Spacer(minLength: 0); streakListToggle }.padding(.trailing, 16).padding(.bottom, store.settings.showLayoutSwitcher ? 14 : 26)
+                HStack(spacing: 0) { Spacer(minLength: 0); streakListToggle }.padding(.trailing, store.settings.showLayoutSwitcher && exploreMidX > 0 ? max(8, UIScreen.main.bounds.width - exploreMidX - 25) : 16).padding(.bottom, store.settings.showLayoutSwitcher ? 14 : 26)
             }
         }
         .sensoryFeedback(.selection, trigger: arranged) { old, new in old != nil && new != nil && store.settings.haptics }
@@ -198,6 +200,7 @@ struct OverviewView: View {
             Capsule().fill(BuddyStyle.border(scheme, 0.12)).frame(width: 1, height: 20).padding(.horizontal, 2).accessibilityHidden(true)
             ForEach([HomePage.dashboard, .explore], id: \.self) { item in
                 switcherButton(item.rawValue, label: item.title, selected: shown == item) { page = item } glyph: { PageGlyph(page: item) }
+                    .onGeometryChange(for: CGFloat.self) { item == .explore ? $0.frame(in: .global).midX : 0 } action: { if $0 > 0 { exploreMidX = $0 } }
             }
         }
         .padding(.horizontal, 7).padding(.vertical, 6)
