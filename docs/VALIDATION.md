@@ -196,3 +196,31 @@ Not checked:
 - dragging on an iPhone, including how a finger moving down past the menu behaves;
 - whether the slow holds affect anything outside XCUITest;
 - iOS 26.
+
+## Performance follow-ups and iPhone measurements, 4 October 2026 (local Mac and iPhone)
+
+Checked with **Xcode 27.0 (27A266a)** on dedicated **iPhone 18 Pro simulators, iOS 27**, and on an **iPhone 15 Pro running iOS 27.0.1**. Another session was working in the shared folder, so this change was built and tested from its own worktree on top of `f21536d`. Other simulator builds, a virtual machine and Docker kept the Mac loaded (load average 7–112).
+
+- `swift test`: **95 core tests passed, 0 failures**, including the new `testWidgetKindsReloadOnlyForTheHabitsTheyShow`. `python3 scripts/check-project.py` passed. App, widget and test builds produced no compiler warnings from source files.
+- **Timer warning gone.** Both timer tests logged "Publishing changes from background threads" in every earlier full run. With `TimerSessions.stop` posting on the main thread, they logged it 0 times, in two runs.
+- **Holding a check in the other layouts.** The new `testHoldingAChecksOpensTheMenuInEveryLayout` holds Gym Day's check in the streak, list and month layouts, each from a fresh launch, and a compact day tile. Every hold opened the menu without logging or opening the habit, on the code before and after this change. Those layouts have no drag, which the cards' misfires involved, so their menus were left as they were.
+- Full UI run on this change before the last two edits: **21 passed, 5 skipped (the opt-in Home Screen gallery and the four performance tests, opt-in), 1 failed**: `testWidgetCustomization`, whose added widget was the ninth and so wasn't drawn until it scrolled into view. Deferred drawing was then removed; the dashboard tile is as on `dev` again apart from reading the store through Observation. The runner restarted once under memory pressure during `testBackfillDaysBeforeHabitStart`. On the code before the dashboard edit, `testBackfillDaysBeforeHabitStart`, `testCompactListSettings`, `testCompletionPersistsAfterRelaunch`, `testDraggingACardReordersHabits` and `testDraggingADashboardWidgetReordersIt` then passed; the other reruns were stopped and the full suite wasn't run again on the final code, at the owner's request (to be run later). The final code builds without warnings.
+- **iPhone 15 Pro**, `PerformanceUITests` (Debug build with `-O`, since the fixtures exist only in Debug builds; 5 runs, 9–10 taps for check-ins). The large fixture is thirty habits over five years, about 40,000 logged days.
+
+| | Sample fixture | Large fixture |
+|---|---|---|
+| Launch until the habits show ("First load") | 153 ms | 304 ms (cards), 325 ms (streak layout) |
+| Launch until the first frame responds | 0.53 s | 0.47 s |
+| Check-in, tap until its screen update has run | 25 ms (22–27) | 116 ms (112–120) |
+| Flinging the cards | 0 hitches, 85 fps, 107 MB peak | 0 hitches, 85 fps, 145 MB peak |
+| Flinging the dashboard (14 widgets)¹ | 0 hitches, 84 fps, 45 MB peak | |
+
+¹ Measured with widgets after the first eight drawn only once they scrolled into view. That wasn't kept, so the dashboard as committed draws all of them at once; that wasn't measured again with this fixture.
+
+- Before this change, on the same phone and the sample fixture, with an earlier version of the tests: launch to the first responsive frame 0.540 s (0.541 s after); flinging the cards hitched in 1 of 5 runs (4 hitches, 108 ms) and in none after. Flinging the default dashboard (12 widgets, all drawn at once, as committed) showed no hitches at 84 fps, peaking at 50.9 MB; the lower 44.8 MB and CPU time measured after came with the deferred drawing that wasn't kept. The large fixture and the check-in and first-load signposts were added afterwards, so they have no before figures.
+- **Check-ins with long histories are slow.** 116 ms is over the audit's 50 ms target. Timing each step in a scratch build on the simulator put the store's own work (copying the snapshot, the change, publishing) at 4–10 ms; the rest, 40–75 ms there, came after it, in SwiftUI's update of the tapped card. Not fixed in this change.
+
+Not checked:
+- the zoom transition frame by frame, with Reduce Motion, or opened from the dashboard;
+- widget reloads on a real Home Screen (the UI tests skip widget reloads), and Instruments traces of launch, check-ins or the GPU;
+- Release builds, other iPhones and iOS 26.
