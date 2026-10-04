@@ -1,10 +1,10 @@
 # Habit Buddy
 
-A native **iOS 27** habit tracker built in SwiftUI, with HabitKit's public screens and documented behavior as the reference. Work is on **`dev`**. Open **`HabitBuddy.xcodeproj`** in **Xcode 27** on your Mac.
+A native **iOS 26+** habit tracker built in SwiftUI, with HabitKit's public screens and documented behavior as the reference. Work is on **`dev`**. Open **`HabitBuddy.xcodeproj`** in **Xcode 27** (or Xcode 26) on your Mac.
 
 Implemented: Card / Compact / Month overviews, contribution grids, calendar backfill, yes/no / count / measure tracking, build and quit modes, historical goal rules, daily / weekly / monthly streaks, notes, colors / icons / emoji, categories, ordering, statistics, local reminders, PNG sharing, year review, archive / restore, JSON import / export, automatic snapshots, four widget size/layout combinations, and seven Shortcut actions.
 
-The app and widget extension passed an unsigned simulator build on GitHub's Mac runner. Exact screenshot parity and native behavior must be checked on iOS; see [the feature and verification matrix](docs/PARITY.md) for the remaining differences. The runner used Xcode 26.6 / iOS 26.5 SDK with a CI-only deployment override; iOS 27 remains the project target and needs Xcode 27 validation.
+The app and widget extension passed an unsigned simulator build on GitHub's Mac runner. Exact screenshot parity and native behavior must be checked on iOS; see [the feature and verification matrix](docs/PARITY.md) for the remaining differences. The runner used Xcode 26.6 / iOS 26.5 SDK with a CI-only deployment override; the project now targets iOS 26.0 (minimum); the iOS 27 simulator remains the primary validation runtime.
 
 ## Run on your Mac
 

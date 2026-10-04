@@ -26,10 +26,10 @@ jobs:
           fi
           xcodebuild -version
           sdk_major="$(xcrun --sdk iphonesimulator --show-sdk-version | cut -d. -f1)"
-          deployment=27.0
-          if [ "$sdk_major" -lt 27 ]; then
+          deployment=26.0
+          if [ "$sdk_major" -lt 26 ]; then
             deployment="$sdk_major.0"
-            echo "::warning::Runner lacks the iOS 27 SDK. Source compilation and simulator captures use SDK $deployment; iOS 27 validation remains pending."
+            echo "::warning::Runner SDK is older than the iOS 26 deployment target; using SDK $deployment."
           fi
           echo "deployment=$deployment" >> "$GITHUB_OUTPUT"
           python3 scripts/generate-project.py --deployment-target "$deployment"

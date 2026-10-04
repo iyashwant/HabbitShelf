@@ -7,7 +7,7 @@ import plistlib
 import argparse
 
 parser=argparse.ArgumentParser()
-parser.add_argument("--deployment-target",default="27.0",help="Explicit local/CI SDK fallback; checked-in project defaults to iOS 27")
+parser.add_argument("--deployment-target",default="26.0",help="Deployment target; checked-in project defaults to iOS 26")
 options=parser.parse_args()
 
 ROOT = Path(__file__).resolve().parent.parent

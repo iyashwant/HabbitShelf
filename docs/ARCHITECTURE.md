@@ -1,6 +1,6 @@
 # Architecture and data behavior
 
-Native SwiftUI app and WidgetKit extension targeting iOS 27. No backend, login, external runtime package, analytics or remote habit storage. `Package.swift` compiles the same Foundation-only core files separately for tests. The Xcode targets compile these shared files directly, so runtime writes and tests use the same implementation.
+Native SwiftUI app and WidgetKit extension targeting iOS 26 and later. No backend, login, external runtime package, analytics or remote habit storage. `Package.swift` compiles the same Foundation-only core files separately for tests. The Xcode targets compile these shared files directly, so runtime writes and tests use the same implementation.
 
 ## Storage
 

@@ -564,7 +564,7 @@
 			"baseConfigurationReference" = "120423DBB0FA47E1CF13983C";
 			"buildSettings" = {
 				"SDKROOT" = "iphoneos";
-				"IPHONEOS_DEPLOYMENT_TARGET" = "27.0";
+				"IPHONEOS_DEPLOYMENT_TARGET" = "26.0";
 				"SWIFT_VERSION" = "5.0";
 				"CLANG_ENABLE_MODULES" = "YES";
 				"CLANG_ENABLE_OBJC_ARC" = "YES";
@@ -587,7 +587,7 @@
 			"baseConfigurationReference" = "120423DBB0FA47E1CF13983C";
 			"buildSettings" = {
 				"SDKROOT" = "iphoneos";
-				"IPHONEOS_DEPLOYMENT_TARGET" = "27.0";
+				"IPHONEOS_DEPLOYMENT_TARGET" = "26.0";
 				"SWIFT_VERSION" = "5.0";
 				"CLANG_ENABLE_MODULES" = "YES";
 				"CLANG_ENABLE_OBJC_ARC" = "YES";

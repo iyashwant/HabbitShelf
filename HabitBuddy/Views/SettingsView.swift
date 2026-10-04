@@ -61,7 +61,7 @@ struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Habit Buddy").font(BuddyFont.text(16, .semibold))
                             Text("Offline. No account. Your habits stay on this device.").font(BuddyFont.text(13)).foregroundStyle(BuddyStyle.secondaryText(scheme))
-                            Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0") · iOS 27 · Native SwiftUI").font(BuddyFont.mono(11)).foregroundStyle(BuddyStyle.tertiaryText(scheme))
+                            Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0") · iOS 26+ · Native SwiftUI").font(BuddyFont.mono(11)).foregroundStyle(BuddyStyle.tertiaryText(scheme))
                             if !store.sharedStorageAvailable { Text("App Group storage is not configured. The app uses private local storage; widgets and Shortcuts need the shared group. Export your data before changing signing or the App Group.").font(BuddyFont.text(12)).foregroundStyle(.orange) }
                         }.padding(.horizontal, 20).padding(.vertical, 16).frame(maxWidth: .infinity, alignment: .leading)
                     }
