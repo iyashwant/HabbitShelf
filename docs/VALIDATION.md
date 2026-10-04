@@ -142,3 +142,29 @@ Checked with **Xcode 27.0 (27A266a)** on dedicated **iPhone 18 Pro simulators, i
 Not checked:
 - dragging and holding on an iPhone;
 - the lifted card's look against HabitKit.
+
+## Dragging dashboard widgets, 4 October 2026 (local Mac)
+
+Checked with **Xcode 27.0 (27A266a)** on a dedicated **iPhone 18 Pro simulator, iOS 27**. The first simulator made for this was deleted partway through by work outside this change, so the later runs used a second one. Other work loaded the Mac early in the session (load average up to about 90); the final runs had it at 6–30.
+
+- `python3 scripts/check-project.py` passed. No core code changed, so `swift test` wasn't rerun.
+- **iOS 27's `reorderable()` and `reorderContainer` were tried first and dropped.** Inside the custom layout, every widget was laid out small: the modifier dropped each widget's size, set as a layout value and then as a container value. A press-and-drag didn't reorder either. They also need iOS 27, and the app supports iOS 26.
+- **Menu, then drag:** the order of the modifiers decides it. With `.contextMenu` before `.onDrag`, a hold opened the menu and moving on lifted the widget. With `.onDrag` first, the menu opened and the widget never lifted.
+- **Synthesized holds hand over unreliably.** Over six drags with holds of 0.7, 1.0 and 1.5 s, five reordered; the miss (1.5 s) left the menu open. An earlier version of the test passed 1 of 3. The test now gets three tries, each from a fresh launch, and says when a try misses. The final test passed 3 of 3 on its own and once in the full run, each time on the first try.
+- **Live captures during a drag** (`simctl io screenshot` while the test held the widget) showed:
+  - the native menu with the lifted widget;
+  - the menu closing as the finger moved;
+  - a dashed outline moving to the place under the finger while the other widgets slid aside;
+  - the switcher fading, and the drop landing.
+- **Fixes found this way:**
+  - the drop handler checked a value captured before the drag began, so no drop was taken;
+  - the switcher took drags near the bottom, so widgets beneath it couldn't be reached;
+  - fading the switcher made iOS report the drag leaving and re-entering the page, which put the order back in a loop;
+  - a drag held at the bottom scrolled until the finger was below the last widget, which also counted as leaving.
+- **`testDraggingADashboardWidgetReordersIt`** drags the Today ring onto Deep Work and checks it moved and that the menu closed. After a relaunch it checks the order was saved and that holding without moving still opens the menu.
+- Full UI run: **22 passed, 1 skipped (opt-in Home Screen gallery), 0 failures**, including the existing dashboard check, add, customize and duplicate tests and the habit-card hold and drag tests. The two timer tests still log "Publishing changes from background threads", as before.
+
+Not checked:
+- dragging on an iPhone;
+- iOS 26, since no iOS 26 simulator runtime is installed;
+- text dragged in from another app being refused.

@@ -188,6 +188,28 @@ final class HabitBuddyUITests:XCTestCase {
         XCTAssertGreaterThan(check.count,before,"The new streak widget for the first habit appears on the dashboard.")
         capture(app,"dashboard-added")
     }
+    /// Holding a widget opens its menu; moving on lifts it, the others make room, and dropping it saves the order.
+    func testDraggingADashboardWidgetReordersIt() {
+        var app=launch("dashboard")
+        func today()->XCUIElement { app.otherElements.matching(NSPredicate(format:"label BEGINSWITH 'Today, '")).firstMatch }
+        func deepWork()->XCUIElement { app.staticTexts["Deep Work"].firstMatch }
+        func todayFirst()->Bool { today().frame.minY<deepWork().frame.minY }
+        // A synthesized hold sometimes leaves the menu open instead of handing the touch to the drag (iOS 27 simulator),
+        // so the drag gets three tries, each from a fresh launch.
+        var moved=false
+        for attempt in 1...3 where !moved {
+            if attempt>1 {app.terminate();app=launch("dashboard")}
+            XCTAssertTrue(today().waitForExistence(timeout:20));XCTAssertTrue(todayFirst())
+            today().press(forDuration:1.0,thenDragTo:deepWork(),withVelocity:.slow,thenHoldForDuration:1.0)
+            moved=XCTWaiter().wait(for:[expectation(for:NSPredicate{_,_ in !todayFirst()},evaluatedWith:nil)],timeout:5) == .completed
+            if !moved {print("Dashboard drag attempt \(attempt) didn't move the widget")}
+        }
+        XCTAssertTrue(moved,"Moving after the hold drags the widget to its new place");XCTAssertFalse(app.buttons["Duplicate"].exists,"and closes the menu")
+        capture(app,"dashboard-dragged")
+        app.terminate();app.launchEnvironment["BUDDY_VISUAL_RESET"]="false";app.launch()
+        XCTAssertTrue(today().waitForExistence(timeout:20));XCTAssertFalse(todayFirst(),"The new order is saved")
+        today().press(forDuration:1.2);XCTAssertTrue(app.buttons["Duplicate"].waitForExistence(timeout:5),"Holding without moving still opens the widget's menu");XCTAssertFalse(todayFirst())
+    }
     /// Every dashboard design, size and option, captured a screen at a time.
     func testDashboardWidgetCaptures() {
         for (screen,theme,pages) in [("dashboard","dark",6),("widgets","dark",7),("widgets","light",7),("widget-config","dark",4)] {

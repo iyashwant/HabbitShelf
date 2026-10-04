@@ -25,6 +25,8 @@ struct OverviewView: View {
     @State private var category: UUID?
     @State private var month = Day().startOfMonth
     @State private var page = HomePage.habits
+    /// While a dashboard widget is dragged, the switcher fades and lets the drag through to the widgets beneath it.
+    @State private var liftingWidget = false
     private var habits: [Habit] { store.visible.active.filter { category == nil || $0.categories.contains(category!) } }
     /// The page under the bottom switcher. With the switcher hidden, Dashboard and Explore are pushed from the top bar instead.
     private var shown: HomePage { store.data.settings.showLayoutSwitcher ? page : .habits }
@@ -33,11 +35,15 @@ struct OverviewView: View {
             ZStack {
                 switch shown {
                 case .habits: habitsPage
-                case .dashboard: DashboardView(settings: { settings = true }) { path.append($0) }
+                case .dashboard: DashboardView(settings: { settings = true }, lifting: { liftingWidget = $0 }) { path.append($0) }
                 case .explore: ExploreView(settings: { settings = true })
                 }
             }
-            .safeAreaInset(edge: .bottom, spacing: 0) { if store.data.settings.showLayoutSwitcher { layoutSwitcher } }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if store.data.settings.showLayoutSwitcher {
+                    layoutSwitcher.opacity(liftingWidget ? 0 : 1).allowsHitTesting(!liftingWidget).animation(.snappy(duration: 0.25), value: liftingWidget)
+                }
+            }
             .navigationDestination(for: OverviewRoute.self) { route in
                 switch route {
                 case .habit(let id): HabitDetailView(id: id)
