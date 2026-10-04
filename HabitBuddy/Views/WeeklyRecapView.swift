@@ -13,8 +13,8 @@ struct WeeklyRecapView: View {
     @State private var rendering = false
     var body: some View {
         let today = Day(), weekStart = store.data.settings.weekStart, current = today.startOfWeek(weekStart)
-        let start = week.startOfWeek(weekStart), recap = WeekRecap(data: store.data, week: start, today: today)
-        let earliest = (store.data.habits.map(\.created).min() ?? today).startOfWeek(weekStart)
+        let start = week.startOfWeek(weekStart), recap = WeekRecap(data: store.visible, week: start, today: today)
+        let earliest = (store.visible.habits.map(\.created).min() ?? today).startOfWeek(weekStart)
         let lastDay = Calendar.current.weekdaySymbols[(weekStart + 5) % 7]
         ScrollView {
             VStack(spacing: 16) {
@@ -25,7 +25,7 @@ struct WeeklyRecapView: View {
                     Spacer()
                     MonthArrow(next: true) { week = start.adding(7) }.disabled(start >= current)
                 }
-                RecapPoster(recap: recap, data: store.data, scheme: scheme)
+                RecapPoster(recap: recap, data: store.visible, scheme: scheme)
                 VStack(spacing: 0) {
                     SettingsToggle(title: "Remind me on \(lastDay)s", isOn: Binding(get: { store.data.settings.recapReminder }, set: { value in store.change { $0.settings.recapReminder = value }; if value { Task { _ = try? await NotificationService.request(); await NotificationService.reconcile(store.data) } } }))
                 }.panel(radius: 20, border: 0.1)
@@ -48,7 +48,7 @@ struct WeeklyRecapView: View {
     @MainActor private func share(_ recap: WeekRecap) {
         guard !rendering else { return }
         rendering = true; message = nil
-        let poster = RecapPoster(recap: recap, data: store.data, scheme: scheme).padding(16).background(BuddyStyle.canvas(scheme)).environment(\.colorScheme, scheme)
+        let poster = RecapPoster(recap: recap, data: store.visible, scheme: scheme).padding(16).background(BuddyStyle.canvas(scheme)).environment(\.colorScheme, scheme)
         Task {
             defer { rendering = false }
             do { export = SharedImage(url: try await ImageExport.png(poster, width: 420, scale: 3, name: "weekly-recap-\(recap.start.rawValue).png")) }

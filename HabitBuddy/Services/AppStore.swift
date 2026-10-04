@@ -14,6 +14,14 @@ import os
     @Published var sharedStorageAvailable = AppEnvironment.hasSharedContainer
     /// Increases with every published snapshot. Screens key background work on it instead of comparing snapshots.
     private(set) var revision = 0
+    /// `data` as the screens show it: hidden habits and their days left out. Worked out once per snapshot,
+    /// on first use. Lists and summaries read it; changes still go through `change`, against the full data.
+    var visible: BuddyData {
+        if visibleRevision != revision { visibleData = data.withoutHidden; visibleRevision = revision }
+        return visibleData
+    }
+    private var visibleData = BuddyData()
+    private var visibleRevision = -1
     /// Streaks, stats and milestones, computed once per habit for each published snapshot.
     let summaries = HabitSummaries(caching: true)
     let repository = AppEnvironment.repository

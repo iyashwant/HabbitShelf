@@ -8,7 +8,7 @@ struct TimerView: View {
     @State var habitID: UUID?
     @State private var countdown = true
     @State private var minutes = 10
-    private var eligible: [Habit] { store.data.active.filter { TimerUnit($0.currentGoal) != nil } }
+    private var eligible: [Habit] { store.visible.active.filter { TimerUnit($0.currentGoal) != nil } }
     var body: some View {
         VStack(spacing: 0) {
             SheetHeader(title: "Timer")

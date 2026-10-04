@@ -30,6 +30,7 @@ struct SettingsView: View {
     @State private var denied = false
     @State private var deleteHabit: Habit?
     @State private var reorder = false
+    @State private var hiding = false
     private func setting<T>(_ key: WritableKeyPath<Settings, T>) -> Binding<T> {
         Binding(get: { store.data.settings[keyPath: key] }, set: { value in store.change { $0.settings[keyPath: key] = value } })
     }
@@ -44,6 +45,7 @@ struct SettingsView: View {
                         SettingsLink(page: .theme, icon: "palette", color: "amber", title: "Theme")
                         SettingsLink(page: .categories, icon: "tags", color: "lime", title: "Categories")
                         SettingsLink(page: .archive, icon: "archive", color: "green", title: "Archived Habits")
+                        SettingsRow(icon: "eye-off", color: "slate", title: "Hidden Habits") { hiding = true }
                         SettingsLink(page: .data, icon: "file-input", color: "indigo", title: "Data Import/Export")
                         SettingsRow(icon: "list", color: "coral", title: "Reorder Habits") { reorder = true }
                     }
@@ -90,6 +92,7 @@ struct SettingsView: View {
             .alert("Habit Buddy", isPresented: Binding(get: { result != nil }, set: { if !$0 { result = nil } })) { Button("OK") { result = nil } } message: { Text(result ?? "") }
             .sheet(item:$categoryEditor){CategoryEditorView(category:$0).buddySheet()}
             .sheet(isPresented: $reorder) { ReorderView() }
+            .sheet(isPresented: $hiding) { HideHabitsView().buddySheet() }
             .onAppear { loadBackups() }
         }
     }
@@ -353,17 +356,18 @@ struct ReorderView: View {
     var body: some View {
         NavigationStack {
             List {
-                ForEach(store.data.active) { h in
-                    HStack { HabitIcon(habit: h, size: 30); Text(h.name); Spacer(); Button("Move Up", systemImage: "arrow.up") { moveUp(h) }.labelStyle(.iconOnly).disabled(h.id == store.data.active.first?.id) }
+                ForEach(store.visible.active) { h in
+                    HStack { HabitIcon(habit: h, size: 30); Text(h.name); Spacer(); Button("Move Up", systemImage: "arrow.up") { moveUp(h) }.labelStyle(.iconOnly).disabled(h.id == store.visible.active.first?.id) }
                 }.onMove { source, destination in
-                    var ids = store.data.active.map(\.id); ids.move(fromOffsets: source, toOffset: destination); persist(ids)
+                    var ids = store.visible.active.map(\.id); ids.move(fromOffsets: source, toOffset: destination); persist(ids)
                 }
             }.environment(\.editMode, .constant(.active)).navigationTitle("Reorder Habits")
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }
     }
-    private func moveUp(_ habit: Habit) { var ids = store.data.active.map(\.id); guard let index = ids.firstIndex(of: habit.id), index > 0 else { return }; ids.swapAt(index, index - 1); persist(ids) }
-    private func persist(_ ids: [UUID]) { store.change { data in for (order, id) in ids.enumerated() { if let i = data.habits.firstIndex(where: { $0.id == id }) { data.habits[i].order = order } } } }
+    private func moveUp(_ habit: Habit) { var ids = store.visible.active.map(\.id); guard let index = ids.firstIndex(of: habit.id), index > 0 else { return }; ids.swapAt(index, index - 1); persist(ids) }
+    /// Hidden habits are out of the list and keep their places.
+    private func persist(_ ids: [UUID]) { store.change { $0.reorder(ids) } }
 }
 
 

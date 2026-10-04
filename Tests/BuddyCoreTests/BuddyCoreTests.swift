@@ -193,6 +193,36 @@ final class BuddyCoreTests: XCTestCase {
         XCTAssertTrue(data.habits.isEmpty); XCTAssertTrue(data.records.isEmpty); XCTAssertEqual(data.routines[0].habitIDs, [])
         XCTAssertNoThrow(try DataValidation.validate(data, today: today))
     }
+    func testHiddenHabitsLeaveScreensButKeepTheirData() throws {
+        var (data, h) = fixture()
+        var g = Habit(name: "Smoke-free", created: Day(rawValue: "2026-09-28")!); g.order = 1; data.habits.append(g)
+        try log(1_000, "2026-10-02", h, &data); try log(1_000, "2026-10-02", g, &data); try Engine.note("private", habitID: g.id, day: today, data: &data, today: today)
+        var routine = Routine(name: "Evening"); routine.habitIDs = [h.id, g.id]; var alone = Routine(name: "Quiet"); alone.habitIDs = [g.id]; data.routines = [routine, alone]
+        data.settings.dashboard = [DashboardWidget(kind: .streak, habitID: g.id), DashboardWidget(kind: .streak, habitID: h.id)]
+        XCTAssertFalse(String(decoding: try DataValidation.encode(data), as: UTF8.self).contains("hidden"), "A shown habit writes no flag, so files stay as before")
+        XCTAssertEqual(data.withoutHidden, data)
+        data.habits[1].hidden = true
+        XCTAssertNoThrow(try DataValidation.validate(data, today: today))
+        XCTAssertEqual(try DataValidation.decode(DataValidation.encode(data), today: today), data)
+        let shown = data.withoutHidden
+        XCTAssertEqual(shown.active.map(\.id), [h.id]); XCTAssertTrue(shown.records.values.allSatisfy { $0.habitID == h.id })
+        XCTAssertEqual(shown.routines.map(\.habitIDs), [[h.id, g.id]], "Routines keep the hidden habit; one with only hidden habits is left out")
+        XCTAssertFalse(shown.settings.dashboard![0].visible(in: shown)); XCTAssertTrue(shown.settings.dashboard![1].visible(in: shown))
+        XCTAssertEqual(WeekRecap(data: shown, week: today, today: today).total, WeekRecap(data: { var d = data; d.habits.removeLast(); return d }(), week: today, today: today).total)
+        // Hiding changes what is shown, not the data: the hidden habit still logs, and routines still complete it.
+        try log(1_000, "2026-10-01", g, &data); XCTAssertTrue(Engine.progress(data.habits[1], day: Day(rawValue: "2026-10-01")!, data: data, today: today).success)
+        try Engine.completeRoutine(routine.id, day: today, data: &data, today: today); XCTAssertTrue(Engine.progress(data.habits[1], day: today, data: data, today: today).success)
+        data.habits[1].hidden = nil; XCTAssertEqual(data.withoutHidden.active.count, 2)
+    }
+    func testReorderingShownHabitsKeepsHiddenOnesInPlace() {
+        var data = BuddyData()
+        data.habits = ["A", "B", "C", "D"].enumerated().map { n, name in var habit = Habit(name: name, created: today); habit.order = n; return habit }
+        data.habits[2].hidden = true
+        let ids = data.habits.map(\.id)
+        data.reorder([ids[3], ids[1], ids[0]])
+        XCTAssertEqual(data.active.map(\.name), ["D", "B", "C", "A"]); XCTAssertEqual(data.active.map(\.order), [0, 1, 2, 3])
+        data.reorder(data.active.map(\.id).reversed()); XCTAssertEqual(data.active.map(\.name), ["A", "C", "B", "D"])
+    }
     func testStreakFreezeBridgesOneMissedDailyDay() throws {
         var (data, h) = fixture(start: "2026-09-25")
         for d in ["2026-09-28", "2026-09-29", "2026-10-01", "2026-10-02"] { try log(1_000, d, h, &data) }

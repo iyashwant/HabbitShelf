@@ -121,6 +121,10 @@ public struct Habit: Codable, Identifiable, Equatable, Sendable {
     public var reminders: [Reminder] = []
     public var appearance: CardAppearance?
     public var goals: [Goal]
+    /// Left out of every screen and widget until shown again, as while showing the app to someone.
+    /// Unset (and not written) while the habit is shown, so older files decode unchanged.
+    public var hidden: Bool?
+    public var isHidden: Bool { hidden == true }
     public init(name: String, created: Day = Day()) {
         self.name = name; self.created = created; self.goals = [Goal(from: created)]
     }
@@ -269,6 +273,29 @@ public struct BuddyData: Codable, Equatable, Sendable {
     public var active: [Habit] { habits.filter { $0.archived == nil }.sorted { $0.order < $1.order } }
     /// One active habit by ID, without filtering and sorting every habit like `active`.
     public func activeHabit(_ id: UUID?) -> Habit? { habits.first { $0.id == id && $0.archived == nil } }
+    /// The data as screens and widgets show it: hidden habits and their days left out, and routines whose active
+    /// habits are all hidden. Other routines and dashboard widgets keep their IDs, which no longer find a hidden
+    /// habit. Writes always go to the full data.
+    public var withoutHidden: BuddyData {
+        guard habits.contains(where: \.isHidden) else { return self }
+        var data = self
+        let hidden = Set(habits.filter(\.isHidden).map(\.id))
+        data.habits.removeAll(where: \.isHidden)
+        data.records = records.filter { !hidden.contains($0.value.habitID) }
+        data.routines.removeAll { routine in
+            let members = routine.habitIDs.compactMap(activeHabit)
+            return !members.isEmpty && members.allSatisfy(\.isHidden)
+        }
+        return data
+    }
+    /// Puts the active habits in `ids` in that order. Active habits left out (such as hidden ones) keep their places.
+    public mutating func reorder(_ ids: [UUID]) {
+        var all = active.map(\.id)
+        let moving = Set(ids)
+        var next = ids.filter(Set(all).contains)[...]
+        for i in all.indices where moving.contains(all[i]) { if let id = next.popFirst() { all[i] = id } }
+        for (order, id) in all.enumerated() { if let i = habits.firstIndex(where: { $0.id == id }) { habits[i].order = order } }
+    }
     public func record(_ id: UUID, _ day: Day) -> Record { records[Record.key(id, day)] ?? Record(habitID: id, day: day) }
 }
 public enum BuddyError: LocalizedError {

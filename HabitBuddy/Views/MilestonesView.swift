@@ -13,10 +13,10 @@ struct MilestonesView: View {
                 if let id = habitID {
                     if let habit = store.habit(id) { detail(habit, store.summaries.milestones(habit, data: store.data, today: today), today) }
                     else { ContentUnavailableView("Habit unavailable", systemImage: "archivebox") }
-                } else if store.data.active.isEmpty {
+                } else if store.visible.active.isEmpty {
                     ContentUnavailableView("No habits yet", systemImage: "trophy", description: Text("Badges appear as your streaks and check-ins grow."))
                 } else {
-                    ForEach(store.data.active) { habit in row(habit, store.summaries.milestones(habit, data: store.data, today: today)) }
+                    ForEach(store.visible.active) { habit in row(habit, store.summaries.milestones(habit, data: store.data, today: today)) }
                 }
             }.padding(.horizontal, 16).padding(.top, 4).padding(.bottom, 40)
         }

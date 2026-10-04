@@ -10,15 +10,15 @@ struct RoutinesView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 12) {
-                if store.data.routines.isEmpty {
+                if store.visible.routines.isEmpty {
                     ContentUnavailableView {
                         Label("No routines yet", systemImage: "list.bullet.rectangle")
                     } description: { Text("Group habits you do together, like a morning routine, and check them all off with one tap.") } actions: {
-                        Button("Create Routine") { editing = Routine(name: "") }.buttonStyle(.borderedProminent).disabled(store.data.active.isEmpty)
+                        Button("Create Routine") { editing = Routine(name: "") }.buttonStyle(.borderedProminent).disabled(store.visible.active.isEmpty)
                     }.padding(.top, 40)
                 }
-                ForEach(store.data.routines) { routine in RoutineCard(routine: routine) { open = routine } }
-                if !store.data.routines.isEmpty { Text("Complete All checks off every open build habit in the routine. Quit habits and counts above their goal are left as they are.").font(BuddyFont.text(12.5)).foregroundStyle(BuddyStyle.tertiaryText(scheme)).padding(.horizontal, 6) }
+                ForEach(store.visible.routines) { routine in RoutineCard(routine: routine) { open = routine } }
+                if !store.visible.routines.isEmpty { Text("Complete All checks off every open build habit in the routine. Quit habits and counts above their goal are left as they are.").font(BuddyFont.text(12.5)).foregroundStyle(BuddyStyle.tertiaryText(scheme)).padding(.horizontal, 6) }
             }.padding(.horizontal, 16).padding(.top, 4).padding(.bottom, 40)
         }
         .scrollIndicators(.hidden)
@@ -40,8 +40,8 @@ struct RoutineCard: View {
     let routine: Routine
     var open: () -> Void
     var body: some View {
-        let progress = Engine.routineProgress(routine, data: store.data), color = BuddyStyle.color(routine.color)
-        let habits = routine.habitIDs.compactMap { store.data.activeHabit($0) }
+        let progress = Engine.routineProgress(routine, data: store.visible), color = BuddyStyle.color(routine.color)
+        let habits = routine.habitIDs.compactMap { store.visible.activeHabit($0) }
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
                 BuddyGlyph(symbol: routine.symbol, size: 24).foregroundStyle(color).frame(width: 46, height: 46).background(color.opacity(0.14), in: RoundedRectangle(cornerRadius: 13, style: .circular))
@@ -74,7 +74,7 @@ struct CompleteAllButton: View {
     let routine: Routine
     var compact = false
     var body: some View {
-        let progress = Engine.routineProgress(routine, data: store.data), done = progress.done == progress.total
+        let progress = Engine.routineProgress(routine, data: store.visible), done = progress.done == progress.total
         let action = { withAnimation(.snappy(duration: 0.22)) { _ = store.change { try Engine.completeRoutine(routine.id, day: Day(), data: &$0) } } }
         Group {
             if compact {
@@ -99,8 +99,8 @@ struct RoutineSheet: View {
     @State private var editor: Routine?
     var body: some View {
         VStack(spacing: 0) {
-            if let routine = store.data.routines.first(where: { $0.id == routineID }) {
-                let habits = routine.habitIDs.compactMap { store.data.activeHabit($0) }, progress = Engine.routineProgress(routine, data: store.data)
+            if let routine = store.visible.routines.first(where: { $0.id == routineID }) {
+                let habits = routine.habitIDs.compactMap { store.visible.activeHabit($0) }, progress = Engine.routineProgress(routine, data: store.visible)
                 SheetHeader(title: routine.name, trailingSymbol: "square-pen") { editor = routine }
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 10) {
@@ -138,7 +138,7 @@ struct RoutineEditorView: View {
                     caption("Color") { ColorPalette(selection: $routine.color) }
                     caption("Habits") {
                         VStack(spacing: 0) {
-                            ForEach(store.data.active) { habit in
+                            ForEach(store.visible.active) { habit in
                                 Toggle(isOn: Binding(get: { routine.habitIDs.contains(habit.id) }, set: { on in routine.habitIDs.removeAll { $0 == habit.id }; if on { routine.habitIDs.append(habit.id) } })) {
                                     HStack(spacing: 10) { HabitIcon(habit: habit, size: 32); Text(habit.name).font(BuddyFont.text(15)).lineLimit(1) }
                                 }.tint(BuddyStyle.purple).padding(.horizontal, 14).frame(height: 54)
@@ -178,8 +178,8 @@ struct RoutineStrip: View {
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(store.data.routines) { routine in
-                    let progress = Engine.routineProgress(routine, data: store.data), done = progress.total > 0 && progress.done == progress.total
+                ForEach(store.visible.routines) { routine in
+                    let progress = Engine.routineProgress(routine, data: store.visible), done = progress.total > 0 && progress.done == progress.total
                     Button { open(routine) } label: {
                         HStack(spacing: 7) {
                             BuddyGlyph(symbol: routine.symbol, size: 15).foregroundStyle(BuddyStyle.color(routine.color))

@@ -18,7 +18,7 @@ struct ExploreView: View {
         }
     }
     var body: some View {
-        let data = store.data, recap = summary?.kept ?? DayRate(), notes = summary?.notes ?? 0, badges = summary?.badges ?? 0
+        let data = store.visible, recap = summary?.kept ?? DayRate(), notes = summary?.notes ?? 0, badges = summary?.badges ?? 0
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Explore").font(BuddyFont.text(32, .heavy)).foregroundStyle(BuddyStyle.text(scheme)).padding(.top, 4)
@@ -42,7 +42,7 @@ struct ExploreView: View {
         }
         .sheet(isPresented: $timing) { TimerView().buddySheet() }
         .task(id: store.revision) {
-            let data = store.data, today = Day()
+            let data = store.visible, today = Day()
             if let value = await offMain({ Summary(data: data, today: today) }) { summary = value }
         }
     }

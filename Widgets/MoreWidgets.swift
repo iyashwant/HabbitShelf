@@ -71,7 +71,7 @@ struct HabitLockView: View {
             } else {
                 switch family {
                 case .accessoryCircular: ZStack { AccessoryWidgetBackground(); Image(systemName: "flame") }
-                case .accessoryRectangular: Text(entry.error ?? "Choose a habit in Edit Widget.").font(.caption)
+                case .accessoryRectangular: Text(entry.error ?? (entry.hidden ? BuddyEntry.hiddenMessage : "Choose a habit in Edit Widget.")).font(.caption)
                 default: Text("Choose a habit")
                 }
             }

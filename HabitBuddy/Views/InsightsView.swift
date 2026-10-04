@@ -25,9 +25,9 @@ struct InsightsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                HabitFilterBar(habits: store.data.active, selection: $selected)
+                HabitFilterBar(habits: store.visible.active, selection: $selected)
                 SegmentedChoice(selection: $range, options: InsightRange.allCases.map { ($0, $0.title) })
-                if store.data.active.isEmpty { ContentUnavailableView("No habits yet", systemImage: "sparkles", description: Text("Insights appear once you've tracked a few days.")) }
+                if store.visible.active.isEmpty { ContentUnavailableView("No habits yet", systemImage: "sparkles", description: Text("Insights appear once you've tracked a few days.")) }
                 else if let summary { content(summary) }
                 else { ProgressView().frame(maxWidth: .infinity, minHeight: 200) }
             }.padding(.horizontal, 16).padding(.top, 4).padding(.bottom, 40)
@@ -39,7 +39,7 @@ struct InsightsView: View {
     }
     private func refresh(_ request: Request) async {
         refreshing = true
-        let data = store.data, from = request.range.from(request.today), today = request.today, selected = request.selected
+        let data = store.visible, from = request.range.from(request.today), today = request.today, selected = request.selected
         let key = PairKey(range: request.range, revision: request.revision, today: today)
         let cached = pairCache?.key == key ? pairCache?.pairs : nil
         let result = await offMain { () -> (InsightsSummary, [InsightsSummary.LapsePair]) in

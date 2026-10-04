@@ -8,9 +8,9 @@ struct HabitsCalendarView: View {
     @State private var month = Day().startOfMonth
     @State private var selected: Day?
     var body: some View {
-        let today = Day(), habits = store.data.active, weekStart = store.data.settings.weekStart
+        let today = Day(), habits = store.visible.active, weekStart = store.data.settings.weekStart
         let first = month.startOfMonth, offset = (first.weekday - weekStart + 7) % 7, count = first.distance(to: first.endOfMonth) + 1
-        let earliest = habits.map(\.created).min() ?? today, model = MonthModel(habits: habits, data: store.data, first: first, count: count, today: today)
+        let earliest = habits.map(\.created).min() ?? today, model = MonthModel(habits: habits, data: store.visible, first: first, count: count, today: today)
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
@@ -116,7 +116,7 @@ struct DayHabitsView: View {
     let day: Day
     @State private var editing: DaySelection?
     var body: some View {
-        let today = Day(), habits = store.data.active.filter { $0.available(on: day, today: today) }
+        let today = Day(), habits = store.visible.active.filter { $0.available(on: day, today: today) }
         let done = habits.filter { Engine.progress($0, day: day, data: store.data, today: today).success }.count
         VStack(spacing: 0) {
             SheetHeader(title: day == today ? "Today" : Day.longDay.string(from: day.date))

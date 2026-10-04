@@ -56,6 +56,26 @@ final class HabitBuddyUITests:XCTestCase {
         app.terminate();app.launchEnvironment["BUDDY_VISUAL_RESET"]="false";app.launch()
         XCTAssertTrue(app.buttons["Last 3 days"].waitForExistence(timeout:20),"The day count is saved");XCTAssertFalse(app.buttons["Gym Day"].exists,"Hidden names are saved")
     }
+    func testHiddenHabitsLeaveEveryView() {
+        let app=launch("compact")
+        func hideRow(_ name:String)->XCUIElement{app.buttons.matching(NSPredicate(format:"identifier == 'hide-habit' AND label == %@",name)).firstMatch}
+        XCTAssertTrue(app.buttons["Last 5 days"].waitForExistence(timeout:20));XCTAssertTrue(app.buttons["Gym Day"].exists);XCTAssertTrue(app.staticTexts["10 HABITS"].exists)
+        app.buttons["Last 5 days"].tap();let row=app.buttons["Hidden Habits"];XCTAssertTrue(row.waitForExistence(timeout:10));XCTAssertEqual(row.value as? String,"None")
+        row.tap();XCTAssertTrue(hideRow("Gym Day").waitForExistence(timeout:10))
+        hideRow("Gym Day").tap();hideRow("Journal").tap()
+        XCTAssertEqual(hideRow("Gym Day").value as? String,"Hidden");XCTAssertEqual(hideRow("Push-Ups").value as? String,"Shown");capture(app,"hide-habits")
+        app.buttons["Close Hide Habits"].tap();XCTAssertTrue(row.waitForExistence(timeout:5));XCTAssertEqual(row.value as? String,"2 hidden")
+        let title=app.staticTexts["Compact List Settings"];title.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5)).press(forDuration:0.05,thenDragTo:app.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.99)),withVelocity:.fast,thenHoldForDuration:0);XCTAssertTrue(title.waitForNonExistence(timeout:5))
+        XCTAssertTrue(app.staticTexts["8 HABITS"].waitForExistence(timeout:5),"The compact list counts only shown habits");XCTAssertFalse(app.buttons["Gym Day"].exists);XCTAssertFalse(app.buttons["Journal"].exists);XCTAssertTrue(app.buttons["Push-Ups"].exists)
+        capture(app,"hidden-compact")
+        app.buttons["cards view"].tap();XCTAssertTrue(app.buttons["Log progress for Push-Ups"].waitForExistence(timeout:5));XCTAssertFalse(app.buttons["Log progress for Gym Day"].exists,"Cards leave hidden habits out")
+        app.terminate();app.launchEnvironment["BUDDY_VISUAL_RESET"]="false";app.launch()
+        XCTAssertTrue(app.buttons["Log progress for Push-Ups"].waitForExistence(timeout:20));XCTAssertFalse(app.buttons["Log progress for Gym Day"].exists,"Hidden habits stay hidden after relaunch")
+        app.buttons["Settings"].tap();let settingsRow=app.buttons["Hidden Habits"];XCTAssertTrue(settingsRow.waitForExistence(timeout:10));settingsRow.tap()
+        let showAll=app.buttons["Show All Habits"];XCTAssertTrue(showAll.waitForExistence(timeout:10));showAll.tap();XCTAssertTrue(showAll.waitForNonExistence(timeout:5));XCTAssertEqual(hideRow("Gym Day").value as? String,"Shown")
+        app.buttons["Close Hide Habits"].tap();app.buttons["Close Settings"].tap()
+        XCTAssertTrue(app.buttons["Log progress for Gym Day"].waitForExistence(timeout:10),"Show All brings every habit back")
+    }
     func testEditorValidationAndIconSearch() {
         let app=launch("new-habit");XCTAssertTrue(app.buttons["Save"].waitForExistence(timeout:20));XCTAssertFalse(app.buttons["Save"].isEnabled,"Save stays disabled until the habit has a name.")
         let name=app.textFields["Habit name"];name.tap();name.typeText("Test Habit");app.buttons["Choose Icon"].tap();let search=app.textFields["Search icons or emoji"];XCTAssertTrue(search.waitForExistence(timeout:10));search.tap();search.typeText("dumbbell");app.buttons["Dumbbell"].firstMatch.tap();XCTAssertEqual(name.value as? String,"Test Habit");app.buttons["Save"].tap();XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout:10));let saved=app.buttons["Log progress for Test Habit"];for _ in 0..<6{if saved.exists{break};app.swipeUp()};XCTAssertTrue(saved.exists)

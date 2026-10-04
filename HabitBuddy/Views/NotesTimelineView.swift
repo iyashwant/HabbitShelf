@@ -31,9 +31,9 @@ struct NotesTimelineView: View {
     /// A search waits briefly for typing to pause; a newer search cancels it.
     private struct Search: Equatable { var query: String; var habit: UUID?; var revision: Int? }
     var body: some View {
-        let habits = Dictionary(store.data.habits.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let habits = Dictionary(store.visible.habits.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        let withNotes = store.data.habits.filter { index?.habitIDs.contains($0.id) ?? false }.sorted { $0.order < $1.order }
+        let withNotes = store.visible.habits.filter { index?.habitIDs.contains($0.id) ?? false }.sorted { $0.order < $1.order }
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 12, pinnedViews: [.sectionHeaders]) {
                 HStack(spacing: 8) {
@@ -66,7 +66,7 @@ struct NotesTimelineView: View {
         .safeAreaInset(edge: .top, spacing: 0) { PageBar(title: "Notes") { dismiss() } }
         .sheet(item: $selection) { DayEditorView(selection: $0) }
         .task(id: store.revision) {
-            let data = store.data, revision = store.revision
+            let data = store.visible, revision = store.revision
             if let value = await offMain({ NoteIndex(data, revision: revision) }) { index = value }
         }
         .task(id: Search(query: text, habit: habit, revision: index?.revision)) { await search(text) }

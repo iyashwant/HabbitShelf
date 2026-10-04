@@ -12,10 +12,16 @@ struct BuddyEntry: TimelineEntry {
     var routineID: UUID?
     /// Active habits in order, sorted once for the entry rather than on every lookup.
     let active: [Habit]
+    /// The chosen habit or routine is hidden in the app, so the widget shows neither it nor its name.
+    let hidden: Bool
+    /// `data` is kept without hidden habits (see `BuddyData.withoutHidden`), so no design shows them.
     init(date: Date, data: BuddyData, habitID: UUID?, error: String?, selectedIDs: [UUID]? = nil, theme: WidgetAppearance = .system, routineID: UUID? = nil) {
-        self.date = date; self.data = data; self.habitID = habitID; self.error = error; self.selectedIDs = selectedIDs; self.theme = theme; self.routineID = routineID
-        active = data.active
+        let shown = data.withoutHidden
+        self.date = date; self.data = shown; self.habitID = habitID; self.error = error; self.selectedIDs = selectedIDs; self.theme = theme; self.routineID = routineID
+        active = shown.active
+        hidden = data.habits.contains { $0.id == habitID && $0.isHidden } || (routineID != nil && data.routines.contains { $0.id == routineID } && !shown.routines.contains { $0.id == routineID })
     }
+    static let hiddenMessage = "Hidden in Habit Buddy."
     var selectedHabits: [Habit] {
         guard let selectedIDs, !selectedIDs.isEmpty else { return active }
         let byID = Dictionary(active.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
@@ -51,7 +57,7 @@ struct SingleHabitWidgetView: View {
                 }
                 Heatmap(habit: habit, data: entry.data, weeks: family == .systemSmall ? 12 : 25, labels: false).frame(maxHeight: .infinity)
             }.widgetURL(URL(string: "habitbuddy://\(habit.id.uuidString)"))
-        } else { VStack(alignment: .leading, spacing: 8) { Image(systemName: "square.grid.3x3.fill").foregroundStyle(BuddyStyle.purple); Text(entry.error ?? "Create a habit, then choose it in Edit Widget.").font(.caption) }.widgetURL(URL(string: "habitbuddy://home")) }
+        } else { VStack(alignment: .leading, spacing: 8) { Image(systemName: "square.grid.3x3.fill").foregroundStyle(BuddyStyle.purple); Text(entry.error ?? (entry.hidden ? BuddyEntry.hiddenMessage : "Create a habit, then choose it in Edit Widget.")).font(.caption) }.widgetURL(URL(string: "habitbuddy://home")) }
     }
 }
 struct CompactHabitsWidgetView: View {
@@ -141,8 +147,8 @@ struct DashboardHomeWidget: View {
         let palette = WidgetPalette(showsBackground ? entry.theme.style : .dark, scheme: showsBackground ? scheme : .dark, tint: tint)
         Group {
             if let error = entry.error { message(error, palette) }
-            else if kind.needsHabit && habit == nil { message("Create a habit, then choose it in Edit Widget.", palette) }
-            else if kind == .routine && routine == nil { message("Create a routine in Habit Buddy, then choose it in Edit Widget.", palette) }
+            else if kind.needsHabit && habit == nil { message(entry.hidden ? BuddyEntry.hiddenMessage : "Create a habit, then choose it in Edit Widget.", palette) }
+            else if kind == .routine && routine == nil { message(entry.hidden ? BuddyEntry.hiddenMessage : "Create a routine in Habit Buddy, then choose it in Edit Widget.", palette) }
             else { HabitWidgetContent(kind: kind, size: size, habit: habit, data: entry.data, habits: entry.selectedHabits, routine: routine, today: today, palette: palette) }
         }
         .containerBackground(for: .widget) { palette.background(Rectangle()) }

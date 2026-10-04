@@ -12,7 +12,7 @@ struct DashboardView: View {
     @State private var configuring: DashboardWidget?
     @State private var daySelection: DaySelection?
     @State private var routine: Routine?
-    private var widgets: [DashboardWidget] { DashboardLayout.current(store).filter { $0.visible(in: store.data) } }
+    private var widgets: [DashboardWidget] { DashboardLayout.current(store).filter { $0.visible(in: store.visible) } }
     var body: some View {
         GeometryReader { proxy in
             let width = proxy.size.width - 32, side = (width - 16) / 2, widgets = widgets
@@ -22,7 +22,7 @@ struct DashboardView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     Text("Dashboard").font(BuddyFont.text(32, .heavy)).foregroundStyle(BuddyStyle.text(scheme)).padding(.top, 4)
                     if widgets.isEmpty {
-                        ContentUnavailableView { Label("No widgets yet", systemImage: "square.grid.2x2") } description: { Text(store.data.active.isEmpty ? "Create a habit, then add widgets for it here." : "Add widgets to keep your habits at a glance.") } actions: { if !store.data.active.isEmpty { Button("Add Widget") { adding = true }.buttonStyle(.borderedProminent) } }
+                        ContentUnavailableView { Label("No widgets yet", systemImage: "square.grid.2x2") } description: { Text(store.visible.active.isEmpty ? "Create a habit, then add widgets for it here." : "Add widgets to keep your habits at a glance.") } actions: { if !store.visible.active.isEmpty { Button("Add Widget") { adding = true }.buttonStyle(.borderedProminent) } }
                     }
                     ForEach(DashboardLayout.rows(widgets), id: \.first!.id) { row in
                         HStack(spacing: 16) {
@@ -39,11 +39,11 @@ struct DashboardView: View {
                 CircleControl(symbol: "chevron-left", label: "Back", size: 38, glyph: 12.5) { dismiss() }
                 Spacer()
                 CircleControl(symbol: "sliders-horizontal", label: "Edit Dashboard", size: 38, glyph: 16) { editing = true }
-                CircleControl(symbol: "plus", label: "Add Widget", filled: true, size: 38, glyph: 17) { adding = true }.disabled(store.data.active.isEmpty)
+                CircleControl(symbol: "plus", label: "Add Widget", filled: true, size: 38, glyph: 17) { adding = true }.disabled(store.visible.active.isEmpty)
             }.padding(.horizontal, 12).padding(.top, 8.8).padding(.bottom, 8).background(BuddyStyle.canvas(scheme))
         }
         .sheet(isPresented: $editing) { DashboardEditorView().buddySheet() }
-        .sheet(isPresented: $adding) { WidgetConfigurator(widget: DashboardWidget(kind: .streak, habitID: store.data.active.first?.id), isNew: true).buddySheet() }
+        .sheet(isPresented: $adding) { WidgetConfigurator(widget: DashboardWidget(kind: .streak, habitID: store.visible.active.first?.id), isNew: true).buddySheet() }
         .sheet(item: $configuring) { WidgetConfigurator(widget: $0, isNew: false).buddySheet() }
         .sheet(item: $daySelection) { DayEditorView(selection: $0) }
         .sheet(item: $routine) { RoutineSheet(routineID: $0.id).buddySheet().presentationDetents([.medium, .large]) }
@@ -54,7 +54,7 @@ struct DashboardView: View {
         }
     }
     private func tile(_ widget: DashboardWidget, width: CGFloat, height: CGFloat) -> some View {
-        DashboardTile(widget: widget, data: store.data, onCheck: check, onRoutine: complete)
+        DashboardTile(widget: widget, data: store.visible, onCheck: check, onRoutine: complete)
             .frame(width: width, height: height)
             .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
             .onTapGesture { tap(widget) }
@@ -78,9 +78,9 @@ struct DashboardView: View {
     }
     /// Habit designs open their habit, the badge its milestones, the week the recap and a routine its habits.
     private func tap(_ widget: DashboardWidget) {
-        let habit = widget.habits(in: store.data).first
+        let habit = widget.habits(in: store.visible).first
         switch widget.kind {
-        case .routine: routine = store.data.routines.first { $0.id == widget.routineID }
+        case .routine: routine = store.visible.routines.first { $0.id == widget.routineID }
         case .week: open(.recap)
         case .today: open(.calendar)
         case .list, .checks: break
@@ -139,7 +139,7 @@ enum DashboardLayout {
     }
     /// Small and medium widgets are as tall as a small one is wide; large ones span two rows.
     static func height(_ widget: DashboardWidget, side: CGFloat) -> CGFloat { widget.resolvedSize == .large ? side * 2 + 16 : side }
-    @MainActor static func current(_ store: AppStore) -> [DashboardWidget] { store.data.settings.dashboard ?? DashboardWidget.defaults(for: store.data.active) }
+    @MainActor static func current(_ store: AppStore) -> [DashboardWidget] { store.data.settings.dashboard ?? DashboardWidget.defaults(for: store.visible.active) }
     /// The first edit stores the arrangement, so later habit changes don't reshuffle it.
     @MainActor static func save(_ store: AppStore, _ widgets: [DashboardWidget]?) { store.change { $0.settings.dashboard = widgets } }
 }
@@ -172,25 +172,28 @@ struct DashboardEditorView: View {
                     .onDelete { offsets in var list = widgets; list.remove(atOffsets: offsets); DashboardLayout.save(store, list) }
                 } footer: { Text("Drag to reorder, swipe to remove, tap to change a widget. Touch and hold a widget on the dashboard to change its size or style.").font(BuddyFont.text(12)) }
                 Section {
-                    Button("Add Widget", systemImage: "plus") { adding = true }.disabled(store.data.active.isEmpty)
+                    Button("Add Widget", systemImage: "plus") { adding = true }.disabled(store.visible.active.isEmpty)
                     Button("Reset to Default Layout", systemImage: "arrow.counterclockwise") { DashboardLayout.save(store, nil) }
                 }
             }.scrollContentBackground(.hidden).tint(BuddyStyle.purple)
         }
         .background(BuddyStyle.canvas(scheme))
         .sheet(item: $configuring) { WidgetConfigurator(widget: $0, isNew: false).buddySheet() }
-        .sheet(isPresented: $adding) { WidgetConfigurator(widget: DashboardWidget(kind: .streak, habitID: store.data.active.first?.id), isNew: true).buddySheet() }
+        .sheet(isPresented: $adding) { WidgetConfigurator(widget: DashboardWidget(kind: .streak, habitID: store.visible.active.first?.id), isNew: true).buddySheet() }
     }
     private func subject(_ widget: DashboardWidget) -> String {
         let text: String
+        // A hidden habit's name stays out of the list; its widget keeps its place for when the habit is shown again.
+        if widget.kind.needsHabit, let habit = widget.habitID.flatMap(store.habit), habit.isHidden { return "Hidden habit" }
+        if widget.kind == .routine, store.data.routines.contains(where: { $0.id == widget.routineID }), !store.visible.routines.contains(where: { $0.id == widget.routineID }) { return "Hidden routine" }
         if widget.kind.needsHabit { text = widget.habitID.flatMap { store.habit($0)?.name } ?? "Habit unavailable" }
         else if widget.kind == .routine { text = store.data.routines.first { $0.id == widget.routineID }?.name ?? "Routine deleted" }
-        else if widget.habitIDs != nil { let count = widget.habits(in: store.data).count; text = "\(count) \(count == 1 ? "habit" : "habits")" }
+        else if widget.habitIDs != nil { let count = widget.habits(in: store.visible).count; text = "\(count) \(count == 1 ? "habit" : "habits")" }
         else { text = "All habits" }
-        return widget.visible(in: store.data) ? text : text + " · hidden"
+        return widget.visible(in: store.visible) ? text : text + " · hidden"
     }
     private func subjectColor(_ widget: DashboardWidget) -> String {
-        if widget.kind.needsHabit { return widget.habitID.flatMap { store.habit($0)?.color } ?? "indigo" }
+        if widget.kind.needsHabit { return widget.habitID.flatMap { store.visible.activeHabit($0)?.color } ?? "indigo" }
         if widget.kind == .routine { return store.data.routines.first { $0.id == widget.routineID }?.color ?? "indigo" }
         return "indigo"
     }
@@ -216,8 +219,8 @@ struct WidgetConfigurator: View {
         _group = State(initialValue: group); _page = State(initialValue: group)
     }
     private var valid: Bool {
-        if widget.kind.needsHabit { return store.data.active.contains { $0.id == widget.habitID } }
-        if widget.kind == .routine { return store.data.routines.contains { $0.id == widget.routineID } }
+        if widget.kind.needsHabit { return store.visible.active.contains { $0.id == widget.habitID } }
+        if widget.kind == .routine { return store.visible.routines.contains { $0.id == widget.routineID } }
         return true
     }
     var body: some View {
@@ -227,7 +230,7 @@ struct WidgetConfigurator: View {
                 VStack(alignment: .leading, spacing: 20) {
                     GeometryReader { proxy in
                         let side = (proxy.size.width - 16) / 2
-                        DashboardTile(widget: widget, data: store.data)
+                        DashboardTile(widget: widget, data: store.visible)
                             .frame(width: widget.wide ? proxy.size.width : side, height: DashboardLayout.height(widget, side: side))
                             .allowsHitTesting(false)
                             .frame(maxWidth: .infinity)
@@ -302,8 +305,8 @@ struct WidgetConfigurator: View {
     private func choose(_ kind: DashboardKind) {
         widget.kind = kind
         if let size = widget.size, !kind.sizes.contains(size) { widget.size = nil }
-        if kind.needsHabit && !store.data.active.contains(where: { $0.id == widget.habitID }) { widget.habitID = store.data.active.first?.id }
-        if kind == .routine && widget.routineID == nil { widget.routineID = store.data.routines.first?.id }
+        if kind.needsHabit && !store.visible.active.contains(where: { $0.id == widget.habitID }) { widget.habitID = store.visible.active.first?.id }
+        if kind == .routine && widget.routineID == nil { widget.routineID = store.visible.routines.first?.id }
     }
     private func kindButton(_ kind: DashboardKind) -> some View {
         let on = widget.kind == kind
@@ -323,7 +326,7 @@ struct WidgetConfigurator: View {
     private var habitPicker: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(store.data.active) { h in
+                ForEach(store.visible.active) { h in
                     chip(selected: widget.habitID == h.id, color: BuddyStyle.color(h.color)) { widget.habitID = h.id } label: { HabitIcon(habit: h, size: 28); Text(h.name) }
                 }
             }
@@ -334,7 +337,7 @@ struct WidgetConfigurator: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     chip(selected: widget.habitIDs == nil, color: BuddyStyle.purple) { widget.habitIDs = nil } label: { Text("All Habits").padding(.leading, 6) }
-                    ForEach(store.data.active) { h in
+                    ForEach(store.visible.active) { h in
                         let on = widget.habitIDs?.contains(h.id) ?? false
                         chip(selected: on, color: BuddyStyle.color(h.color)) { toggle(h.id) } label: {
                             HabitIcon(habit: h, size: 28); Text(h.name)
@@ -343,18 +346,18 @@ struct WidgetConfigurator: View {
                     }
                 }
             }
-            Text(widget.habitIDs == nil ? "Shows every habit, including ones you add later." : "Shows \(widget.habits(in: store.data).count) chosen. Tap a habit to add or remove it.")
+            Text(widget.habitIDs == nil ? "Shows every habit, including ones you add later." : "Shows \(widget.habits(in: store.visible).count) chosen. Tap a habit to add or remove it.")
                 .font(BuddyFont.text(12)).foregroundStyle(BuddyStyle.tertiaryText(scheme)).padding(.leading, 5)
         }
     }
     private var routinePicker: some View {
         Group {
-            if store.data.routines.isEmpty {
+            if store.visible.routines.isEmpty {
                 Text("No routines yet. Create one in Explore, then Routines, and it appears here.").font(BuddyFont.text(13)).foregroundStyle(BuddyStyle.secondaryText(scheme)).padding(.leading, 5)
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
-                        ForEach(store.data.routines) { r in
+                        ForEach(store.visible.routines) { r in
                             chip(selected: widget.routineID == r.id, color: BuddyStyle.color(r.color)) { widget.routineID = r.id } label: {
                                 BuddyGlyph(symbol: r.symbol, size: 15).foregroundStyle(BuddyStyle.color(r.color)).frame(width: 28, height: 28).background(BuddyStyle.color(r.color).opacity(0.14), in: Circle())
                                 Text(r.name)
@@ -383,6 +386,7 @@ struct WidgetConfigurator: View {
     private func toggle(_ id: UUID) {
         var chosen = Set(widget.habitIDs ?? [])
         if chosen.contains(id) { chosen.remove(id) } else { chosen.insert(id) }
+        // Against every active habit, so a hidden habit stays chosen while it is out of the list.
         widget.habitIDs = chosen.isEmpty ? nil : store.data.active.map(\.id).filter(chosen.contains)
     }
     private func chip<Label: View>(selected: Bool, color: Color, action: @escaping () -> Void, @ViewBuilder label: () -> Label) -> some View {

@@ -19,7 +19,7 @@ struct OverviewView: View {
     @State private var timing = false
     @State private var category: UUID?
     @State private var month = Day().startOfMonth
-    private var habits: [Habit] { store.data.active.filter { category == nil || $0.categories.contains(category!) } }
+    private var habits: [Habit] { store.visible.active.filter { category == nil || $0.categories.contains(category!) } }
     var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
@@ -38,7 +38,7 @@ struct OverviewView: View {
                         }.padding(.top, 70)
                     } else {
                         if store.data.settings.showCategoryFilter && !store.data.categories.isEmpty { categoryFilter }
-                        if !store.data.routines.isEmpty { RoutineStrip { routine = $0 } }
+                        if !store.visible.routines.isEmpty { RoutineStrip { routine = $0 } }
                         switch store.data.settings.layout {
                         case .cards: LazyVStack(spacing: 15.3) { ForEach(habits) { habit in card(habit) } }
                         case .compact: compact
@@ -111,7 +111,7 @@ struct OverviewView: View {
                 case "routines": path = [.routines]; return
                 default: break
                 }
-                guard let id = UUID(uuidString: text), store.habit(id)?.archived == nil else { return }
+                guard let id = UUID(uuidString: text), store.habit(id)?.archived == nil, store.habit(id)?.isHidden != true else { return }
                 path = [.habit(id)]
                 if let key = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "day" })?.value,
                    let day = Day(rawValue: key), let h = store.habit(id), h.loggable(on: day, today: Day()) {
@@ -156,10 +156,10 @@ struct OverviewView: View {
         HabitCard(habit:habit,data:store.data,onOpen:{path.append(.habit(habit.id))},onComplete:{tap(habit,Day())})
             .contextMenu { habitMenu(habit) }
             .modifier(HabitDrag(id:habit.id,enabled:store.data.settings.dragToReorder) { source in
-                var ids=store.data.active.map(\.id)
+                var ids=store.visible.active.map(\.id)
                 guard let from=ids.firstIndex(of:source),let to=ids.firstIndex(of:habit.id),from != to else{return}
                 ids.remove(at:from);ids.insert(source,at:to)
-                store.change { data in for (n,id) in ids.enumerated(){if let i=data.habits.firstIndex(where:{$0.id==id}){data.habits[i].order=n}} }
+                store.change { $0.reorder(ids) }
             })
     }
     private func tap(_ habit: Habit, _ day: Day) {
@@ -374,10 +374,12 @@ extension Day {
     /// "SEP 29", for the compact period label.
     var shortTitle:String { Day.shortMonth.string(from:date).uppercased()+" "+String(Int(rawValue.suffix(2))!) }
 }
-/// Opened from the compact list's "Last N days" pill: how many recent days it shows, and whether habit names show beside the icons.
+/// Opened from the compact list's "Last N days" pill: how many recent days it shows, whether habit names show
+/// beside the icons, and which habits are hidden everywhere.
 struct CompactListSettingsView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.colorScheme) private var scheme
+    @State private var hiding = false
     var body: some View {
         let note = scheme == .dark ? Color(hex: 0xA0A0A8) : BuddyStyle.secondaryText(scheme)
         VStack(alignment: .leading, spacing: 0) {
@@ -399,12 +401,97 @@ struct CompactListSettingsView: View {
                 .fixedSize(horizontal: false, vertical: true).padding(.top, 21)
             SegmentedChoice(selection: Binding(get: { store.data.settings.compactNames }, set: { shown in store.change { $0.settings.compactNames = shown } }), options: [(false, "Hidden"), (true, "Shown")])
                 .padding(.top, 10.9)
+            Text("Configure which habits are hidden everywhere").font(BuddyFont.text(14)).tracking(-0.1).foregroundStyle(note)
+                .fixedSize(horizontal: false, vertical: true).padding(.top, 21)
+            HiddenHabitsRow { hiding = true }.padding(.top, 10.9)
         }
         .padding(.horizontal, 20).padding(.bottom, 30)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-        .presentationDetents([.height(326)])
+        .sheet(isPresented: $hiding) { HideHabitsView().buddySheet().presentationDetents([.medium, .large]) }
+        .presentationDetents([.height(425)])
         .presentationDragIndicator(.visible)
         .presentationBackground(BuddyStyle.field(scheme))
+    }
+}
+/// Opens Hide Habits; shaped like the segmented control above it, with the number hidden.
+struct HiddenHabitsRow: View {
+    @EnvironmentObject private var store: AppStore
+    @Environment(\.colorScheme) private var scheme
+    let action: () -> Void
+    var body: some View {
+        let count = store.data.active.filter(\.isHidden).count, shape = RoundedRectangle(cornerRadius: 15, style: .circular)
+        Button(action: action) {
+            HStack(spacing: 10) {
+                LucideIcon("eye-off", size: 17).foregroundStyle(BuddyStyle.secondaryText(scheme))
+                Text("Hidden Habits").font(BuddyFont.text(14, .medium)).tracking(0.28).foregroundStyle(BuddyStyle.text(scheme))
+                Spacer(minLength: 8)
+                Text(count == 0 ? "None" : "\(count) hidden").font(BuddyFont.text(14)).foregroundStyle(BuddyStyle.secondaryText(scheme))
+                LucideIcon("chevron-right", size: 15).foregroundStyle(BuddyStyle.tertiaryText(scheme))
+            }
+            .padding(.horizontal, 16).frame(maxWidth: .infinity, minHeight: 50)
+            .background(scheme == .dark ? Color(hex: 0x171719) : BuddyStyle.field(scheme), in: shape)
+            .overlay { shape.strokeBorder(BuddyStyle.border(scheme, 0.1), lineWidth: 1) }.contentShape(shape)
+        }
+        .buttonStyle(FlatButtonStyle())
+        .accessibilityElement(children: .ignore).accessibilityLabel("Hidden Habits").accessibilityValue(count == 0 ? "None" : "\(count) hidden")
+        .accessibilityAddTraits(.isButton)
+    }
+}
+/// Every active habit with a check to hide it. A hidden habit leaves every screen and widget until it is shown again;
+/// its history, reminders, routines and Shortcuts carry on.
+struct HideHabitsView: View {
+    @EnvironmentObject private var store: AppStore
+    @Environment(\.colorScheme) private var scheme
+    var body: some View {
+        let habits = store.data.active, hidden = habits.filter(\.isHidden).count
+        VStack(spacing: 0) {
+            SheetHeader(title: "Hide Habits")
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text("Checked habits are left out of every screen and widget, for when you show the app to someone. Their history and reminders stay as they are.")
+                        .font(BuddyFont.text(14)).foregroundStyle(BuddyStyle.secondaryText(scheme)).fixedSize(horizontal: false, vertical: true).padding(.horizontal, 4)
+                    if habits.isEmpty {
+                        ContentUnavailableView("No habits yet", systemImage: "eye.slash", description: Text("Habits you create appear here."))
+                    } else {
+                        LazyVStack(spacing: 0) {
+                            ForEach(habits) { habit in
+                                if habit.id != habits.first?.id { BuddyStyle.border(scheme, 0.07).frame(height: 1) }
+                                row(habit)
+                            }
+                        }.panel(radius: 20, border: 0.07)
+                        HStack {
+                            Text(hidden == 0 ? "Every habit is shown" : "\(hidden) of \(habits.count) hidden").font(BuddyFont.mono(11)).tracking(1).textCase(.uppercase)
+                                .foregroundStyle(BuddyStyle.tertiaryText(scheme))
+                            Spacer()
+                            if hidden > 0 {
+                                Button { store.change { data in for i in data.habits.indices { data.habits[i].hidden = nil } } } label: {
+                                    HStack(spacing: 6) { LucideIcon("eye", size: 15); Text("Show All") }.font(BuddyFont.text(14, .semibold)).foregroundStyle(BuddyStyle.purple).frame(minHeight: 44).contentShape(Rectangle())
+                                }.buttonStyle(FlatButtonStyle()).accessibilityLabel("Show All Habits")
+                            }
+                        }.padding(.horizontal, 4).frame(minHeight: 44)
+                    }
+                }.padding(.horizontal, 16).padding(.bottom, 30)
+            }.scrollIndicators(.hidden)
+        }
+        .background(BuddyStyle.canvas(scheme))
+    }
+    private func row(_ habit: Habit) -> some View {
+        let id = habit.id, hide = !habit.isHidden
+        return Button { store.change { data in if let i = data.habits.firstIndex(where: { $0.id == id }) { data.habits[i].hidden = hide ? true : nil } } } label: {
+            HStack(spacing: 11) {
+                HabitIcon(habit: habit, size: 34)
+                Text(habit.name).font(BuddyFont.text(15.2)).lineLimit(1).foregroundStyle(BuddyStyle.text(scheme))
+                Spacer(minLength: 8)
+                ZStack {
+                    if habit.isHidden { Circle().fill(BuddyStyle.purple); LucideIcon("check", size: 14).foregroundStyle(.white) }
+                    else { Circle().strokeBorder(BuddyStyle.border(scheme, 0.22), lineWidth: 1.5) }
+                }.frame(width: 26, height: 26)
+            }.padding(.horizontal, 15).frame(height: 56).contentShape(Rectangle())
+        }
+        .buttonStyle(FlatButtonStyle())
+        .accessibilityElement(children: .ignore).accessibilityLabel(habit.name).accessibilityValue(habit.isHidden ? "Hidden" : "Shown")
+        .accessibilityAddTraits(habit.isHidden ? [.isButton, .isSelected] : .isButton).accessibilityHint(habit.isHidden ? "Shows the habit again" : "Hides the habit everywhere")
+        .accessibilityIdentifier("hide-habit")
     }
 }
 /// The three drawn view-switcher icons: card rows, a checklist, and a two-column list.
