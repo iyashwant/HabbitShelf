@@ -3,6 +3,7 @@ import SwiftUI
 struct YearReviewView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accent) private var accent
     let year: Int
     let habits: [Habit]
     @State private var format = "Cards"
@@ -28,7 +29,7 @@ struct YearReviewView: View {
                     if pages.count > 1 { Text("Shares as \(pages.count) images of up to \(perImage) habits each.").font(.footnote).foregroundStyle(.secondary) }
                     Button { render(pages) } label: {
                         HStack(spacing: 8) { if rendering { ProgressView() } else { Image(systemName: "square.and.arrow.up") }; Text(pages.count > 1 ? "Create Year Images" : "Create Year Image") }
-                    }.buttonStyle(.borderedProminent).disabled(habits.isEmpty || rendering)
+                    }.buttonStyle(.borderedProminent).foregroundStyle(accent.foreground).disabled(habits.isEmpty || rendering)
                     if !outputs.isEmpty { ShareLink(items: outputs) { Label(outputs.count > 1 ? "Share \(outputs.count) PNGs" : "Share PNG", systemImage: "square.and.arrow.up") } }
                     if let message { Text(message).foregroundStyle(.red) }
                 }.padding(20)
@@ -50,7 +51,7 @@ struct YearReviewView: View {
                 Text(String(year)).font(.system(size: format == "Poster" ? 72 : 42, weight: .bold)); Spacer()
                 VStack(alignment: .trailing, spacing: 2) { Text("Habit Buddy").font(.caption.weight(.semibold)); if count > 1 { Text("\(page + 1) of \(count)").font(.caption2).foregroundStyle(.secondary) } }
             }
-            Text(total.map { "\($0) completions" } ?? " ").font(format == "Poster" ? .title2.bold() : .headline).foregroundStyle(BuddyStyle.purple).monospacedDigit()
+            Text(total.map { "\($0) completions" } ?? " ").font(format == "Poster" ? .title2.bold() : .headline).foregroundStyle(accent.color).monospacedDigit()
             if format == "Grid" {
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) { ForEach(shown) { h in VStack(alignment: .leading, spacing: 7) { header(h); Heatmap(habit: h, data: store.data, weeks: 26, end: end, labels: false) }.surface() } }
             } else {

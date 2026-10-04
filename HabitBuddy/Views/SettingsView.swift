@@ -31,11 +31,15 @@ struct SettingsView: View {
     @State private var deleteHabit: Habit?
     @State private var reorder = false
     @State private var hiding = false
+    @State private var path: [SettingsPage] = []
+    /// A page to open on appearing, as the visual audit does.
+    let start: SettingsPage?
+    init(start: SettingsPage? = nil) { self.start = start }
     private func setting<T>(_ key: WritableKeyPath<Settings, T>) -> Binding<T> {
         Binding(get: { store.data.settings[keyPath: key] }, set: { value in store.change { $0.settings[keyPath: key] = value } })
     }
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     SettingsGroup("App") {
@@ -95,6 +99,8 @@ struct SettingsView: View {
             .sheet(isPresented: $hiding) { HideHabitsView().buddySheet() }
             .onAppear { loadBackups() }
         }
+        // Applied on appearing: SwiftUI can build a sheet's view before it is presented, keeping an earlier path.
+        .task(id: start) { if let start { path = [start] } }
     }
     @ViewBuilder private func page(_ page: SettingsPage) -> some View {
         switch page {
@@ -151,14 +157,7 @@ struct SettingsView: View {
                 SettingsNote("\(plan.requests.count) scheduled reminders in the next 7 days.\(plan.omittedCount > 0 ? " \(plan.omittedCount) later requests exceed the notification budget; open the app to refresh coverage." : "")")
             }
         case .theme:
-            SettingsPageView(title: "Theme") {
-                SettingsGroup {
-                    ForEach(Theme.allCases, id: \.self) { theme in
-                        SettingsRow(icon: theme == .system ? "smartphone" : theme == .light ? "sun" : "moon", color: theme == .dark ? "indigo" : theme == .light ? "amber" : "gray", title: theme.rawValue.capitalized, chevron: false, selected: store.data.settings.theme == theme) { setting(\.theme).wrappedValue = theme }
-                    }
-                }
-                SettingsNote("System follows your iPhone's appearance.")
-            }
+            SettingsPageView(title: "Theme") { ThemeSettings() }
         case .categories:
             SettingsPageView(title: "Categories") {
                 SettingsGroup {
@@ -171,7 +170,7 @@ struct SettingsView: View {
                     }
                     SettingsLine {
                         TextField("New category", text: $categoryName)
-                        Button("Add") { let category = Category(name: categoryName.trimmingCharacters(in: .whitespacesAndNewlines)); if store.change({ $0.categories.append(category) }) { categoryName = "" } }.disabled(categoryName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).tint(BuddyStyle.purple)
+                        Button("Add") { let category = Category(name: categoryName.trimmingCharacters(in: .whitespacesAndNewlines)); if store.change({ $0.categories.append(category) }) { categoryName = "" } }.disabled(categoryName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
                 }
             }
@@ -182,7 +181,7 @@ struct SettingsView: View {
                 else {
                     SettingsGroup {
                         ForEach(archived) { h in
-                            SettingsLine { HabitIcon(habit: h, size: 34); Text(h.name); Spacer(); Button("Restore") { store.archive(h.id, restore: true) }.tint(BuddyStyle.purple) }
+                            SettingsLine { HabitIcon(habit: h, size: 34); Text(h.name); Spacer(); Button("Restore") { store.archive(h.id, restore: true) } }
                             SettingsLine { Button("Delete \(h.name) Permanently", role: .destructive) { deleteHabit = h } }
                         }
                     }
@@ -286,6 +285,7 @@ struct SettingsLink: View {
 }
 struct SettingsRowLabel: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accent) private var accent
     let icon: String
     let color: String
     let title: String
@@ -296,7 +296,7 @@ struct SettingsRowLabel: View {
             SettingsTile(icon: icon, color: color)
             Text(title).font(BuddyFont.text(16)).foregroundStyle(BuddyStyle.text(scheme)).lineLimit(1)
             Spacer(minLength: 8)
-            if selected { LucideIcon("check", size: 18).foregroundStyle(BuddyStyle.purple) }
+            if selected { LucideIcon("check", size: 18).foregroundStyle(accent.color) }
             if chevron { LucideIcon("chevron-right", size: 15).foregroundStyle(Color(hex: scheme == .dark ? 0x6C6C70 : 0xA0A0A6)) }
         }.padding(.leading, 18).padding(.trailing, 19.4).frame(height: 53).contentShape(Rectangle())
     }
@@ -304,8 +304,9 @@ struct SettingsRowLabel: View {
 /// A plain settings row for custom controls.
 struct SettingsLine<Content: View>: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accent) private var accent
     @ViewBuilder var content: () -> Content
-    var body: some View { HStack(spacing: 10) { content() }.font(BuddyFont.text(16)).foregroundStyle(BuddyStyle.text(scheme)).tint(BuddyStyle.purple).padding(.horizontal, 20).frame(minHeight: 53) }
+    var body: some View { HStack(spacing: 10) { content() }.font(BuddyFont.text(16)).foregroundStyle(BuddyStyle.text(scheme)).tint(accent.color).padding(.horizontal, 20).frame(minHeight: 53) }
 }
 /// Text saved when editing ends (Return, leaving the field or the page), not on every keystroke.
 struct DraftField: View {
@@ -350,6 +351,80 @@ struct SettingsNote: View {
     var body: some View { Text(text).font(BuddyFont.text(12.5)).foregroundStyle(BuddyStyle.tertiaryText(scheme)).padding(.horizontal, 12).padding(.top, 10) }
 }
 
+/// Appearance and the app accent. A choice shows across the app at once.
+struct ThemeSettings: View {
+    @EnvironmentObject private var store: AppStore
+    @Environment(\.accent) private var accent
+    /// The color picker's choice, saved once it stops changing: dragging reports many colors a second.
+    @State private var picked: UInt32?
+    private var saved: String? { store.data.settings.accent }
+    private var custom: Bool { saved.flatMap(AccentCode.hex) != nil }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SettingsGroup("Appearance") {
+                ForEach(Theme.allCases, id: \.self) { theme in
+                    SettingsRow(icon: theme == .system ? "smartphone" : theme == .light ? "sun" : "moon", color: theme == .dark ? "indigo" : theme == .light ? "amber" : "gray", title: theme.rawValue.capitalized, chevron: false, selected: store.data.settings.theme == theme) { store.change { $0.settings.theme = theme } }
+                }
+            }
+            SettingsNote("System follows your iPhone's appearance.")
+            SettingsGroup("Accent Color") {
+                AccentPreview()
+                Button { choose(nil) } label: { AccentRowLabel(swatch: AnyShapeStyle(Color(hex: BuddyStyle.violet)), title: "Default", selected: saved == nil) }
+                    .buttonStyle(.plain).accessibilityAddTraits(saved == nil ? .isSelected : [])
+                ColorPalette(selection: Binding(get: { saved.flatMap { BuddyStyle.hex($0) == nil ? nil : $0 } ?? "" }, set: { choose($0) })).padding(.horizontal, 16).padding(.vertical, 18)
+                ColorPicker(selection: Binding(get: { Color(hex: picked ?? accent.hex) }, set: { picked = $0.hex }), supportsOpacity: false) {
+                    AccentRowLabel(swatch: custom ? AnyShapeStyle(accent.color) : AnyShapeStyle(AngularGradient(colors: ["coral", "amber", "lime", "teal", "sky", "lavender", "magenta", "coral"].map(BuddyStyle.color), center: .center)), title: "Custom", selected: custom)
+                }.padding(.trailing, 19.4).accessibilityAddTraits(custom ? .isSelected : [])
+            }
+            SettingsNote("The accent colors buttons, switches, selections and widgets that show several habits. Each habit keeps its own color.")
+        }
+        .task(id: picked) { try? await Task.sleep(for: .milliseconds(300)); if !Task.isCancelled { commit() } }
+        .onDisappear(perform: commit)
+    }
+    private func choose(_ code: String?) { picked = nil; store.change { $0.settings.accent = code } }
+    private func commit() {
+        guard let picked, AccentCode.code(picked) != saved else { return }
+        let code = AccentCode.code(picked)
+        store.change { $0.settings.accent = code }
+    }
+}
+/// The accent on the controls it colors most: Create Habit, Save and a switch.
+struct AccentPreview: View {
+    @Environment(\.accent) private var accent
+    var body: some View {
+        HStack(spacing: 14) {
+            CircleControl(symbol: "plus", label: "Create Habit", filled: true, glyph: 19) {}
+            PrimaryAction(title: "Save") {}
+            Toggle("Switch", isOn: .constant(true)).labelsHidden().tint(accent.color)
+        }.padding(.horizontal, 18).padding(.vertical, 16).allowsHitTesting(false).accessibilityHidden(true)
+    }
+}
+/// A settings row whose tile is a color swatch.
+struct AccentRowLabel: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.accent) private var accent
+    let swatch: AnyShapeStyle
+    let title: String
+    let selected: Bool
+    var body: some View {
+        HStack(spacing: 12.3) {
+            RoundedRectangle(cornerRadius: 8, style: .circular).fill(swatch).frame(width: 34, height: 34)
+            Text(title).font(BuddyFont.text(16)).foregroundStyle(BuddyStyle.text(scheme)).lineLimit(1)
+            Spacer(minLength: 8)
+            if selected { LucideIcon("check", size: 18).foregroundStyle(accent.color) }
+        }.padding(.leading, 18).padding(.trailing, 19.4).frame(height: 53).contentShape(Rectangle())
+    }
+}
+private extension Color {
+    /// The sRGB value, with wide-gamut components clamped.
+    var hex: UInt32 {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        UIColor(self).getRed(&r, green: &g, blue: &b, alpha: &a)
+        func byte(_ c: CGFloat) -> UInt32 { UInt32((min(max(c, 0), 1) * 255).rounded()) }
+        return byte(r) << 16 | byte(g) << 8 | byte(b)
+    }
+}
+
 struct ReorderView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
@@ -374,13 +449,14 @@ struct ReorderView: View {
 struct CategoryEditorView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accent) private var accent
     @Environment(\.dismiss) private var dismiss
     @State var category: Category
     @State private var icons=false
     var body: some View {
         VStack(spacing:20) {
             SheetHeader(title:"Edit Category")
-            Button { icons=true } label: { BuddyGlyph(symbol:category.symbol,size:36).foregroundStyle(BuddyStyle.purple).frame(width:88,height:88).background(BuddyStyle.purple.opacity(0.13),in:Circle()) }.buttonStyle(.plain).accessibilityLabel("Choose Category Icon")
+            Button { icons=true } label: { BuddyGlyph(symbol:category.symbol,size:36).foregroundStyle(accent.color).frame(width:88,height:88).background(accent.color.opacity(0.13),in:Circle()) }.buttonStyle(.plain).accessibilityLabel("Choose Category Icon")
             TextField("Category name",text:$category.name).padding(14).background(Color.primary.opacity(0.06),in:RoundedRectangle(cornerRadius:14))
             Spacer()
             PrimaryAction(title:"Save") {
@@ -388,7 +464,7 @@ struct CategoryEditorView: View {
                 let saved=category
                 if store.change({data in if let i=data.categories.firstIndex(where:{$0.id==saved.id}){data.categories[i]=saved}}){dismiss()}
             }.disabled(category.name.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty)
-        }.padding(20).background(BuddyStyle.canvas(scheme)).sheet(isPresented:$icons){IconPickerView(selection:$category.symbol,color:BuddyStyle.purple)}
+        }.padding(20).background(BuddyStyle.canvas(scheme)).sheet(isPresented:$icons){IconPickerView(selection:$category.symbol,color:accent.color)}
     }
 }
 

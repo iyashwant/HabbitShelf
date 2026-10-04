@@ -7,9 +7,14 @@ import UserNotifications
     init() { _ = BuddyIcons.registered; Task.detached(priority:.utility) { _ = BuddyIcons.suggester } }
     var body: some Scene {
         WindowGroup {
+            let accent = Accent(store.data.settings.accent)
             OverviewView().environmentObject(store).environmentObject(timer).environment(\.summaries, store.summaries)
-                .tint(BuddyStyle.purple)
-                .preferredColorScheme(store.data.settings.theme == .system ? nil : store.data.settings.theme == .dark ? .dark : .light)
+                .environment(\.accent, accent).tint(accent.color)
+                .preferredColorScheme(store.data.settings.theme.colorScheme)
+                // Alerts, menus, the color picker and the share sheet take the window's tint rather than SwiftUI's.
+                .onChange(of: accent, initial: true) { _, accent in
+                    for case let scene as UIWindowScene in UIApplication.shared.connectedScenes { for window in scene.windows { window.tintColor = UIColor(accent.color) } }
+                }
         }
     }
 }

@@ -5,6 +5,7 @@ struct RoutinesView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accent) private var accent
     @State private var editing: Routine?
     @State private var open: Routine?
     var body: some View {
@@ -14,7 +15,7 @@ struct RoutinesView: View {
                     ContentUnavailableView {
                         Label("No routines yet", systemImage: "list.bullet.rectangle")
                     } description: { Text("Group habits you do together, like a morning routine, and check them all off with one tap.") } actions: {
-                        Button("Create Routine") { editing = Routine(name: "") }.buttonStyle(.borderedProminent).disabled(store.visible.active.isEmpty)
+                        Button("Create Routine") { editing = Routine(name: "") }.buttonStyle(.borderedProminent).foregroundStyle(accent.foreground).disabled(store.visible.active.isEmpty)
                     }.padding(.top, 40)
                 }
                 ForEach(store.visible.routines) { routine in RoutineCard(routine: routine) { open = routine } }
@@ -71,6 +72,7 @@ struct RoutineCard: View {
 /// Completes every open build habit in a routine today.
 struct CompleteAllButton: View {
     @EnvironmentObject private var store: AppStore
+    @Environment(\.accent) private var accent
     let routine: Routine
     var compact = false
     var body: some View {
@@ -80,8 +82,8 @@ struct CompleteAllButton: View {
             if compact {
                 Button(action: action) {
                     HStack(spacing: 5) { LucideIcon("check-check", size: 16); Text(done ? "Done" : "All").font(BuddyFont.text(14, .semibold)) }
-                        .foregroundStyle(done ? BuddyStyle.color(routine.color) : .white).padding(.horizontal, 13).frame(height: 36)
-                        .background(done ? BuddyStyle.color(routine.color).opacity(0.14) : BuddyStyle.purple, in: Capsule())
+                        .foregroundStyle(done ? BuddyStyle.color(routine.color) : accent.foreground).padding(.horizontal, 13).frame(height: 36)
+                        .background(done ? BuddyStyle.color(routine.color).opacity(0.14) : accent.color, in: Capsule())
                 }.buttonStyle(.plain)
             } else { PrimaryAction(title: done ? "All Done" : "Complete All", symbol: "check-check", action: action) }
         }
@@ -121,6 +123,7 @@ struct RoutineEditorView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accent) private var accent
     @State var routine: Routine
     @State private var icons = false
     @State private var confirmDelete = false
@@ -141,7 +144,7 @@ struct RoutineEditorView: View {
                             ForEach(store.visible.active) { habit in
                                 Toggle(isOn: Binding(get: { routine.habitIDs.contains(habit.id) }, set: { on in routine.habitIDs.removeAll { $0 == habit.id }; if on { routine.habitIDs.append(habit.id) } })) {
                                     HStack(spacing: 10) { HabitIcon(habit: habit, size: 32); Text(habit.name).font(BuddyFont.text(15)).lineLimit(1) }
-                                }.tint(BuddyStyle.purple).padding(.horizontal, 14).frame(height: 54)
+                                }.tint(accent.color).padding(.horizontal, 14).frame(height: 54)
                             }
                         }.panel(radius: 15, border: 0.1)
                     }

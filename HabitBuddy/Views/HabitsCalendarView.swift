@@ -5,6 +5,7 @@ struct HabitsCalendarView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accent) private var accent
     @State private var month = Day().startOfMonth
     @State private var selected: Day?
     var body: some View {
@@ -88,8 +89,8 @@ struct HabitsCalendarView: View {
             }
         }
         .frame(maxWidth: .infinity).frame(height: 64)
-        .background(BuddyStyle.purple.opacity(share * (scheme == .dark ? 0.24 : 0.18)), in: shape)
-        .overlay { if day == today { shape.strokeBorder(BuddyStyle.purple, lineWidth: 1.5) } }
+        .background(accent.color.opacity(share * (scheme == .dark ? 0.24 : 0.18)), in: shape)
+        .overlay { if day == today { shape.strokeBorder(accent.color, lineWidth: 1.5) } }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(Day.longDay.string(from: day.date)), \(day > today ? "upcoming" : "\(done.count) of \(tracked) habits done")")
     }

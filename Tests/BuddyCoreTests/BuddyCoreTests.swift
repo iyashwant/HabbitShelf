@@ -397,6 +397,14 @@ final class BuddyCoreTests: XCTestCase {
         XCTAssertEqual(try DataValidation.decode(DataValidation.encode(data),today:today),data)
     }
 
+    func testAccentDefaultsToVioletAndRoundTrips() throws {
+        var (data,_)=fixture();XCTAssertNil(data.settings.accent)
+        XCTAssertFalse(String(decoding:try DataValidation.encode(data),as:UTF8.self).contains("accent"),"The default accent is not written")
+        for code in ["teal","#1A2B3C"] { data.settings.accent=code;XCTAssertEqual(try DataValidation.decode(DataValidation.encode(data),today:today).settings.accent,code) }
+        for code in ["","Teal","#12345","#12345G","#+12345","#1234567",String(repeating:"a",count:41)] { data.settings.accent=code;XCTAssertThrowsError(try DataValidation.validate(data,today:today),code) }
+        XCTAssertEqual(AccentCode.hex("#8b8af8"),0x8B8AF8);XCTAssertNil(AccentCode.hex("teal"));XCTAssertEqual(AccentCode.code(0x0A0B0C),"#0A0B0C")
+    }
+
     func testPortableRoundTripPreservesAllData() throws { var (data, h) = fixture(); data.settings.theme = .dark; try Engine.note("hello", habitID: h.id, day: today, data: &data, today: today); XCTAssertEqual(try DataValidation.decode(DataValidation.encode(data), today: today), data) }
     func testCorruptAndEmptyImportsRejected() { XCTAssertThrowsError(try DataValidation.decode(Data())); XCTAssertThrowsError(try DataValidation.decode(Data("{bad}".utf8))) }
     func testRepositoryAtomicTransactionAndFailedChange() throws {

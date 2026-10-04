@@ -14,12 +14,13 @@ final class HabitBuddyUITests:XCTestCase {
         for i in 0..<total{let part=bytes.subdata(in:i*size..<min(bytes.count,(i+1)*size));print("BUDDY_CAPTURE|\(name)|\(i)|\(total)|\(part.base64EncodedString())")}
     }
     func testReferenceScreenCaptures() {
-        for screen in ["cards","compact","compact-settings","month","streaks","list","dashboard","today-ring","explore","insights","calendar","recap","notes-timeline","milestones","habit-milestones","routines","routine","timer","years","year-calendar","detail","editor","new-habit","statistics","notes","appearance","day","settings","share","welcome"] {
+        for screen in ["cards","compact","compact-settings","month","streaks","list","dashboard","today-ring","explore","insights","calendar","recap","notes-timeline","milestones","habit-milestones","routines","routine","timer","years","year-calendar","detail","editor","new-habit","statistics","notes","appearance","day","settings","theme","share","welcome"] {
             let app=launch(screen)
             switch screen {
             case "editor","new-habit","day":XCTAssertTrue(app.buttons["Save"].firstMatch.waitForExistence(timeout:20))
             case "share":XCTAssertTrue(app.buttons["Share Habit"].firstMatch.waitForExistence(timeout:20))
             case "settings":XCTAssertTrue(app.buttons["Close Settings"].waitForExistence(timeout:20))
+            case "theme":XCTAssertTrue(app.buttons["Default"].waitForExistence(timeout:20))
             case "statistics":XCTAssertTrue(app.buttons["Done"].firstMatch.waitForExistence(timeout:20))
             case "welcome":XCTAssertTrue(app.buttons["Continue"].waitForExistence(timeout:20))
             case "appearance":XCTAssertTrue(app.staticTexts["Appearance"].firstMatch.waitForExistence(timeout:20))
@@ -55,6 +56,16 @@ final class HabitBuddyUITests:XCTestCase {
         XCTAssertFalse(app.buttons["Gym Day"].exists,"Hidden names leave only the icons")
         app.terminate();app.launchEnvironment["BUDDY_VISUAL_RESET"]="false";app.launch()
         XCTAssertTrue(app.buttons["Last 3 days"].waitForExistence(timeout:20),"The day count is saved");XCTAssertFalse(app.buttons["Gym Day"].exists,"Hidden names are saved")
+    }
+    func testThemeAccent() {
+        let app=launch("theme"),teal=app.buttons["teal"],standard=app.buttons["Default"]
+        XCTAssertTrue(teal.waitForExistence(timeout:20));XCTAssertTrue(standard.isSelected,"New installs keep the violet accent")
+        teal.tap();XCTAssertTrue(teal.isSelected);XCTAssertFalse(standard.isSelected)
+        app.buttons["Light"].tap();XCTAssertTrue(app.buttons["Light"].isSelected);sleep(1);capture(app,"theme-teal-light")
+        app.terminate();app.launchEnvironment["BUDDY_VISUAL_RESET"]="false";app.launch()
+        XCTAssertTrue(teal.waitForExistence(timeout:20));XCTAssertTrue(teal.isSelected,"The accent is saved");XCTAssertTrue(app.buttons["Light"].isSelected,"The appearance is saved")
+        standard.tap();XCTAssertTrue(standard.isSelected);XCTAssertFalse(teal.isSelected)
+        app.buttons["System"].tap();XCTAssertTrue(app.buttons["System"].isSelected);sleep(1);capture(app,"theme-system")
     }
     func testHiddenHabitsLeaveEveryView() {
         let app=launch("compact")

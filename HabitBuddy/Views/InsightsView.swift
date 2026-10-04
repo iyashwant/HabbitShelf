@@ -6,6 +6,7 @@ struct InsightsView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accent) private var appAccent
     @State private var range = InsightRange.quarter
     @State private var selected: UUID?
     @State private var summary: InsightsSummary?
@@ -21,7 +22,7 @@ struct InsightsView: View {
         func from(_ today: Day) -> Day { switch self { case .month: today.adding(-29); case .quarter: today.adding(-89); case .year: today.adding(-364); case .all: Habit.earliestStart } }
     }
     private var request: Request { Request(range: range, selected: selected, revision: store.revision, today: Day()) }
-    private var accent: Color { store.habit(selected ?? UUID()).map { BuddyStyle.color($0.color) } ?? BuddyStyle.purple }
+    private var accent: Color { store.habit(selected ?? UUID()).map { BuddyStyle.color($0.color) } ?? appAccent.color }
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {

@@ -3,7 +3,8 @@ import CoreText
 
 /// Tokens measured from the supplied HabitKit dark-mode screenshots (sRGB, 393-point iPhone).
 enum BuddyStyle {
-    static let purple = Color(hex:0x8B8AF8)
+    /// The reference's violet: the default accent.
+    static let violet:UInt32 = 0x8B8AF8
     static let colors: [(String,UInt32)] = [
         ("coral",0xF87171),("orange",0xFB923C),("amber",0xFBBF24),("yellow",0xFACC15),
         ("lime",0xA3E635),("green",0x4ADE80),("mint",0x34D399),("teal",0x2DD4BF),
@@ -11,7 +12,8 @@ enum BuddyStyle {
         ("lavender",0xA78BFA),("violet",0xC084FC),("magenta",0xE879F9),("pink",0xF472B6),
         ("rose",0xFB7185),("slate",0x94A3B8),("steel",0x9CA3AF),("gray",0xA3A3A3),("stone",0xA8A29E)]
     static var symbols: [String] { BuddyIcons.all.map(\.id) }
-    static func color(_ token:String)->Color { Color(hex:colors.first{$0.0==token}?.1 ?? 0x34D399) }
+    static func color(_ token:String)->Color { Color(hex:hex(token) ?? 0x34D399) }
+    static func hex(_ token:String)->UInt32? { colors.first{$0.0==token}?.1 }
     static func canvas(_ s:ColorScheme)->Color { Color(hex:s == .dark ? 0x101013:0xF6F6F8) }
     /// Habit cards and the detail history card. Their tops take a faint tint of the habit color.
     static func surface(_ s:ColorScheme)->Color { Color(hex:s == .dark ? 0x1A1A1D:0xFFFFFF) }
@@ -30,6 +32,25 @@ enum BuddyStyle {
     static let emptyTile = 0.09, inactiveTile = 0.047
     /// Ice blue for streak-frozen days.
     static let freeze = Color(hex:0x7DD3FC)
+}
+/// The app accent: buttons, switches, selections and multi-habit widgets. Habits keep their own colors.
+struct Accent: Equatable, Sendable {
+    let hex:UInt32
+    /// A saved `Settings.accent`: nil, an unknown name or a malformed code is the default violet.
+    init(_ code:String?) { hex=code.flatMap{AccentCode.hex($0) ?? BuddyStyle.hex($0)} ?? BuddyStyle.violet }
+    var color:Color { Color(hex:hex) }
+    /// Text and glyphs on an accent fill: white like the reference, dark on light accents such as yellow or mint.
+    var foreground:Color { luminance > 0.4 ? Color.black.opacity(0.75):.white }
+    /// WCAG relative luminance of the sRGB color.
+    private var luminance:Double {
+        func linear(_ shift:UInt32)->Double { let c=Double((hex>>shift)&255)/255; return c <= 0.04045 ? c/12.92:pow((c+0.055)/1.055,2.4) }
+        return 0.2126*linear(16)+0.7152*linear(8)+0.0722*linear(0)
+    }
+}
+extension EnvironmentValues { @Entry var accent=Accent(nil) }
+extension Theme {
+    /// nil follows the system appearance.
+    var colorScheme:ColorScheme? { switch self { case .system:nil; case .light:.light; case .dark:.dark } }
 }
 extension Color { init(hex:UInt32) { self.init(red:Double((hex>>16)&255)/255,green:Double((hex>>8)&255)/255,blue:Double(hex&255)/255) } }
 
@@ -70,9 +91,10 @@ struct Panel: ViewModifier {
 /// Rounded input field with the reference's dark fill and hairline border.
 struct BuddyField: ViewModifier {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accent) private var accent
     func body(content:Content)->some View {
         let shape=RoundedRectangle(cornerRadius:15,style:.circular)
-        content.font(BuddyFont.text(15.5)).foregroundStyle(BuddyStyle.text(scheme)).tint(BuddyStyle.purple).padding(.horizontal,16).padding(.vertical,14).frame(minHeight:52)
+        content.font(BuddyFont.text(15.5)).foregroundStyle(BuddyStyle.text(scheme)).tint(accent.color).padding(.horizontal,16).padding(.vertical,14).frame(minHeight:52)
             .background(BuddyStyle.field(scheme),in:shape).overlay{shape.strokeBorder(BuddyStyle.border(scheme,0.1),lineWidth:1)}
     }
 }
@@ -215,6 +237,7 @@ struct MetricChip: View {
 }
 struct CircleControl: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accent) private var accent
     let symbol:String
     let label:String
     var filled=false
@@ -224,9 +247,9 @@ struct CircleControl: View {
     var body:some View {
         Button(action:action) {
             LucideIcon(symbol,size:glyph).frame(width:size,height:size)
-                .background(filled ? BuddyStyle.purple:BuddyStyle.control(scheme),in:Circle())
+                .background(filled ? accent.color:BuddyStyle.control(scheme),in:Circle())
                 .overlay { if !filled { Circle().strokeBorder(BuddyStyle.controlBorder(scheme),lineWidth:1) } }
-                .foregroundStyle(filled ? Color.white:BuddyStyle.text(scheme)).contentShape(Circle())
+                .foregroundStyle(filled ? accent.foreground:BuddyStyle.text(scheme)).contentShape(Circle())
         }.buttonStyle(.plain).accessibilityLabel(label)
     }
 }
@@ -250,6 +273,7 @@ struct SheetHeader: View {
 }
 struct PrimaryAction: View {
     @Environment(\.isEnabled) private var enabled
+    @Environment(\.accent) private var accent
     let title:String
     var symbol:String?
     var action:()->Void
@@ -257,8 +281,8 @@ struct PrimaryAction: View {
         Button(action:action) {
             HStack(spacing:8){if let symbol{LucideIcon(symbol,size:18)};Text(title)}.font(BuddyFont.text(18,.semibold))
                 .frame(maxWidth:.infinity,minHeight:54).contentShape(Capsule())
-        }.buttonStyle(.plain).foregroundStyle(enabled ? Color.white:Color(hex:0x88888A))
-            .background(BuddyStyle.purple.opacity(enabled ? 1:0.5),in:Capsule())
+        }.buttonStyle(.plain).foregroundStyle(enabled ? accent.foreground:Color(hex:0x88888A))
+            .background(accent.color.opacity(enabled ? 1:0.5),in:Capsule())
     }
 }
 /// The 7 × 3 color grid. Swatches are centered in seven equal columns, with a ring around the selection.

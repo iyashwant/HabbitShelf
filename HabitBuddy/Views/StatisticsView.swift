@@ -5,6 +5,7 @@ struct StatisticsView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accent) private var appAccent
     @State private var selected: UUID?
     @State private var year = Int(Day().rawValue.prefix(4))!
     @State private var review = false
@@ -54,7 +55,7 @@ struct StatisticsView: View {
                                 ForEach(store.visible.habits) { h in Button { selected=h.id } label: {HabitIcon(habit:h,size:36,circular:true).overlay{if selected==h.id{Circle().stroke(BuddyStyle.color(h.color),lineWidth:1.5)}}}.buttonStyle(.plain).accessibilityLabel(h.name).accessibilityAddTraits(selected==h.id ? .isSelected:[]) }
                             }
                         }
-                        Button("Done"){dismiss()}.font(.system(size:13,weight:.semibold)).foregroundStyle(.white).padding(.horizontal,14).padding(.vertical,10).background(BuddyStyle.purple,in:Capsule())
+                        Button("Done"){dismiss()}.font(.system(size:13,weight:.semibold)).foregroundStyle(appAccent.foreground).padding(.horizontal,14).padding(.vertical,10).background(appAccent.color,in:Capsule())
                     }.padding(.horizontal,20).padding(.vertical,8).background(BuddyStyle.canvas(scheme))
                 }
                 .onAppear {

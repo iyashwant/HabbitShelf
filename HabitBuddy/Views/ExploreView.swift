@@ -67,6 +67,7 @@ struct ExploreView: View {
 /// Habit icons in a row for filtering a page by habit; nil shows every habit.
 struct HabitFilterBar: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accent) private var accent
     let habits: [Habit]
     @Binding var selection: UUID?
     var body: some View {
@@ -75,7 +76,7 @@ struct HabitFilterBar: View {
                 Button { selection = nil } label: {
                     Text("All").font(BuddyFont.text(14, .semibold)).foregroundStyle(BuddyStyle.text(scheme)).frame(height: 38).padding(.horizontal, 15)
                         .background(selection == nil ? BuddyStyle.control(scheme) : BuddyStyle.field(scheme), in: Capsule())
-                        .overlay { Capsule().strokeBorder(selection == nil ? BuddyStyle.purple : BuddyStyle.border(scheme, 0.1), lineWidth: selection == nil ? 1.5 : 1) }
+                        .overlay { Capsule().strokeBorder(selection == nil ? accent.color : BuddyStyle.border(scheme, 0.1), lineWidth: selection == nil ? 1.5 : 1) }
                 }.buttonStyle(.plain).accessibilityLabel("All Habits").accessibilityAddTraits(selection == nil ? .isSelected : [])
                 ForEach(habits) { h in
                     Button { selection = h.id } label: {

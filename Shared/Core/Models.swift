@@ -219,12 +219,15 @@ public struct Settings: Codable, Equatable, Sendable {
     public var freezesPerMonth = 0
     /// A notification on the last day of each week when the weekly recap is ready.
     public var recapReminder = false
+    /// The app accent (see `AccentCode`); nil keeps the default violet and is not written.
+    public var accent: String?
     public init() {}
-    enum CodingKeys: String, CodingKey { case theme, layout, weekStart, recentDays, showToday, notes, haptics, showDescriptions, showStreak, showGoal, showCompletionIndicator, showMonthLabels, showWeekdayLabels, showCategoryIcons, showCategoryFilter, showLayoutSwitcher, compactNames, dragToReorder, onboarding, checkIn, checkInTitle, checkInBody, dashboard, freezesPerMonth, recapReminder }
+    enum CodingKeys: String, CodingKey { case theme, accent, layout, weekStart, recentDays, showToday, notes, haptics, showDescriptions, showStreak, showGoal, showCompletionIndicator, showMonthLabels, showWeekdayLabels, showCategoryIcons, showCategoryFilter, showLayoutSwitcher, compactNames, dragToReorder, onboarding, checkIn, checkInTitle, checkInBody, dashboard, freezesPerMonth, recapReminder }
     public init(from decoder: Decoder) throws {
         self.init()
         let c = try decoder.container(keyedBy: CodingKeys.self)
         theme = try c.decodeIfPresent(Theme.self, forKey: .theme) ?? .system
+        accent = try c.decodeIfPresent(String.self, forKey: .accent)
         layout = try c.decodeIfPresent(Layout.self, forKey: .layout) ?? layout
         weekStart = try c.decodeIfPresent(Int.self, forKey: .weekStart) ?? weekStart
         recentDays = try c.decodeIfPresent(Int.self, forKey: .recentDays) ?? recentDays
@@ -249,6 +252,19 @@ public struct Settings: Codable, Equatable, Sendable {
         dashboard = try c.decodeIfPresent([DashboardWidget].self, forKey: .dashboard)
         freezesPerMonth = try c.decodeIfPresent(Int.self, forKey: .freezesPerMonth) ?? freezesPerMonth
         recapReminder = try c.decodeIfPresent(Bool.self, forKey: .recapReminder) ?? recapReminder
+    }
+}
+/// How the app accent is saved: a palette color name such as "teal", or a custom color as "#RRGGBB".
+public enum AccentCode {
+    /// The color of a "#RRGGBB" code; nil for a palette name or anything else.
+    public static func hex(_ code: String) -> UInt32? {
+        guard code.count == 7, code.first == "#", code.dropFirst().allSatisfy(\.isHexDigit) else { return nil }
+        return UInt32(code.dropFirst(), radix: 16)
+    }
+    public static func code(_ hex: UInt32) -> String { String(format: "#%06X", hex & 0xFFFFFF) }
+    /// A custom code, or a palette name of lowercase letters.
+    public static func isValid(_ code: String) -> Bool {
+        hex(code) != nil || ((1...40).contains(code.count) && code.unicodeScalars.allSatisfy { ("a"..."z").contains($0) })
     }
 }
 public struct BuddyData: Codable, Equatable, Sendable {

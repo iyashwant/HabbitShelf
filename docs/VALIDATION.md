@@ -62,3 +62,14 @@ Not measured: tap latency, frame rate, hitches, memory or launch time on an iPho
 | That store's file size | 17.6 MB | 13.3 MB |
 
 Each change still validates the whole snapshot once on the main thread so editors can keep their drafts; that is the 8 ms row above for a 66,700-record store and well under a millisecond for typical data. Skipping it for check-ins, whose engine calls already enforce their rules, is a possible next step if device traces show it.
+
+## Theme and accent color, 4 October 2026 (local Mac)
+
+Checked with **Xcode 27.0 (27A266a)** on an **iPhone 18 Pro simulator, iOS 27**. Another change was in progress in the same working tree, so the app and UI tests were built from a clean copy of the previous commit plus only this change, with their own derived data.
+
+- `swift test`: **93 core tests passed, 0 failures**, including the new `testAccentDefaultsToVioletAndRoundTrips`: the default accent isn't written; palette and `#RRGGBB` accents round-trip; empty, capitalized, malformed and over-long values are rejected.
+- `python3 scripts/check-project.py` passed. Unsigned app and widget simulator build succeeded with no compiler warnings from source files.
+- Full UI run: **16 passed, 1 skipped (opt-in Home Screen gallery), 0 failures**. This includes the new `testThemeAccent`: choose teal and Light, relaunch, both are kept, then Default and System. Every existing screen and widget capture also passed, plus the new `theme` capture.
+- Screenshots inspected: the Theme page with the default, amber, teal and a custom crimson accent; Compact List Settings with mint; New Habit with yellow. On amber, yellow, mint and teal, text on accent fills is dark and readable. A first run showed the open Settings sheet keeping its old appearance after Light or System was chosen. Settings now takes the overview's scheme, and the captures show it switch at once to Light, and to dark under System on a dark simulator.
+
+Not checked: the custom color picker was not driven by a test, and home-screen widgets with a non-default accent were not placed.

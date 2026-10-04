@@ -57,7 +57,7 @@ struct SingleHabitWidgetView: View {
                 }
                 Heatmap(habit: habit, data: entry.data, weeks: family == .systemSmall ? 12 : 25, labels: false).frame(maxHeight: .infinity)
             }.widgetURL(URL(string: "habitbuddy://\(habit.id.uuidString)"))
-        } else { VStack(alignment: .leading, spacing: 8) { Image(systemName: "square.grid.3x3.fill").foregroundStyle(BuddyStyle.purple); Text(entry.error ?? (entry.hidden ? BuddyEntry.hiddenMessage : "Create a habit, then choose it in Edit Widget.")).font(.caption) }.widgetURL(URL(string: "habitbuddy://home")) }
+        } else { VStack(alignment: .leading, spacing: 8) { Image(systemName: "square.grid.3x3.fill").foregroundStyle(Accent(entry.data.settings.accent).color); Text(entry.error ?? (entry.hidden ? BuddyEntry.hiddenMessage : "Create a habit, then choose it in Edit Widget.")).font(.caption) }.widgetURL(URL(string: "habitbuddy://home")) }
     }
 }
 struct CompactHabitsWidgetView: View {
@@ -141,7 +141,7 @@ struct DashboardHomeWidget: View {
     let kind: DashboardKind
     var body: some View {
         let habit = kind.needsHabit ? entry.habit : nil, routine = kind == .routine ? entry.routine : nil, today = Day(entry.date)
-        let tint = habit.map { BuddyStyle.color($0.color) } ?? routine.map { BuddyStyle.color($0.color) } ?? BuddyStyle.purple
+        let tint = habit.map { BuddyStyle.color($0.color) } ?? routine.map { BuddyStyle.color($0.color) } ?? Accent(entry.data.settings.accent).color
         let size: WidgetSize = family == .systemLarge ? .large : family == .systemMedium ? .medium : .small
         // StandBy removes the background and shows widgets on black, so light styles switch to dark there.
         let palette = WidgetPalette(showsBackground ? entry.theme.style : .dark, scheme: showsBackground ? scheme : .dark, tint: tint)

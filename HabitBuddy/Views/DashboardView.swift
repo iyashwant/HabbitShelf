@@ -6,6 +6,7 @@ struct DashboardView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accent) private var accent
     var open: (OverviewRoute) -> Void
     @State private var editing = false
     @State private var adding = false
@@ -22,7 +23,7 @@ struct DashboardView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     Text("Dashboard").font(BuddyFont.text(32, .heavy)).foregroundStyle(BuddyStyle.text(scheme)).padding(.top, 4)
                     if widgets.isEmpty {
-                        ContentUnavailableView { Label("No widgets yet", systemImage: "square.grid.2x2") } description: { Text(store.visible.active.isEmpty ? "Create a habit, then add widgets for it here." : "Add widgets to keep your habits at a glance.") } actions: { if !store.visible.active.isEmpty { Button("Add Widget") { adding = true }.buttonStyle(.borderedProminent) } }
+                        ContentUnavailableView { Label("No widgets yet", systemImage: "square.grid.2x2") } description: { Text(store.visible.active.isEmpty ? "Create a habit, then add widgets for it here." : "Add widgets to keep your habits at a glance.") } actions: { if !store.visible.active.isEmpty { Button("Add Widget") { adding = true }.buttonStyle(.borderedProminent).foregroundStyle(accent.foreground) } }
                     }
                     ForEach(DashboardLayout.rows(widgets), id: \.first!.id) { row in
                         HStack(spacing: 16) {
@@ -147,6 +148,7 @@ enum DashboardLayout {
 struct DashboardEditorView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accent) private var accent
     @State private var configuring: DashboardWidget?
     @State private var adding = false
     private var widgets: [DashboardWidget] { DashboardLayout.current(store) }
@@ -175,7 +177,7 @@ struct DashboardEditorView: View {
                     Button("Add Widget", systemImage: "plus") { adding = true }.disabled(store.visible.active.isEmpty)
                     Button("Reset to Default Layout", systemImage: "arrow.counterclockwise") { DashboardLayout.save(store, nil) }
                 }
-            }.scrollContentBackground(.hidden).tint(BuddyStyle.purple)
+            }.scrollContentBackground(.hidden).tint(accent.color)
         }
         .background(BuddyStyle.canvas(scheme))
         .sheet(item: $configuring) { WidgetConfigurator(widget: $0, isNew: false).buddySheet() }
@@ -204,6 +206,7 @@ struct WidgetConfigurator: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accent) private var accent
     @State var widget: DashboardWidget
     let isNew: Bool
     /// The page of designs showing: one habit, several habits or a routine. Paging doesn't change the chosen design.
@@ -319,7 +322,7 @@ struct WidgetConfigurator: View {
             .foregroundStyle(on ? BuddyStyle.text(scheme) : BuddyStyle.secondaryText(scheme))
             .frame(maxWidth: .infinity, minHeight: 74)
             .background(on ? BuddyStyle.control(scheme) : BuddyStyle.field(scheme), in: RoundedRectangle(cornerRadius: 14, style: .circular))
-            .overlay { RoundedRectangle(cornerRadius: 14, style: .circular).strokeBorder(on ? BuddyStyle.purple : BuddyStyle.border(scheme, 0.1), lineWidth: on ? 1.5 : 1) }
+            .overlay { RoundedRectangle(cornerRadius: 14, style: .circular).strokeBorder(on ? accent.color : BuddyStyle.border(scheme, 0.1), lineWidth: on ? 1.5 : 1) }
         }
         .buttonStyle(.plain).accessibilityLabel(kind.title).accessibilityAddTraits(on ? .isSelected : [])
     }
@@ -336,7 +339,7 @@ struct WidgetConfigurator: View {
         VStack(alignment: .leading, spacing: 8) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    chip(selected: widget.habitIDs == nil, color: BuddyStyle.purple) { widget.habitIDs = nil } label: { Text("All Habits").padding(.leading, 6) }
+                    chip(selected: widget.habitIDs == nil, color: accent.color) { widget.habitIDs = nil } label: { Text("All Habits").padding(.leading, 6) }
                     ForEach(store.visible.active) { h in
                         let on = widget.habitIDs?.contains(h.id) ?? false
                         chip(selected: on, color: BuddyStyle.color(h.color)) { toggle(h.id) } label: {
@@ -372,7 +375,7 @@ struct WidgetConfigurator: View {
         let own = widget.kind.needsHabit ? "Habit's Color" : widget.kind == .routine ? "Routine's Color" : "Default"
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
-                chip(selected: widget.color == nil, color: BuddyStyle.purple) { widget.color = nil } label: { Text(own).padding(.leading, 6) }
+                chip(selected: widget.color == nil, color: accent.color) { widget.color = nil } label: { Text(own).padding(.leading, 6) }
                 ForEach(BuddyStyle.colors, id: \.0) { token, _ in
                     Button { widget.color = token } label: {
                         Circle().fill(BuddyStyle.color(token)).frame(width: 30, height: 30)
@@ -403,11 +406,11 @@ struct WidgetConfigurator: View {
 }
 
 extension DashboardWidget {
-    /// The widget's own color, else its habit's or routine's, else violet.
+    /// The widget's own color, else its habit's or routine's, else the app accent.
     func tint(_ data: BuddyData) -> Color {
         if let color { return BuddyStyle.color(color) }
         if kind.needsHabit, let habit = habits(in: data).first { return BuddyStyle.color(habit.color) }
         if kind == .routine, let routine = data.routines.first(where: { $0.id == routineID }) { return BuddyStyle.color(routine.color) }
-        return BuddyStyle.purple
+        return Accent(data.settings.accent).color
     }
 }

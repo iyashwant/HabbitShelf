@@ -49,6 +49,7 @@ enum VisualSamples {
         var data=BuddyData()
         if ProcessInfo.processInfo.environment["BUDDY_VISUAL_FIXTURE"] == "reference" { reference(&data) } else { populate(&data) }
 data.settings.onboarding=screen != "welcome";data.settings.theme=ProcessInfo.processInfo.environment["BUDDY_VISUAL_THEME"] == "light" ? .light:.dark
+        data.settings.accent=ProcessInfo.processInfo.environment["BUDDY_VISUAL_ACCENT"].flatMap{$0.isEmpty ? nil:$0}
         data.settings.layout=Layout(rawValue:screen) ?? (screen=="compact-settings" ? .compact:.cards)
         if screen=="today-ring" { data.settings.dashboard=[DashboardWidget(kind:.today,style:.dark),DashboardWidget(kind:.today,style:.light),DashboardWidget(kind:.today,style:.tinted),DashboardWidget(kind:.streak,habitID:data.habits[6].id,style:.automatic)] }
         // Every design in the sizes and options the default dashboard doesn't show.

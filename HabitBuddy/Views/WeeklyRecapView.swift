@@ -62,7 +62,7 @@ struct RecapPoster: View {
     let data: BuddyData
     let scheme: ColorScheme
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 24, style: .continuous), palette = WidgetPalette(.automatic, scheme: scheme, tint: BuddyStyle.purple)
+        let shape = RoundedRectangle(cornerRadius: 24, style: .continuous), palette = WidgetPalette(.automatic, scheme: scheme, tint: Accent(data.settings.accent).color)
         let change = recap.previous.eligible == 0 || recap.total.eligible == 0 ? nil : Int(((recap.total.rate - recap.previous.rate) * 100).rounded())
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 4) {

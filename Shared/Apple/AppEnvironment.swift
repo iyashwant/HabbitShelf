@@ -42,7 +42,8 @@ struct SyncScope: OptionSet, Sendable {
     static let all: SyncScope = [.widgets, .reminders]
     init(rawValue: Int) { self.rawValue = rawValue }
     /// Collections a change didn't touch still share storage with the old snapshot, so comparing them is immediate.
-    /// App-only settings, such as the theme, layout, card options and dashboard, affect neither.
+    /// App-only settings, such as the theme, layout, card options and dashboard, affect neither. The accent tints
+    /// widgets that show several habits.
     init(from old: BuddyData, to new: BuddyData) {
         let sameHabits = old.habits == new.habits && old.routines == new.routines
         if old.settings == new.settings {
@@ -53,7 +54,7 @@ struct SyncScope: OptionSet, Sendable {
         guard sameHabits && old.records == new.records else { self = .all; return }
         let a = old.settings, b = new.settings
         var scope: SyncScope = []
-        if a.weekStart != b.weekStart || a.notes != b.notes { scope.insert(.widgets) }
+        if a.weekStart != b.weekStart || a.notes != b.notes || a.accent != b.accent { scope.insert(.widgets) }
         if a.weekStart != b.weekStart || a.checkIn != b.checkIn || a.checkInTitle != b.checkInTitle || a.checkInBody != b.checkInBody || a.recapReminder != b.recapReminder { scope.insert(.reminders) }
         self = scope
     }

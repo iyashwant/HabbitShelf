@@ -5,6 +5,7 @@ struct TimerView: View {
     @EnvironmentObject private var store: AppStore
     @EnvironmentObject private var timer: TimerController
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accent) private var accent
     @State var habitID: UUID?
     @State private var countdown = true
     @State private var minutes = 10
@@ -30,7 +31,7 @@ struct TimerView: View {
         minutes = min(240, max(1, Int((seconds / 60).rounded())))
     }
     private var setup: some View {
-        let color = habit.map { BuddyStyle.color($0.color) } ?? BuddyStyle.purple
+        let color = habit.map { BuddyStyle.color($0.color) } ?? accent.color
         return ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 clockFace(progress: 1, text: countdown ? Self.format(Double(minutes) * 60) : "00:00", caption: countdown ? "COUNTDOWN" : "STOPWATCH", color: color)

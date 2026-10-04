@@ -4,6 +4,7 @@ struct OverviewView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accent) private var accent
     @State private var path: [OverviewRoute] = []
     @State private var editor: Habit?
     @State private var appearance: Habit?
@@ -12,6 +13,7 @@ struct OverviewView: View {
     @State private var visualRouted = false
     @State private var daySelection: DaySelection?
     @State private var settings = false
+    @State private var settingsStart: SettingsPage?
     @State private var compactSettings = false
     @State private var stats = false
     @State private var reorder = false
@@ -33,7 +35,7 @@ struct OverviewView: View {
                         ContentUnavailableView {
                             Label(category == nil ? "Make a little progress" : "No habits here yet", systemImage: "square.grid.3x3.fill")
                         } description: { Text("Build the habits that matter. One day at a time.") } actions: {
-                            Button("Create Habit") { editor = .draft() }.buttonStyle(.borderedProminent)
+                            Button("Create Habit") { editor = .draft() }.buttonStyle(.borderedProminent).foregroundStyle(accent.foreground)
                             if store.data.habits.isEmpty { Button("Try sample habits") { loadSamples() } }
                         }.padding(.top, 70)
                     } else {
@@ -88,7 +90,9 @@ struct OverviewView: View {
             .sheet(item: $share) { ShareHabitView(habit: $0).buddySheet() }
             .task(id: store.loaded) { visualRoute() }
             .sheet(item: $daySelection) { DayEditorView(selection: $0) }
-            .sheet(isPresented: $settings) { SettingsView().buddySheet() }
+            // A sheet keeps the scheme it was presented with, and keeps a light or dark one after System is chosen, so
+            // Settings takes the overview's scheme explicitly and follows a theme chosen while it is open.
+            .sheet(isPresented: $settings) { SettingsView(start: settingsStart).buddySheet().preferredColorScheme(scheme) }
             .sheet(isPresented: $compactSettings) { CompactListSettingsView() }
             .sheet(isPresented: $stats) { StatisticsView().buddySheet() }
             .sheet(isPresented: $reorder) { ReorderView() }
@@ -123,10 +127,10 @@ struct OverviewView: View {
     private var categoryFilter: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack {
-                Button("All Habits") { category = nil }.buttonStyle(.bordered).tint(category == nil ? BuddyStyle.purple : .secondary)
+                Button("All Habits") { category = nil }.buttonStyle(.bordered).tint(category == nil ? accent.color : .secondary)
                 ForEach(store.data.categories) { item in
                     Button { category = item.id } label: { HStack { BuddyGlyph(symbol:item.symbol,size:12);Text(item.name) } }
-                        .buttonStyle(.bordered).tint(category == item.id ? BuddyStyle.purple : .secondary)
+                        .buttonStyle(.bordered).tint(category == item.id ? accent.color : .secondary)
                 }
                 Button { reorder = true } label: { LucideIcon("arrow-up-down", size: 14) }.buttonStyle(.bordered).accessibilityLabel("Reorder habits")
             }.font(BuddyFont.text(12))
@@ -291,6 +295,7 @@ struct OverviewView: View {
         case "new-habit":editor = .draft()
         case "statistics":stats=true
         case "settings":settings=true
+        case "theme":settingsStart = .theme;settings=true
         case "compact-settings":compactSettings=true
         case "share":share=habit
         case "appearance":appearance=habit
@@ -379,6 +384,7 @@ extension Day {
 struct CompactListSettingsView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accent) private var accent
     @State private var hiding = false
     var body: some View {
         let note = scheme == .dark ? Color(hex: 0xA0A0A8) : BuddyStyle.secondaryText(scheme)
@@ -391,8 +397,8 @@ struct CompactListSettingsView: View {
                 ForEach(1...7, id: \.self) { count in
                     let on = store.data.settings.recentDays == count, shape = RoundedRectangle(cornerRadius: 12, style: .circular)
                     Button { store.change { $0.settings.recentDays = count } } label: {
-                        Text("\(count)").font(BuddyFont.mono(12.5)).foregroundStyle(on ? Color.white : BuddyStyle.tertiaryText(scheme))
-                            .frame(maxWidth: .infinity, minHeight: 40).background(on ? BuddyStyle.purple : .clear, in: shape)
+                        Text("\(count)").font(BuddyFont.mono(12.5)).foregroundStyle(on ? accent.foreground : BuddyStyle.tertiaryText(scheme))
+                            .frame(maxWidth: .infinity, minHeight: 40).background(on ? accent.color : .clear, in: shape)
                             .overlay { if !on { shape.strokeBorder(BuddyStyle.border(scheme, 0.07), lineWidth: 1) } }.contentShape(shape)
                     }.buttonStyle(FlatButtonStyle()).accessibilityLabel(count == 1 ? "1 day" : "\(count) days").accessibilityAddTraits(on ? .isSelected : [])
                 }
@@ -442,6 +448,7 @@ struct HiddenHabitsRow: View {
 struct HideHabitsView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accent) private var accent
     var body: some View {
         let habits = store.data.active, hidden = habits.filter(\.isHidden).count
         VStack(spacing: 0) {
@@ -465,7 +472,7 @@ struct HideHabitsView: View {
                             Spacer()
                             if hidden > 0 {
                                 Button { store.change { data in for i in data.habits.indices { data.habits[i].hidden = nil } } } label: {
-                                    HStack(spacing: 6) { LucideIcon("eye", size: 15); Text("Show All") }.font(BuddyFont.text(14, .semibold)).foregroundStyle(BuddyStyle.purple).frame(minHeight: 44).contentShape(Rectangle())
+                                    HStack(spacing: 6) { LucideIcon("eye", size: 15); Text("Show All") }.font(BuddyFont.text(14, .semibold)).foregroundStyle(accent.color).frame(minHeight: 44).contentShape(Rectangle())
                                 }.buttonStyle(FlatButtonStyle()).accessibilityLabel("Show All Habits")
                             }
                         }.padding(.horizontal, 4).frame(minHeight: 44)
@@ -483,7 +490,7 @@ struct HideHabitsView: View {
                 Text(habit.name).font(BuddyFont.text(15.2)).lineLimit(1).foregroundStyle(BuddyStyle.text(scheme))
                 Spacer(minLength: 8)
                 ZStack {
-                    if habit.isHidden { Circle().fill(BuddyStyle.purple); LucideIcon("check", size: 14).foregroundStyle(.white) }
+                    if habit.isHidden { Circle().fill(accent.color); LucideIcon("check", size: 14).foregroundStyle(accent.foreground) }
                     else { Circle().strokeBorder(BuddyStyle.border(scheme, 0.22), lineWidth: 1.5) }
                 }.frame(width: 26, height: 26)
             }.padding(.horizontal, 15).frame(height: 56).contentShape(Rectangle())

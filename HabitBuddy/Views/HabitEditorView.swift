@@ -5,6 +5,7 @@ struct HabitEditorView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accent) private var accent
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State var habit: Habit
     @State private var target = "1"
@@ -63,7 +64,7 @@ struct HabitEditorView: View {
                             VStack(spacing: 0) {
                                 ForEach(store.data.categories) { category in
                                     Toggle(isOn: Binding(get: { habit.categories.contains(category.id) }, set: { included in habit.categories.removeAll { $0 == category.id }; if included { habit.categories.append(category.id) } })) { HStack(spacing: 10) { BuddyGlyph(symbol: category.symbol, size: 16); Text(category.name).font(BuddyFont.text(15)) } }
-                                        .tint(BuddyStyle.purple).padding(.horizontal, 16).frame(height: 52)
+                                        .tint(accent.color).padding(.horizontal, 16).frame(height: 52)
                                 }
                             }.panel(radius: 15, border: 0.1)
                         }.padding(.top, 21.5)
@@ -215,6 +216,7 @@ struct IconPickerView: View {
 }
 
 struct ReminderEditorView: View {
+    @Environment(\.accent) private var accent
     @Binding var reminders:[Reminder]
     @Environment(\.colorScheme) private var scheme
     @State private var needsPermission=true
@@ -227,7 +229,7 @@ struct ReminderEditorView: View {
             ScrollView {
                 VStack(spacing:20) {
                     if needsPermission {
-                        VStack(spacing:12){Image(systemName:"bell.badge").font(.system(size:25)).foregroundStyle(BuddyStyle.purple);Text("Allow notifications").font(.system(size:16,weight:.semibold));Text("Get a reminder when it is time for your habit.").font(.system(size:12)).foregroundStyle(.secondary)
+                        VStack(spacing:12){Image(systemName:"bell.badge").font(.system(size:25)).foregroundStyle(accent.color);Text("Allow notifications").font(.system(size:16,weight:.semibold));Text("Get a reminder when it is time for your habit.").font(.system(size:12)).foregroundStyle(.secondary)
                             if denied{Link("Open System Settings",destination:URL(string:UIApplication.openSettingsURLString)!)}else{Button("Give permission"){Task{do{denied=try await !NotificationService.request();needsPermission=denied}catch{message=error.localizedDescription}}}}
                         }.frame(maxWidth:.infinity).surface()
                     }
@@ -261,10 +263,11 @@ struct ReminderTimePicker: View {
     }
 }
 struct WeekdayPicker: View {
+    @Environment(\.accent) private var accent
     @Binding var days:[Int]
     var body:some View {
         HStack(spacing:4){ForEach(0..<7,id:\.self){index in let day=(index+1)%7+1
-            Button{if days.contains(day){if days.count>1{days.removeAll{$0==day}}}else{days.append(day)}}label:{Text(String(Calendar.current.shortWeekdaySymbols[day-1].prefix(3))).font(.system(size:10,weight:.medium,design:.monospaced)).frame(maxWidth:.infinity,minHeight:39).background(days.contains(day) ? BuddyStyle.purple:Color.secondary.opacity(0.12),in:RoundedRectangle(cornerRadius:11)).foregroundStyle(days.contains(day) ? Color.white:.primary)}.buttonStyle(.plain).accessibilityLabel(Calendar.current.weekdaySymbols[day-1]).accessibilityAddTraits(days.contains(day) ? .isSelected:[])
+            Button{if days.contains(day){if days.count>1{days.removeAll{$0==day}}}else{days.append(day)}}label:{Text(String(Calendar.current.shortWeekdaySymbols[day-1].prefix(3))).font(.system(size:10,weight:.medium,design:.monospaced)).frame(maxWidth:.infinity,minHeight:39).background(days.contains(day) ? accent.color:Color.secondary.opacity(0.12),in:RoundedRectangle(cornerRadius:11)).foregroundStyle(days.contains(day) ? accent.foreground:.primary)}.buttonStyle(.plain).accessibilityLabel(Calendar.current.weekdaySymbols[day-1]).accessibilityAddTraits(days.contains(day) ? .isSelected:[])
         }}
     }
 }
