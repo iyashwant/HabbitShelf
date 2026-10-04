@@ -102,6 +102,12 @@
 			"path" = "HabitBuddy/Views/HabitsCalendarView.swift";
 			"sourceTree" = "SOURCE_ROOT";
 		};
+		"DD448E483D42DB391B532E95" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "HabitBuddy/Views/HomePager.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
 		"973A541B2502CE034B78F7D4" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -217,6 +223,7 @@
 				"98854A59E9E18C90140695D0",
 				"303B8B2061665268D9F4CAE6",
 				"3DB9AF9971FC4CA75353A6B2",
+				"DD448E483D42DB391B532E95",
 				"973A541B2502CE034B78F7D4",
 				"F054241AAAE488B2F6725D4D",
 				"CB081DA1354220F6CE6118A9",
@@ -860,6 +867,10 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "3DB9AF9971FC4CA75353A6B2";
 		};
+		"4BE07595243E99214F26B848" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "DD448E483D42DB391B532E95";
+		};
 		"4D00CB4E6A331256B42066D3" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "973A541B2502CE034B78F7D4";
@@ -1006,6 +1017,7 @@
 				"D10436ADEE22918032F85623",
 				"EB6507D1F6C2EEE6C38E455F",
 				"8701CBE535878A39598BD4AE",
+				"4BE07595243E99214F26B848",
 				"4D00CB4E6A331256B42066D3",
 				"BD83494DC8ECCD28A1A99072",
 				"36B2FC1C7B9EC8CCBA231DBB",

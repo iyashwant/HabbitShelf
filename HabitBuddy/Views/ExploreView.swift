@@ -5,8 +5,8 @@ struct ExploreView: View {
     @Environment(AppStore.self) private var store
     @Environment(TimerController.self) private var timer
     @Environment(\.colorScheme) private var scheme
-    /// Opens Settings while Explore is shown in place by the bottom switcher; nil when it's pushed, with a back control.
-    var settings: (() -> Void)? = nil
+    /// Shown in place by the bottom switcher, under the overview's shared top bar; otherwise pushed, with a back control.
+    var inPlace = false
     @State private var timing = false
     /// Counts for the tile captions, worked out off the main thread so the page opens at once.
     @State private var summary: Summary?
@@ -24,7 +24,7 @@ struct ExploreView: View {
         let data = store.visible, recap = summary?.kept ?? DayRate(), notes = summary?.notes ?? 0, badges = summary?.badges ?? 0
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Explore").font(BuddyFont.text(32, .heavy)).foregroundStyle(BuddyStyle.text(scheme)).padding(.top, 4)
+                Text("Explore").font(BuddyFont.text(32, .heavy)).foregroundStyle(BuddyStyle.text(scheme)).padding(.top, 4).homeFlow()
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
                     tile(.insights, "Insights", "sparkles", "violet", "Best and worst days, times and trends")
                     tile(.calendar, "Calendar", "calendar-days", "sky", "Every habit on one month")
@@ -33,13 +33,14 @@ struct ExploreView: View {
                     tile(.milestones(nil), "Milestones", "trophy", "orange", badges == 0 ? "Streak and check-in badges" : "\(badges) \(badges == 1 ? "badge" : "badges") earned")
                     tile(.routines, "Routines", "list-todo", "teal", data.routines.isEmpty ? "Check off habits together" : "\(data.routines.count) \(data.routines.count == 1 ? "routine" : "routines")")
                     Button { timing = true } label: { label("Timer", "timer", "coral", timer.session == nil ? "Time a session and log it" : "A timer is running") }
-                        .buttonStyle(FlatButtonStyle()).accessibilityIdentifier("explore-timer")
+                        .buttonStyle(FlatButtonStyle()).accessibilityIdentifier("explore-timer").homeFlow()
                 }
             }.padding(.horizontal, 16).padding(.bottom, 40)
         }
-        .scrollIndicators(.hidden)
-        .background(BuddyStyle.canvas(scheme)).toolbar(.hidden, for: .navigationBar)
-        .switcherPageBar(settings: settings) { _ in }
+        .scrollIndicators(.hidden).pageClip()
+        // In place, the overview draws the canvas behind every page.
+        .background(BuddyStyle.canvas(scheme).opacity(inPlace ? 0 : 1)).toolbar(.hidden, for: .navigationBar)
+        .switcherPageBar(inPlace: inPlace) {}
         .sheet(isPresented: $timing) { TimerView().buddySheet() }
         .task(id: store.revision) {
             let data = store.visible, today = Day()
@@ -47,7 +48,7 @@ struct ExploreView: View {
         }
     }
     private func tile(_ route: OverviewRoute, _ title: String, _ icon: String, _ color: String, _ detail: String) -> some View {
-        NavigationLink(value: route) { label(title, icon, color, detail) }.buttonStyle(FlatButtonStyle())
+        NavigationLink(value: route) { label(title, icon, color, detail) }.buttonStyle(FlatButtonStyle()).homeFlow()
     }
     private func label(_ title: String, _ icon: String, _ color: String, _ detail: String) -> some View {
         VStack(alignment: .leading, spacing: 0) {

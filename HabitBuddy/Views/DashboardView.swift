@@ -7,8 +7,8 @@ struct DashboardView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accent) private var accent
-    /// Opens Settings while the board is shown in place by the bottom switcher; nil when it's pushed, with a back control.
-    var settings: (() -> Void)? = nil
+    /// Shown in place by the bottom switcher, under the overview's shared top bar; otherwise pushed, with a back control.
+    var inPlace = false
     /// Told when a widget is lifted over the board and when it's dropped or leaves.
     var lifting: (Bool) -> Void = { _ in }
     var open: (OverviewRoute) -> Void
@@ -42,9 +42,10 @@ struct DashboardView: View {
             // Not a lazy stack: in one, touching and holding a widget's check logged it instead of opening the
             // widget's menu (iOS 27 simulator). The board holds at most 100 widgets.
             VStack(alignment: .leading, spacing: 16) {
-                Text("Dashboard").font(BuddyFont.text(32, .heavy)).foregroundStyle(BuddyStyle.text(scheme)).padding(.top, 4)
+                Text("Dashboard").font(BuddyFont.text(32, .heavy)).foregroundStyle(BuddyStyle.text(scheme)).padding(.top, 4).homeFlow()
                 if widgets.isEmpty {
                     ContentUnavailableView { Label("No widgets yet", systemImage: "square.grid.2x2") } description: { Text(store.visible.active.isEmpty ? "Create a habit, then add widgets for it here." : "Add widgets to keep your habits at a glance.") } actions: { if !store.visible.active.isEmpty { Button("Add Widget") { adding = true }.buttonStyle(.borderedProminent).foregroundStyle(accent.foreground) } }
+                        .homeFlow()
                 }
                 board(widgets)
             }
@@ -54,14 +55,15 @@ struct DashboardView: View {
             .frame(minHeight: arranged == nil ? nil : screenHeight, alignment: .top)
             .coordinateSpace(.named("dashboard"))
             .onDrop(of: [.utf8PlainText], delegate: BoardDrop(over: hover, drop: drop, leave: leave))
-        }.scrollIndicators(.hidden)
+        }.scrollIndicators(.hidden).pageClip()
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { screenHeight = $0 }
         .sensoryFeedback(.selection, trigger: arranged) { old, new in old != nil && new != nil && store.settings.haptics }
         .onChange(of: arranged != nil) { _, lifted in lifting(lifted) }
-        .background(BuddyStyle.canvas(scheme)).toolbar(.hidden, for: .navigationBar)
-        .switcherPageBar(settings: settings) { pushed in
-            CircleControl(symbol: "sliders-horizontal", label: "Edit Dashboard", size: pushed ? 38 : 42, glyph: pushed ? 16 : 18) { editing = true }
-            CircleControl(symbol: "plus", label: "Add Widget", filled: true, size: pushed ? 38 : 42, glyph: pushed ? 17 : 19) { adding = true }.disabled(store.visible.active.isEmpty)
+        // In place, the overview draws the canvas behind every page.
+        .background(BuddyStyle.canvas(scheme).opacity(inPlace ? 0 : 1)).toolbar(.hidden, for: .navigationBar)
+        .switcherPageBar(inPlace: inPlace) {
+            CircleControl(symbol: "sliders-horizontal", label: "Edit Dashboard", size: 38, glyph: 16) { editing = true }
+            CircleControl(symbol: "plus", label: "Add Widget", filled: true, size: 38, glyph: 17) { adding = true }.disabled(store.visible.active.isEmpty)
         }
         .sheet(isPresented: $editing) { DashboardEditorView().buddySheet() }
         .sheet(isPresented: $adding) { WidgetConfigurator(widget: DashboardWidget(kind: .streak, habitID: store.visible.active.first?.id), isNew: true).buddySheet() }
@@ -91,6 +93,7 @@ struct DashboardView: View {
             // While it's lifted, its place shows where it will land.
             .opacity(arranged != nil && dragged == widget.id ? 0 : 1)
             .background { if arranged != nil && dragged == widget.id { RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(BuddyStyle.border(scheme, 0.2), style: StrokeStyle(lineWidth: 1.5, dash: [6, 5])) } }
+            .homeFlow()
             .containerValue(\.widgetSize, widget.resolvedSize)
     }
     @ViewBuilder private func menu(_ widget: DashboardWidget) -> some View {

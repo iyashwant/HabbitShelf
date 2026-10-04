@@ -82,12 +82,33 @@ A choice applies at once. The color picker saves 0.3 seconds after the color sto
 
 Added at the owner's request ("very nice to use"); HabitKit's motion can't be read from screenshots, so these are our choices and change nothing at rest. Buttons with the flat style (check badges, the streak and dashboard checks, compact day tiles and pills, calendar days, Explore tiles, note cards) dim to 70% and press in to 97% while touched, easing out over 0.16 s, so a tap is felt before the screen changes; Reduce Motion keeps the dimming and drops the scale. Streak counts, the week's "done / 7" and the card's streak chip roll to their new value during the check-in animation. A completed check doesn't bounce: checks are tapped many times a day, and the fill, the press and the haptic already confirm it. Touching and holding a card's name, check, history grid or streak and goal chips, or a compact row's name, opens the habit's menu instead of opening the habit or logging. With Drag to Reorder on, moving the finger after the hold closes the menu and lifts the whole card, as on the dashboard. The other cards slide aside as it passes over them, a dashed outline marks where it will land, and letting go saves the order shown. Moving into the menu picks its items instead, as elsewhere in iOS; the menu usually opens below the row held, so dragging up lifts the card at once. A habit opens with iOS's zoom navigation transition from the card, compact row, streak tile, list row or month card that was tapped, and going back returns it there. The animation hasn't been reviewed frame by frame, with Reduce Motion, or when a habit opens from the dashboard, where no habit view is on screen.
 
+## Swiping between pages
+
+Added at the owner's request ("extremely rich, fluid, and smooth… bouncy and elastic"); not in HabitKit. The bottom bar's six pages sit side by side: Classic, Compact, Month, the streak views, Dashboard and Explore. A sideways swipe anywhere on a page moves to a neighbouring page, including a swipe that starts on a card.
+
+- **The page follows the finger.** A flick faster than about a third of a page width a second goes on to the next page in its direction; a slower release goes to the nearer page. On release, a spring (0.5 s response, 0.68 damping) carries the swipe's speed and overshoots by a few points before it settles. Pulling past Classic or Explore, or more than one page, meets iOS's rubber-band resistance and springs back.
+- **Items trail their page.** Each item follows on its own spring, and items lower and further right follow more loosely (0.1 s response plus 0.035 s per 120-point row or third of the width, 0.62 damping). Lower cards fall behind as a page leaves, then catch up with a small wobble as the next one arrives. Nothing moves while a page rests.
+- **What the pages share stays still.**
+  - Settings never moves.
+  - A top-bar control two pages both have stays where it is: the plus between the layouts and Dashboard, and Statistics across the layouts.
+  - A control that differs turns into the other with the swipe: Statistics becomes Edit Dashboard through a blur, scale and turn. Dashboard's controls shrink away towards Explore.
+  - Between habit layouts, the category filter, routine chips and empty state stay put while the layout beneath them changes.
+- **The bottom bar's selection follows the swipe** in both the flat look and Liquid Glass. It stretches as it travels between buttons and leans out against the ends.
+- **Tapping a bottom-bar button** slides there with a little more damping (0.76). A page further than the next slides in beside the current one, and the selection crosses in one stretch.
+- **A light selection haptic** marks a swipe that lands on another page, when haptics are on.
+
+**Reduce Motion:** no overshoot, no trailing items and no icon turn, and the selection cross-fades. A tap to a page further than the next switches without sliding.
+
+**How it runs:** the spring runs on the display's frame clock (the Info.plist allows 120 Hz) and stops once everything has settled. The neighbouring pages are kept built, so a swipe never builds one, and only the page shown takes touches or is read by VoiceOver. Each page has its own copy of a habit, so the zoom into a habit starts from the copy on the page shown.
+
+**Verified:** a screen recording on the iOS 27 simulator (iPhone 18 Pro), checked frame by frame, covers every swipe and tap, the rubber band at both ends, the trailing items, the top-bar change and the selection. A log showed the frame clock stopping after each swipe. Not yet checked on a device, at 120 Hz or with Reduce Motion.
+
 ## Liquid Glass
 
 Added at the owner's request (not in HabitKit): a Liquid Glass group on the Theme page turns the app's floating controls into Apple's Liquid Glass. It is off by default, so the reference look stays the default. Apple keeps glass for the control layer above content, so only floating controls change:
 - the round toolbar and header controls (settings, explore, dashboard, statistics, back, close, edit and the plus);
 - Save and the other full-width actions;
-- the bottom view switcher. Its selection becomes a lighter lens that slides to the chosen view: a critically damped spring with a 0.35 s response, cross-fading instead under Reduce Motion.
+- the bottom view switcher. Its selection becomes a lighter lens that follows the pages as they slide (see Swiping between pages), cross-fading instead under Reduce Motion.
 
 Habit cards, panels, chips, widgets and shared images keep their look. Top bars float over the content with iOS's soft scroll edge in place of the canvas backdrop and gradient. The half-height Compact List Settings and routine sheets use iOS's glass sheet.
 

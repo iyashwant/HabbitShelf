@@ -45,7 +45,7 @@ final class HabitBuddyUITests:XCTestCase {
     func testSwitcherOpensDashboardAndExploreInPlace() {
         let app=launch("cards"),dashboard=app.buttons["Dashboard"],explore=app.buttons["Explore"]
         XCTAssertTrue(dashboard.waitForExistence(timeout:20));XCTAssertTrue(explore.exists)
-        XCTAssertLessThan(app.buttons["list view"].frame.midX,dashboard.frame.midX,"Dashboard follows the layouts");XCTAssertLessThan(dashboard.frame.midX,explore.frame.midX,"Explore is last")
+        XCTAssertLessThan(app.buttons["Streaks, list, rings and year views"].frame.midX,dashboard.frame.midX,"Dashboard follows the layouts");XCTAssertLessThan(dashboard.frame.midX,explore.frame.midX,"Explore is last")
         dashboard.tap();XCTAssertTrue(app.buttons["Edit Dashboard"].waitForExistence(timeout:5));XCTAssertTrue(dashboard.isSelected);XCTAssertFalse(app.buttons["Back"].exists,"Dashboard opens in place")
         XCTAssertTrue(app.buttons["Settings"].exists);capture(app,"switcher-dashboard")
         explore.tap();XCTAssertTrue(app.buttons["explore-timer"].waitForExistence(timeout:5));XCTAssertTrue(explore.isSelected);XCTAssertFalse(app.buttons["Back"].exists,"Explore opens in place");capture(app,"switcher-explore")

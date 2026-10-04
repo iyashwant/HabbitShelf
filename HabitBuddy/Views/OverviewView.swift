@@ -5,9 +5,7 @@ struct OverviewView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accent) private var accent
-    @Environment(\.glass) private var glass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Namespace private var switcher
     @State private var toggleOpen = false
     /// Horizontal centre of the Explore button in the bottom switcher, so the streak bubble can sit directly above it.
     @State private var exploreMidX: CGFloat = 0
@@ -30,6 +28,12 @@ struct OverviewView: View {
     @State private var category: UUID?
     @State private var month = Day().startOfMonth
     @State private var page = HomePage.habits
+    /// The bottom bar's pages under the finger; `page` and the layout follow it once it settles.
+    @State private var pager = HomePager()
+    /// The streak view the last stop shows while another layout is chosen.
+    @State private var lastStreak = Layout.streaks
+    @State private var dashboardEditing = false
+    @State private var dashboardAdding = false
     /// Whether a dashboard widget is lifted. While a widget or card is dragged, the switcher fades and lets the drag
     /// through to the widgets or cards beneath it.
     @State private var liftingWidget = false
@@ -53,33 +57,47 @@ struct OverviewView: View {
         let byID = Dictionary(shown.map { ($0.id, $0) }) { first, _ in first }, placed = Set(arranged)
         return arranged.compactMap { byID[$0] } + shown.filter { !placed.contains($0.id) }
     }
-    /// The page under the bottom switcher. With the switcher hidden, Dashboard and Explore are pushed from the top bar instead.
-    private var shown: HomePage { store.settings.showLayoutSwitcher ? page : .habits }
+    /// The bottom-bar page chosen: a habit layout's stop, Dashboard (4) or Explore (5).
+    private var committedStop: Int {
+        switch page { case .habits: Self.stop(store.settings.layout); case .dashboard: 4; case .explore: 5 }
+    }
     var body: some View {
         NavigationStack(path: $path) {
             ZStack {
                 if store.settings.showLayoutSwitcher {
-                    // One page per bottom-bar button; a sideways swipe steps to the neighbouring one.
-                    Group {
-                        switch page {
-                        case .habits: habitsPage
-                        case .dashboard: DashboardView(settings: { settings = true }, lifting: { liftingWidget = $0 }) { path.append($0) }
-                        case .explore: ExploreView(settings: { settings = true })
-                        }
-                    }
-                    .gesture(PageSwipe(enabled: !lifted) { step($0) })
+                    // One page per bottom-bar button, side by side. The top bar stays put over them and changes only
+                    // the controls that differ.
+                    HomePagerView(pager: pager, enabled: !lifted, land: land) { homePage($0) }
+                        .home(canvas: scheme, feedback: arranged, haptics: store.settings.haptics)
+                        .homeBar(settings: { settings = true }) { HomeBarControls(pager: pager, buttons: barButtons) }
                 } else {
-                    habitsPage
+                    habitsPage(store.settings.layout, stop: Self.stop(store.settings.layout))
+                        .home(canvas: scheme, feedback: arranged, haptics: store.settings.haptics)
+                        .homeBar(settings: { settings = true }) {
+                            CircleControl(symbol: "compass", label: "Explore") { open(.explore) }
+                            CircleControl(symbol: "layout-dashboard", label: "Dashboard") { open(.dashboard) }
+                            CircleControl(symbol: "stats", label: "Statistics") { stats = true }
+                            CircleControl(symbol: "plus", label: "Create Habit", filled: true, glyph: 19) { editor = .draft() }
+                        }
                 }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if store.settings.showLayoutSwitcher {
-                    layoutSwitcher.opacity(lifted ? 0 : 1).allowsHitTesting(!lifted).animation(.snappy(duration: 0.25), value: lifted)
+                    BottomSwitcher(pager: pager) { pager.go(to: $0, animated: true) } exploreMoved: { exploreMidX = $0 }
+                        .opacity(lifted ? 0 : 1).allowsHitTesting(!lifted).animation(.snappy(duration: 0.25), value: lifted)
                 }
             }
+            .onAppear { pager.reduceMotion = reduceMotion; pager.go(to: committedStop, animated: false) }
+            .onChange(of: reduceMotion) { _, reduce in pager.reduceMotion = reduce }
+            // A layout chosen elsewhere (Settings, the streak toggle, the first load) moves the pager there.
+            .onChange(of: committedStop) { _, stop in if pager.rest != nil, pager.destination != stop { pager.go(to: stop, animated: false) } }
+            .onChange(of: store.settings.layout, initial: true) { _, layout in if Self.streakViews.contains(layout) { lastStreak = layout } }
             .navigationDestination(for: OverviewRoute.self) { route in
                 switch route {
-                case .habit(let id): HabitDetailView(id: id).navigationTransition(.zoom(sourceID: id, in: zoom))
+                case .habit(let id):
+                    // Each page has its own copy of a habit, so the zoom starts from the copy on the page shown.
+                    let stop = store.settings.showLayoutSwitcher ? pager.destination : Self.stop(store.settings.layout)
+                    HabitDetailView(id: id).navigationTransition(.zoom(sourceID: ZoomSource(stop: stop, habit: id), in: zoom))
                 case .dashboard: DashboardView { path.append($0) }
                 case .explore: ExploreView()
                 case .insights: InsightsView()
@@ -104,6 +122,8 @@ struct OverviewView: View {
             .sheet(isPresented: $reorder) { ReorderView() }
             .sheet(item: $routine) { RoutineSheet(routineID: $0.id).buddySheet(partial: true).presentationDetents([.medium, .large]) }
             .sheet(isPresented: $timing) { TimerView().buddySheet() }
+            .sheet(isPresented: $dashboardEditing) { DashboardEditorView().buddySheet() }
+            .sheet(isPresented: $dashboardAdding) { WidgetConfigurator(widget: DashboardWidget(kind: .streak, habitID: store.visible.active.first?.id), isNew: true).buddySheet() }
             .fullScreenCover(isPresented: Binding(get: { store.loaded && !store.settings.onboarding }, set: { _ in })) { WelcomeView() }
             .alert("Couldn’t complete the action", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) { Button("OK") { store.error = nil } } message: { Text(store.error ?? "") }
             // A Live Activity's Finish button logs from outside the app's store.
@@ -133,19 +153,40 @@ struct OverviewView: View {
     /// The bottom bar's buttons in order: the habit layouts (Streaks, List, Rings and Year share the last), Dashboard, Explore.
     private static let stops: [Layout] = [.cards, .compact, .month, .streaks]
     private static func stop(_ layout: Layout) -> Int { stops.firstIndex(of: streakViews.contains(layout) ? .streaks : layout) ?? 0 }
-    private func step(_ direction: Int) {
-        let current = page == .habits ? Self.stop(store.settings.layout) : Self.stops.count + (page == .dashboard ? 0 : 1)
-        let next = current + direction
-        guard (0..<Self.stops.count + 2).contains(next) else { return }
-        withAnimation(.snappy(duration: 0.25)) {
-            if next >= Self.stops.count { page = next == Self.stops.count ? .dashboard : .explore; return }
-            page = .habits
-            let target = Self.stops[next]
-            // The last stop keeps whichever of its views was chosen.
-            if !(target == .streaks && Self.streakViews.contains(store.settings.layout)), store.settings.layout != target { store.change { $0.settings.layout = target } }
+    /// The layout a habit stop shows; the last stop keeps whichever of its views was chosen.
+    private func layout(at stop: Int) -> Layout {
+        stop == 3 ? (Self.streakViews.contains(store.settings.layout) ? store.settings.layout : lastStreak) : Self.stops[min(stop, 2)]
+    }
+    @ViewBuilder private func homePage(_ stop: Int) -> some View {
+        switch stop {
+        case 4: DashboardView(inPlace: true, lifting: { liftingWidget = $0 }) { path.append($0) }
+        case 5: ExploreView(inPlace: true)
+        default: habitsPage(layout(at: stop), stop: stop)
         }
     }
-    private var habitsPage: some View {
+    /// The shared top bar's controls for each page.
+    private func barButtons(_ stop: Int) -> [BarButton?] {
+        switch stop {
+        case 4: [BarButton(symbol: "sliders-horizontal", label: "Edit Dashboard", glyph: 18) { dashboardEditing = true },
+                 BarButton(symbol: "plus", label: "Add Widget", filled: true, glyph: 19, disabled: store.visible.active.isEmpty) { dashboardAdding = true }]
+        case 5: [nil, nil]
+        default: [BarButton(symbol: "stats", label: "Statistics", glyph: 21) { stats = true },
+                  BarButton(symbol: "plus", label: "Create Habit", filled: true, glyph: 19) { editor = .draft() }]
+        }
+    }
+    /// The pager settled on a page: it becomes the chosen page and layout.
+    private func land(_ stop: Int) {
+        if stop != 3 { toggleOpen = false }
+        switch stop {
+        case 4: page = .dashboard
+        case 5: page = .explore
+        default:
+            page = .habits
+            let layout = layout(at: stop)
+            if store.loaded, store.settings.layout != layout { store.change { $0.settings.layout = layout } }
+        }
+    }
+    private func habitsPage(_ layout: Layout, stop: Int) -> some View {
         ScrollView {
             VStack(spacing: 15) {
                 if store.loading {
@@ -153,47 +194,38 @@ struct OverviewView: View {
                     Color.clear.frame(height: 1)
                 } else if !store.loaded {
                     ContentUnavailableView("Your data needs attention", systemImage: "externaldrive.badge.exclamationmark", description: Text(store.error ?? "Open Settings to restore a backup."))
+                        .layoutPinned()
                 } else if habits.isEmpty {
                     ContentUnavailableView {
                         Label(category == nil ? "Make a little progress" : "No habits here yet", systemImage: "square.grid.3x3.fill")
                     } description: { Text("Build the habits that matter. One day at a time.") } actions: {
                         Button("Create Habit") { editor = .draft() }.buttonStyle(.borderedProminent).foregroundStyle(accent.foreground)
                         if store.data.habits.isEmpty { Button("Try sample habits") { loadSamples() } }
-                    }.padding(.top, 70)
+                    }.padding(.top, 70).layoutPinned()
                 } else {
-                    if store.settings.showCategoryFilter && !store.data.categories.isEmpty { categoryFilter }
-                    if !store.visible.routines.isEmpty { RoutineStrip { routine = $0 } }
-                    switch store.settings.layout {
-                    case .cards: LazyVStack(spacing: 15.3) { ForEach(habits) { habit in card(habit) } }
-                    case .compact: compact
-                    case .month: monthGrid
-                    case .streaks, .weeks: tileGrid(.streak)
-                    case .rings: tileGrid(.ring)
-                    case .year: tileGrid(.year, columns: 1)
-                    case .list: streakList
+                    if store.settings.showCategoryFilter && !store.data.categories.isEmpty { categoryFilter.layoutPinned() }
+                    if !store.visible.routines.isEmpty { RoutineStrip { routine = $0 }.layoutPinned() }
+                    switch layout {
+                    case .cards: LazyVStack(spacing: 15.3) { ForEach(habits) { habit in card(habit, stop: stop).homeFlow() } }
+                    case .compact: compact(stop)
+                    case .month: monthGrid(stop)
+                    case .streaks, .weeks: tileGrid(.streak, stop: stop)
+                    case .rings: tileGrid(.ring, stop: stop)
+                    case .year: tileGrid(.year, columns: 1, stop: stop)
+                    case .list: streakList(stop)
                     }
                 }
             }.padding(.horizontal, 8).padding(.bottom, 110)
         }
+        .pageClip()
         .overlay {
             // A tap anywhere outside the open toggle minimises it back to the bubble.
             if toggleOpen { Color.clear.contentShape(Rectangle()).onTapGesture { withAnimation(.snappy(duration: 0.25)) { toggleOpen = false } } }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if store.loaded, !habits.isEmpty, Self.streakViews.contains(store.settings.layout) {
-                HStack(spacing: 0) { Spacer(minLength: 0); streakListToggle }.padding(.trailing, store.settings.showLayoutSwitcher && exploreMidX > 0 ? max(8, UIScreen.main.bounds.width - exploreMidX - 25) : 16).padding(.bottom, store.settings.showLayoutSwitcher ? 14 : 26)
+            if store.loaded, !habits.isEmpty, Self.streakViews.contains(layout) {
+                HStack(spacing: 0) { Spacer(minLength: 0); streakListToggle(layout) }.padding(.trailing, store.settings.showLayoutSwitcher && exploreMidX > 0 ? max(8, UIScreen.main.bounds.width - exploreMidX - 25) : 16).padding(.bottom, store.settings.showLayoutSwitcher ? 14 : 26)
             }
-        }
-        .sensoryFeedback(.selection, trigger: arranged) { old, new in old != nil && new != nil && store.settings.haptics }
-        .background(BuddyStyle.canvas(scheme))
-        .toolbar(.hidden, for: .navigationBar)
-        .homeBar(settings: { settings = true }) {
-            if !store.settings.showLayoutSwitcher {
-                CircleControl(symbol: "compass", label: "Explore") { open(.explore) }
-                CircleControl(symbol: "layout-dashboard", label: "Dashboard") { open(.dashboard) }
-            }
-            CircleControl(symbol: "stats", label: "Statistics") { stats = true }
-            CircleControl(symbol: "plus", label: "Create Habit", filled: true, glyph: 19) { editor = .draft() }
         }
     }
     private var categoryFilter: some View {
@@ -208,36 +240,9 @@ struct OverviewView: View {
             }.font(BuddyFont.text(12))
         }
     }
-    /// The habit layouts, then Dashboard and Explore at the trailing end. Each opens in place under the switcher.
-    private var layoutSwitcher: some View {
-        let layout = store.settings.layout
-        return HStack(spacing: 4) {
-            // Streaks and List share one button, shown with the List icon; the toggle at the bottom of that view switches between them.
-            ForEach(Layout.allCases.filter { ($0 != .weeks && !Self.streakViews.contains($0)) || $0 == .list }, id: \.self) { item in
-                let merged = item == .list, selected = shown == .habits && (layout == item || (merged && Self.streakViews.contains(layout)))
-                switcherButton(item.rawValue, label: merged ? "Streaks, list, rings and year views" : "\(item.rawValue) view", selected: selected) {
-                    page = .habits
-                    if layout != item && !(merged && Self.streakViews.contains(layout)) { store.change { $0.settings.layout = item } }
-                } glyph: { LayoutGlyph(layout: item) }
-            }
-            Capsule().fill(BuddyStyle.border(scheme, 0.12)).frame(width: 1, height: 20).padding(.horizontal, 2).accessibilityHidden(true)
-            ForEach([HomePage.dashboard, .explore], id: \.self) { item in
-                switcherButton(item.rawValue, label: item.title, selected: shown == item) { page = item } glyph: { PageGlyph(page: item) }
-                    .onGeometryChange(for: CGFloat.self) { item == .explore ? $0.frame(in: .global).midX : 0 } action: { if $0 > 0 { exploreMidX = $0 } }
-            }
-        }
-        .padding(.horizontal, 7).padding(.vertical, 6)
-        .animation(glass == nil ? nil : .spring(response: 0.35, dampingFraction: 1), value: shown == .habits ? layout.rawValue : shown.rawValue)
-        .glassChrome(in: Capsule(),
-                     fill: scheme == .dark ? AnyShapeStyle(LinearGradient(colors: [Color(hex: 0x2B2B2E), Color(hex: 0x1E1E21)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(.regularMaterial),
-                     border: scheme == .dark ? AnyShapeStyle(LinearGradient(colors: [Color(hex: 0x4B4B4D), Color(hex: 0x27272A)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(Color.black.opacity(0.08)))
-        // Six buttons fit a 375-point phone: they narrow from 48 points to fit inside a 16-point margin.
-        .padding(.horizontal, 16).padding(.bottom, 16)
-    }
     /// Switches the merged Streaks and List view between its two-column tiles and its rows.
-    private var streakListToggle: some View {
-        let current = store.settings.layout
-        return HStack(spacing: 2) {
+    private func streakListToggle(_ current: Layout) -> some View {
+        HStack(spacing: 2) {
             if toggleOpen {
                 ForEach(Self.streakViews, id: \.self) { item in
                     let on = current == item
@@ -270,35 +275,18 @@ struct OverviewView: View {
         default: LayoutGlyph(layout: item)
         }
     }
-    private func switcherButton(_ id: String, label: String, selected: Bool, action: @escaping () -> Void, @ViewBuilder glyph: () -> some View) -> some View {
-        Button(action: action) {
-            glyph().foregroundStyle(Color(hex: scheme == .dark ? 0xECECEC : 0x1C1C1E))
-                .frame(minWidth: 40, maxWidth: 48).frame(height: 44)
-                .background {
-                    if selected && glass != nil {
-                        // A lighter lens slides to the chosen view, like the selection in an iOS tab bar.
-                        // Reduce Motion gives each view its own lens, so the change cross-fades instead.
-                        Capsule().fill(scheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.07))
-                            .matchedGeometryEffect(id: reduceMotion ? id : "selection", in: switcher)
-                    } else if selected {
-                        Capsule().fill(scheme == .dark ? Color(hex: 0x3E3E40) : Color.black.opacity(0.08)).overlay { Capsule().strokeBorder(scheme == .dark ? Color(hex: 0x545456) : Color.black.opacity(0.08), lineWidth: 1) }
-                    }
-                }
-                .contentShape(Capsule())
-        }.buttonStyle(.plain).accessibilityLabel(label)
-            .accessibilityAddTraits(selected ? .isSelected : [])
-    }
     /// Opens Dashboard or Explore: in place from the bottom switcher, or pushed while the switcher is hidden.
     private func open(_ item: HomePage) {
-        if store.settings.showLayoutSwitcher { page = item } else if item != .habits { path.append(item == .dashboard ? .dashboard : .explore) }
+        if store.settings.showLayoutSwitcher { pager.go(to: item == .dashboard ? 4 : 5, animated: false) }
+        else if item != .habits { path.append(item == .dashboard ? .dashboard : .explore) }
     }
     /// With Drag to Reorder on, holding any part of a card opens its menu, and moving the finger then lifts the card:
     /// the menus are inside the card and the drag is around it, the order in which iOS hands a hold over to a drag. The
     /// other cards make room as it passes over them.
-    @ViewBuilder private func card(_ habit: Habit) -> some View {
+    @ViewBuilder private func card(_ habit: Habit, stop: Int) -> some View {
         let card = HabitCard(habit:habit,data:store.data,version:store.version(habit.id),onOpen:{path.append(.habit(habit.id))},onComplete:{tap(habit,Day())}) { habitMenu(habit) }
             .equatable()
-            .matchedTransitionSource(id: habit.id, in: zoom) { $0.clipShape(RoundedRectangle(cornerRadius: 24, style: .circular)) }
+            .matchedTransitionSource(id: ZoomSource(stop: stop, habit: habit.id), in: zoom) { $0.clipShape(RoundedRectangle(cornerRadius: 24, style: .circular)) }
         if store.settings.dragToReorder {
             let lifting = arranged != nil && dragged == habit.id
             card.onDrag {
@@ -347,7 +335,7 @@ struct OverviewView: View {
         if goal.tracking == .yesNo || (goal.tap == .addOne && !p.success && goal.mode == .build) { store.quickLog(habit, day: day) }
         else { daySelection = DaySelection(habit: habit, day: day) }
     }
-    private var compact: some View {
+    private func compact(_ stop: Int) -> some View {
         let today = Day(), days = Day.range(today.adding(-(store.settings.recentDays - 1)), today)
         let line = BuddyStyle.border(scheme, 0.105)
         return VStack(spacing: 12) {
@@ -359,7 +347,7 @@ struct OverviewView: View {
                 }.buttonStyle(FlatButtonStyle()).accessibilityHint("Choose the days and whether habit names show")
                 Spacer()
                 Text("\(days.first!.shortTitle) — \(days.last!.shortTitle)").font(BuddyFont.mono(10.8)).tracking(1.45).foregroundStyle(BuddyStyle.tertiaryText(scheme))
-            }
+            }.homeFlow()
             LazyVStack(spacing: 0) {
                 HStack(spacing: 8) {
                     Text("\(habits.count) \(habits.count == 1 ? "HABIT" : "HABITS")").font(BuddyFont.mono(11.2)).tracking(1.2).foregroundStyle(BuddyStyle.tertiaryText(scheme))
@@ -377,34 +365,34 @@ struct OverviewView: View {
                         CompactRow(habit: habit, data: store.data, version: store.version(habit.id), days: days, today: today, names: store.settings.compactNames,
                                    onOpen: { path.append(.habit(habit.id)) }, onTap: { tap(habit, $0) }, onEdit: { daySelection = DaySelection(habit: habit, day: $0) }) { habitMenu(habit) }
                             .equatable()
-                            .matchedTransitionSource(id: habit.id, in: zoom)
+                            .matchedTransitionSource(id: ZoomSource(stop: stop, habit: habit.id), in: zoom)
                     }
                 }
-            }.panel(radius: 20, border: 0.07)
+            }.panel(radius: 20, border: 0.07).homeFlow(after: 1)
         }
     }
     /// The views that share the bottom switcher's one streak button; the toggle above it moves between them.
     static let streakViews: [Layout] = [.streaks, .list, .rings, .year]
     /// One widget design per habit in a grid: streak tiles and goal rings in two columns, 20 weeks and the year in one.
-    private func tileGrid(_ kind: DashboardKind, columns: Int = 2) -> some View {
+    private func tileGrid(_ kind: DashboardKind, columns: Int = 2, stop: Int) -> some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: columns), spacing: 12) {
             ForEach(habits) { habit in
                 let palette = WidgetPalette(.tinted, scheme: scheme, tint: BuddyStyle.color(habit.color)), shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
                 HabitWidgetContent(kind: kind, habit: habit, data: store.data, palette: palette, versions: [store.version(habit.id)], onCheck: { tap($0, Day()) })
                     .equatable().frame(height: 158).background(palette.background(shape)).contentShape(shape)
-                    .matchedTransitionSource(id: habit.id, in: zoom) { $0.clipShape(shape) }
-                    .onTapGesture { path.append(.habit(habit.id)) }.contextMenu { habitMenu(habit) }
+                    .matchedTransitionSource(id: ZoomSource(stop: stop, habit: habit.id), in: zoom) { $0.clipShape(shape) }
+                    .onTapGesture { path.append(.habit(habit.id)) }.contextMenu { habitMenu(habit) }.homeFlow()
             }
         }
     }
     /// One row per habit: today's check, the week, and the streak.
-    private var streakList: some View {
+    private func streakList(_ stop: Int) -> some View {
         LazyVStack(spacing: 8) {
             ForEach(habits) { habit in
                 StreakListRow(habit: habit, data: store.data, version: store.version(habit.id)) { tap(habit, Day()) }
                     .equatable().contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                    .matchedTransitionSource(id: habit.id, in: zoom) { $0.clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous)) }
-                    .onTapGesture { path.append(.habit(habit.id)) }.contextMenu { habitMenu(habit) }
+                    .matchedTransitionSource(id: ZoomSource(stop: stop, habit: habit.id), in: zoom) { $0.clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous)) }
+                    .onTapGesture { path.append(.habit(habit.id)) }.contextMenu { habitMenu(habit) }.homeFlow()
             }
         }
     }
@@ -415,9 +403,9 @@ struct OverviewView: View {
             Button { shiftMonth(1) } label: { Image(systemName: "chevron.right") }.disabled(month.month >= Day().month).accessibilityLabel("Next month")
         }.padding(.horizontal, 7)
     }
-    private var monthGrid: some View {
+    private func monthGrid(_ stop: Int) -> some View {
         LazyVGrid(columns:Array(repeating:GridItem(.flexible(),spacing:8),count:3),spacing:10) {
-            ForEach(habits) { habit in MonthHabitCard(habit:habit,data:store.data,version:store.version(habit.id),onOpen:{path.append(.habit(habit.id))},onComplete:{tap(habit,Day())}).equatable().matchedTransitionSource(id:habit.id,in:zoom){$0.clipShape(RoundedRectangle(cornerRadius:16,style:.circular))}.contextMenu{habitMenu(habit)} }
+            ForEach(habits) { habit in MonthHabitCard(habit:habit,data:store.data,version:store.version(habit.id),onOpen:{path.append(.habit(habit.id))},onComplete:{tap(habit,Day())}).equatable().matchedTransitionSource(id:ZoomSource(stop:stop,habit:habit.id),in:zoom){$0.clipShape(RoundedRectangle(cornerRadius:16,style:.circular))}.contextMenu{habitMenu(habit)}.homeFlow() }
         }
     }
     @ViewBuilder private func habitMenu(_ habit: Habit) -> some View {
@@ -504,21 +492,21 @@ struct HomeBar<Trailing: View>: ViewModifier {
             }
     }
 }
-/// Dashboard's and Explore's top controls: the overview's bar while the bottom switcher shows them in place, or a back
-/// control like the other pages while they're pushed with the switcher hidden. `trailing` learns which, to size its controls.
+/// Dashboard's and Explore's top controls while they're pushed with the switcher hidden: a back control like the other
+/// pages. In place under the switcher they have none of their own; the overview's shared top bar shows their controls.
 struct SwitcherPageBar<Trailing: View>: ViewModifier {
     @Environment(\.dismiss) private var dismiss
-    let settings: (() -> Void)?
-    let trailing: (_ pushed: Bool) -> Trailing
+    let inPlace: Bool
+    let trailing: Trailing
     @ViewBuilder func body(content: Content) -> some View {
-        if let settings { content.homeBar(settings: settings) { trailing(false) } }
+        if inPlace { content }
         else {
             content.topBar {
                 GlassGroup(spacing: 8) {
                     HStack(spacing: 8) {
                         CircleControl(symbol: "chevron-left", label: "Back", size: 38, glyph: 12.5) { dismiss() }
                         Spacer()
-                        trailing(true)
+                        trailing
                     }
                 }.padding(.horizontal, 12).padding(.top, 8.8).padding(.bottom, 8)
             }
@@ -527,7 +515,69 @@ struct SwitcherPageBar<Trailing: View>: ViewModifier {
 }
 extension View {
     func homeBar(settings: @escaping () -> Void, @ViewBuilder trailing: () -> some View) -> some View { modifier(HomeBar(settings: settings, trailing: trailing())) }
-    func switcherPageBar<Trailing: View>(settings: (() -> Void)?, @ViewBuilder trailing: @escaping (_ pushed: Bool) -> Trailing) -> some View { modifier(SwitcherPageBar(settings: settings, trailing: trailing)) }
+    func switcherPageBar(inPlace: Bool, @ViewBuilder trailing: () -> some View) -> some View { modifier(SwitcherPageBar(inPlace: inPlace, trailing: trailing())) }
+}
+private extension View {
+    /// The canvas behind the home pages, the tick as a dragged card passes over another, and no navigation bar.
+    func home(canvas scheme: ColorScheme, feedback arranged: [UUID]?, haptics: Bool) -> some View {
+        background(BuddyStyle.canvas(scheme))
+            .sensoryFeedback(.selection, trigger: arranged) { old, new in old != nil && new != nil && haptics }
+            .toolbar(.hidden, for: .navigationBar)
+    }
+}
+/// A habit's card, row or tile on one page. Each page has its own, so the zoom into a habit starts from the page shown.
+private struct ZoomSource: Hashable { let stop: Int; let habit: UUID }
+
+/// The bottom bar: the habit layouts (Streaks, List, Rings and Year share the last button), then Dashboard and
+/// Explore. Each opens in place; the selection follows the pages as they're swiped.
+private struct BottomSwitcher: View {
+    @Environment(\.colorScheme) private var scheme
+    let pager: HomePager
+    let go: (Int) -> Void
+    let exploreMoved: (CGFloat) -> Void
+    @State private var frames: [Int: CGRect] = [:]
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(0..<HomePager.count, id: \.self) { stop in
+                if stop == 4 { Capsule().fill(BuddyStyle.border(scheme, 0.12)).frame(width: 1, height: 20).padding(.horizontal, 2).accessibilityHidden(true) }
+                button(stop)
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("switcher")) } action: { frames[stop] = $0 }
+                    .onGeometryChange(for: CGFloat.self) { stop == 5 ? $0.frame(in: .global).midX : 0 } action: { if $0 > 0 { exploreMoved($0) } }
+            }
+        }
+        .background { SwitcherLens(pager: pager, frames: frames) }
+        .coordinateSpace(.named("switcher"))
+        .padding(.horizontal, 7).padding(.vertical, 6)
+        .glassChrome(in: Capsule(),
+                     fill: scheme == .dark ? AnyShapeStyle(LinearGradient(colors: [Color(hex: 0x2B2B2E), Color(hex: 0x1E1E21)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(.regularMaterial),
+                     border: scheme == .dark ? AnyShapeStyle(LinearGradient(colors: [Color(hex: 0x4B4B4D), Color(hex: 0x27272A)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(Color.black.opacity(0.08)))
+        // Six buttons fit a 375-point phone: they narrow from 48 points to fit inside a 16-point margin.
+        .padding(.horizontal, 16).padding(.bottom, 16)
+    }
+    private func button(_ stop: Int) -> some View {
+        let selected = pager.destination == stop
+        return Button { go(stop) } label: {
+            glyph(stop).foregroundStyle(Color(hex: scheme == .dark ? 0xECECEC : 0x1C1C1E))
+                .frame(minWidth: 40, maxWidth: 48).frame(height: 44).contentShape(Capsule())
+        }.buttonStyle(.plain).accessibilityLabel(label(stop))
+            .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+    // Streaks and List share one button, shown with the List icon; the toggle at the bottom of that view switches between them.
+    @ViewBuilder private func glyph(_ stop: Int) -> some View {
+        switch stop {
+        case 4: PageGlyph(page: .dashboard)
+        case 5: PageGlyph(page: .explore)
+        default: LayoutGlyph(layout: stop == 3 ? .list : [Layout.cards, .compact, .month][stop])
+        }
+    }
+    private func label(_ stop: Int) -> String {
+        switch stop {
+        case 3: "Streaks, list, rings and year views"
+        case 4: HomePage.dashboard.title
+        case 5: HomePage.explore.title
+        default: "\([Layout.cards, .compact, .month][stop].rawValue) view"
+        }
+    }
 }
 
 extension Day {
@@ -838,45 +888,5 @@ struct LayoutGlyph: View {
             case .rings, .weeks, .year: break
             }
         }.frame(width:layout == .compact ? 19.75:layout == .month ? 17:layout == .cards ? 18.7:18.5,height:layout == .compact ? 15.3:layout == .month ? 16:layout == .list ? 16:19).accessibilityHidden(true)
-    }
-}
-
-/// A sideways pan over the whole page. It's a UIKit recognizer that begins only for a mostly horizontal move, so the
-/// page's own vertical scrolling is untouched, and once it begins it cancels the tap of the card under the finger.
-struct PageSwipe: UIGestureRecognizerRepresentable {
-    let enabled: Bool
-    let step: (Int) -> Void
-    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator { Coordinator() }
-    func makeUIGestureRecognizer(context: Context) -> UIPanGestureRecognizer {
-        let pan = HorizontalPan()
-        pan.delegate = context.coordinator
-        return pan
-    }
-    func updateUIGestureRecognizer(_ recognizer: UIPanGestureRecognizer, context: Context) { recognizer.isEnabled = enabled }
-    func handleUIGestureRecognizerAction(_ recognizer: UIPanGestureRecognizer, context: Context) {
-        guard recognizer.state == .ended else { return }
-        let move = recognizer.translation(in: recognizer.view), speed = recognizer.velocity(in: recognizer.view).x
-        guard abs(move.x) > 60 || abs(speed) > 500, abs(move.x) > abs(move.y) else { return }
-        step(move.x < 0 ? 1 : -1)
-    }
-    /// Fails as soon as the first real movement is more vertical than horizontal; the velocity isn't known yet when a
-    /// delegate is asked whether to begin, so the direction is read from the touches themselves.
-    final class HorizontalPan: UIPanGestureRecognizer {
-        private var origin = CGPoint.zero
-        override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
-            origin = touches.first?.location(in: view) ?? .zero
-            super.touchesBegan(touches, with: event)
-        }
-        override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent) {
-            if state == .possible, let point = touches.first?.location(in: view) {
-                let dx = abs(point.x - origin.x), dy = abs(point.y - origin.y)
-                if max(dx, dy) > 8 { if dx < dy * 1.5 { state = .failed; return } }
-            }
-            super.touchesMoved(touches, with: event)
-        }
-    }
-    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
-        // Alongside the scroll views' own pans only; a card's tap or hold must give way once the swipe begins.
-        func gestureRecognizer(_ a: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith b: UIGestureRecognizer) -> Bool { b is UIPanGestureRecognizer }
     }
 }
