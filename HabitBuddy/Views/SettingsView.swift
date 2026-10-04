@@ -476,8 +476,8 @@ struct GlassPreview: View {
             GlassGroup(spacing: 8) {
                 HStack(spacing: 8) {
                     CircleControl(symbol: "settings", label: "Settings") {}
-                    CircleControl(symbol: "compass", label: "Explore") {}
                     Spacer()
+                    CircleControl(symbol: "stats", label: "Statistics") {}
                     CircleControl(symbol: "plus", label: "Create Habit", filled: true, glyph: 19) {}
                 }.padding(.horizontal, 22)
             }

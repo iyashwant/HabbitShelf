@@ -9,12 +9,17 @@ struct HabitCard<Menu: View>: View {
     var version: HabitVersion?
     var appearance: CardAppearance?
     var interactive = true
+    /// Lets the history grid be dragged to reorder habits; the overview takes the drop on the whole card. The grid then
+    /// has no menu: where a menu and a drag shared the touch, holding opened the menu and moving never started a drag
+    /// (iOS 27 simulator).
+    var draggable = false
     /// Compared only, so cards redraw when the date changes; the parts read today's date themselves.
     var today = Day()
     var onOpen: () -> Void = {}
     var onComplete: () -> Void = {}
-    /// The habit's menu, for holding the card. The name and the check carry it too: in a lazy list, holding a
-    /// button inside the card's menu area ran the button instead of opening the menu (iOS 27 simulator).
+    /// The habit's menu, for holding the card's rows. The name and the check carry it themselves: in a lazy list,
+    /// holding a button inside a menu area ran the button instead of opening the menu (iOS 27 simulator). The grid
+    /// carries it only when it can't be dragged.
     @ViewBuilder var menu: () -> Menu
     var body: some View {
         let a=appearance ?? habit.cardAppearance(data.settings),c=BuddyStyle.color(habit.color)
@@ -30,10 +35,13 @@ struct HabitCard<Menu: View>: View {
                     }.contentShape(Rectangle())
                 }.buttonStyle(.plain).contextMenu(menuItems:menu)
                 if a.indicator { Button(action:onComplete){CompletionBadge(habit:habit,data:data)}.buttonStyle(FlatButtonStyle()).contextMenu(menuItems:menu).accessibilityLabel("Log progress for \(habit.name)").accessibilityValue(Amount.text(data.record(habit.id,Day()).amount)) }
-            }.frame(height:48).padding(.horizontal,15)
+            }.frame(height:48).padding(.horizontal,15).contentShape(Rectangle()).contextMenu(menuItems:menu)
             // The grid bleeds to the card's leading edge, where older weeks fade out.
             Group {
-                if interactive { ContributionHistory(habit:habit,data:data,monthLabels:a.monthLabels,weekdayLabels:a.weekdayLabels).onTapGesture(perform:onOpen) }
+                if interactive {
+                    let grid=ContributionHistory(habit:habit,data:data,monthLabels:a.monthLabels,weekdayLabels:a.weekdayLabels).onTapGesture(perform:onOpen)
+                    if draggable { grid.draggable(habit.id.uuidString) } else { grid.contextMenu(menuItems:menu) }
+                }
                 else { Heatmap(habit:habit,data:data,monthLabels:a.monthLabels,weekdayLabels:a.weekdayLabels,pitch:13,fit:true) }
             }.padding(.leading,interactive && !a.weekdayLabels ? 0:15).padding(.trailing,15).padding(.top,12)
             if (a.streak || a.goal) && habit.currentGoal.cadence != .none {
@@ -42,9 +50,9 @@ struct HabitCard<Menu: View>: View {
                     if a.goal { MetricChip(symbol:"target",text:habit.currentGoal.summary,color:c) }
                     Spacer()
                     if a.categoryIcons { ForEach(data.categories.filter{habit.categories.contains($0.id)}){BuddyGlyph(symbol:$0.symbol,size:14).foregroundStyle(c)} }
-                }.padding(.horizontal,15).padding(.top,10)
+                }.padding(.horizontal,15).padding(.top,10).contentShape(Rectangle()).contextMenu(menuItems:menu)
             }
-        }.padding(.top,15).padding(.bottom,14.7).surface(padding:0,tint:c).clipShape(RoundedRectangle(cornerRadius:24,style:.circular)).contextMenu(menuItems:menu).allowsHitTesting(interactive)
+        }.padding(.top,15).padding(.bottom,14.7).surface(padding:0,tint:c).clipShape(RoundedRectangle(cornerRadius:24,style:.circular)).allowsHitTesting(interactive)
     }
 }
 
@@ -59,6 +67,6 @@ extension HabitCard: Equatable {
     /// Without a version every update redraws the card. Actions are left out: they act on the same habit.
     static func == (a: HabitCard, b: HabitCard) -> Bool {
         guard let version = a.version, version == b.version else { return false }
-        return a.habit == b.habit && a.today == b.today && a.appearance == b.appearance && a.interactive == b.interactive
+        return a.habit == b.habit && a.today == b.today && a.appearance == b.appearance && a.interactive == b.interactive && a.draggable == b.draggable
     }
 }

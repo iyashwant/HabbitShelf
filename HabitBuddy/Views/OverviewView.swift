@@ -24,58 +24,17 @@ struct OverviewView: View {
     @State private var timing = false
     @State private var category: UUID?
     @State private var month = Day().startOfMonth
+    @State private var page = HomePage.habits
     private var habits: [Habit] { store.visible.active.filter { category == nil || $0.categories.contains(category!) } }
+    /// The page under the bottom switcher. With the switcher hidden, Dashboard and Explore are pushed from the top bar instead.
+    private var shown: HomePage { store.data.settings.showLayoutSwitcher ? page : .habits }
     var body: some View {
         NavigationStack(path: $path) {
-            ScrollView {
-                VStack(spacing: 15) {
-                    if store.loading {
-                        // Storage is opening; the canvas stays empty rather than showing onboarding or no habits.
-                        Color.clear.frame(height: 1)
-                    } else if !store.loaded {
-                        ContentUnavailableView("Your data needs attention", systemImage: "externaldrive.badge.exclamationmark", description: Text(store.error ?? "Open Settings to restore a backup."))
-                    } else if habits.isEmpty {
-                        ContentUnavailableView {
-                            Label(category == nil ? "Make a little progress" : "No habits here yet", systemImage: "square.grid.3x3.fill")
-                        } description: { Text("Build the habits that matter. One day at a time.") } actions: {
-                            Button("Create Habit") { editor = .draft() }.buttonStyle(.borderedProminent).foregroundStyle(accent.foreground)
-                            if store.data.habits.isEmpty { Button("Try sample habits") { loadSamples() } }
-                        }.padding(.top, 70)
-                    } else {
-                        if store.data.settings.showCategoryFilter && !store.data.categories.isEmpty { categoryFilter }
-                        if !store.visible.routines.isEmpty { RoutineStrip { routine = $0 } }
-                        switch store.data.settings.layout {
-                        case .cards: LazyVStack(spacing: 15.3) { ForEach(habits) { habit in card(habit) } }
-                        case .compact: compact
-                        case .month: monthGrid
-                        case .streaks: streakGrid
-                        case .list: streakList
-                        }
-                    }
-                }.padding(.horizontal, 8).padding(.bottom, 110)
-            }
-            .background(BuddyStyle.canvas(scheme))
-            .toolbar(.hidden, for: .navigationBar)
-            .topBar(backdrop: 0) {
-                GlassGroup(spacing: 8) {
-                    HStack(spacing: 8) {
-                        CircleControl(symbol: "settings", label: "Settings") { settings = true }
-                        Spacer()
-                        CircleControl(symbol: "compass", label: "Explore") { path.append(.explore) }
-                        CircleControl(symbol: "layout-dashboard", label: "Dashboard") { path.append(.dashboard) }
-                        CircleControl(symbol: "stats", label: "Statistics") { stats = true }
-                        CircleControl(symbol: "plus", label: "Create Habit", filled: true, glyph: 19) { editor = .draft() }
-                    }
-                }.padding(.leading, 7).padding(.trailing, 10).padding(.top, 7).padding(.bottom, 12)
-            }
-            // The reference fades content (and the top of the controls) into the canvas under the status bar.
-            // Liquid Glass leaves that to iOS's scroll edge effect (see `topBar`).
-            .overlay(alignment: .top) {
-                if glass == nil {
-                    GeometryReader { proxy in
-                        LinearGradient(colors: [BuddyStyle.canvas(scheme), BuddyStyle.canvas(scheme).opacity(0)], startPoint: .top, endPoint: .bottom)
-                            .frame(height: proxy.safeAreaInsets.top + 29)
-                    }.ignoresSafeArea().allowsHitTesting(false)
+            ZStack {
+                switch shown {
+                case .habits: habitsPage
+                case .dashboard: DashboardView(settings: { settings = true }) { path.append($0) }
+                case .explore: ExploreView(settings: { settings = true })
                 }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) { if store.data.settings.showLayoutSwitcher { layoutSwitcher } }
@@ -132,6 +91,45 @@ struct OverviewView: View {
             }
         }
     }
+    private var habitsPage: some View {
+        ScrollView {
+            VStack(spacing: 15) {
+                if store.loading {
+                    // Storage is opening; the canvas stays empty rather than showing onboarding or no habits.
+                    Color.clear.frame(height: 1)
+                } else if !store.loaded {
+                    ContentUnavailableView("Your data needs attention", systemImage: "externaldrive.badge.exclamationmark", description: Text(store.error ?? "Open Settings to restore a backup."))
+                } else if habits.isEmpty {
+                    ContentUnavailableView {
+                        Label(category == nil ? "Make a little progress" : "No habits here yet", systemImage: "square.grid.3x3.fill")
+                    } description: { Text("Build the habits that matter. One day at a time.") } actions: {
+                        Button("Create Habit") { editor = .draft() }.buttonStyle(.borderedProminent).foregroundStyle(accent.foreground)
+                        if store.data.habits.isEmpty { Button("Try sample habits") { loadSamples() } }
+                    }.padding(.top, 70)
+                } else {
+                    if store.data.settings.showCategoryFilter && !store.data.categories.isEmpty { categoryFilter }
+                    if !store.visible.routines.isEmpty { RoutineStrip { routine = $0 } }
+                    switch store.data.settings.layout {
+                    case .cards: LazyVStack(spacing: 15.3) { ForEach(habits) { habit in card(habit) } }
+                    case .compact: compact
+                    case .month: monthGrid
+                    case .streaks: streakGrid
+                    case .list: streakList
+                    }
+                }
+            }.padding(.horizontal, 8).padding(.bottom, 110)
+        }
+        .background(BuddyStyle.canvas(scheme))
+        .toolbar(.hidden, for: .navigationBar)
+        .homeBar(settings: { settings = true }) {
+            if !store.data.settings.showLayoutSwitcher {
+                CircleControl(symbol: "compass", label: "Explore") { open(.explore) }
+                CircleControl(symbol: "layout-dashboard", label: "Dashboard") { open(.dashboard) }
+            }
+            CircleControl(symbol: "stats", label: "Statistics") { stats = true }
+            CircleControl(symbol: "plus", label: "Create Habit", filled: true, glyph: 19) { editor = .draft() }
+        }
+    }
     private var categoryFilter: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack {
@@ -144,39 +142,55 @@ struct OverviewView: View {
             }.font(BuddyFont.text(12))
         }
     }
+    /// The habit layouts, then Dashboard and Explore at the trailing end. Each opens in place under the switcher.
     private var layoutSwitcher: some View {
-        HStack(spacing: 5) {
-            ForEach(Layout.allCases, id: \.self) { layout in
-                let selected = store.data.settings.layout == layout
-                Button { store.change { $0.settings.layout = layout } } label: {
-                    LayoutGlyph(layout: layout).foregroundStyle(Color(hex: scheme == .dark ? 0xECECEC : 0x1C1C1E))
-                        .frame(width: 48, height: 44)
-                        .background {
-                            if selected && glass != nil {
-                                // A lighter lens slides to the chosen view, like the selection in an iOS tab bar.
-                                // Reduce Motion gives each view its own lens, so the change cross-fades instead.
-                                Capsule().fill(scheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.07))
-                                    .matchedGeometryEffect(id: reduceMotion ? layout.rawValue : "selection", in: switcher)
-                            } else if selected {
-                                Capsule().fill(scheme == .dark ? Color(hex: 0x3E3E40) : Color.black.opacity(0.08)).overlay { Capsule().strokeBorder(scheme == .dark ? Color(hex: 0x545456) : Color.black.opacity(0.08), lineWidth: 1) }
-                            }
-                        }
-                        .contentShape(Capsule())
-                }.buttonStyle(.plain).accessibilityLabel("\(layout.rawValue) view")
-                    .accessibilityAddTraits(selected ? .isSelected : [])
+        let layout = store.data.settings.layout
+        return HStack(spacing: 4) {
+            ForEach(Layout.allCases, id: \.self) { item in
+                switcherButton(item.rawValue, label: "\(item.rawValue) view", selected: shown == .habits && layout == item) {
+                    page = .habits
+                    if layout != item { store.change { $0.settings.layout = item } }
+                } glyph: { LayoutGlyph(layout: item) }
+            }
+            Capsule().fill(BuddyStyle.border(scheme, 0.12)).frame(width: 1, height: 20).padding(.horizontal, 2).accessibilityHidden(true)
+            ForEach([HomePage.dashboard, .explore], id: \.self) { item in
+                switcherButton(item.rawValue, label: item.title, selected: shown == item) { page = item } glyph: { PageGlyph(page: item) }
             }
         }
         .padding(.horizontal, 7).padding(.vertical, 6)
-        .animation(glass == nil ? nil : .spring(response: 0.35, dampingFraction: 1), value: store.data.settings.layout)
+        .animation(glass == nil ? nil : .spring(response: 0.35, dampingFraction: 1), value: shown == .habits ? layout.rawValue : shown.rawValue)
         .glassChrome(in: Capsule(),
                      fill: scheme == .dark ? AnyShapeStyle(LinearGradient(colors: [Color(hex: 0x2B2B2E), Color(hex: 0x1E1E21)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(.regularMaterial),
                      border: scheme == .dark ? AnyShapeStyle(LinearGradient(colors: [Color(hex: 0x4B4B4D), Color(hex: 0x27272A)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(Color.black.opacity(0.08)))
-        .padding(.bottom, 16)
+        // Seven buttons fit a 375-point phone: they narrow from 48 points to fit inside a 16-point margin.
+        .padding(.horizontal, 16).padding(.bottom, 16)
+    }
+    private func switcherButton(_ id: String, label: String, selected: Bool, action: @escaping () -> Void, @ViewBuilder glyph: () -> some View) -> some View {
+        Button(action: action) {
+            glyph().foregroundStyle(Color(hex: scheme == .dark ? 0xECECEC : 0x1C1C1E))
+                .frame(minWidth: 40, maxWidth: 48).frame(height: 44)
+                .background {
+                    if selected && glass != nil {
+                        // A lighter lens slides to the chosen view, like the selection in an iOS tab bar.
+                        // Reduce Motion gives each view its own lens, so the change cross-fades instead.
+                        Capsule().fill(scheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.07))
+                            .matchedGeometryEffect(id: reduceMotion ? id : "selection", in: switcher)
+                    } else if selected {
+                        Capsule().fill(scheme == .dark ? Color(hex: 0x3E3E40) : Color.black.opacity(0.08)).overlay { Capsule().strokeBorder(scheme == .dark ? Color(hex: 0x545456) : Color.black.opacity(0.08), lineWidth: 1) }
+                    }
+                }
+                .contentShape(Capsule())
+        }.buttonStyle(.plain).accessibilityLabel(label)
+            .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+    /// Opens Dashboard or Explore: in place from the bottom switcher, or pushed while the switcher is hidden.
+    private func open(_ item: HomePage) {
+        if store.data.settings.showLayoutSwitcher { page = item } else if item != .habits { path.append(item == .dashboard ? .dashboard : .explore) }
     }
     private func card(_ habit: Habit) -> some View {
-        HabitCard(habit:habit,data:store.data,version:store.version(habit.id),onOpen:{path.append(.habit(habit.id))},onComplete:{tap(habit,Day())}) { habitMenu(habit) }
+        HabitCard(habit:habit,data:store.data,version:store.version(habit.id),draggable:store.data.settings.dragToReorder,onOpen:{path.append(.habit(habit.id))},onComplete:{tap(habit,Day())}) { habitMenu(habit) }
             .equatable()
-            .modifier(HabitDrag(id:habit.id,enabled:store.data.settings.dragToReorder) { source in
+            .modifier(HabitDrop(enabled:store.data.settings.dragToReorder) { source in
                 var ids=store.visible.active.map(\.id)
                 guard let from=ids.firstIndex(of:source),let to=ids.firstIndex(of:habit.id),from != to else{return}
                 ids.remove(at:from);ids.insert(source,at:to)
@@ -278,8 +292,8 @@ struct OverviewView: View {
         let habit=store.data.active[index]
         switch screen {
         case "detail","years","year-calendar":path=[.habit(habit.id)]
-        case "dashboard","today-ring","widgets","widget-config":path=[.dashboard]
-        case "explore":path=[.explore]
+        case "dashboard","today-ring","widgets","widget-config":open(.dashboard)
+        case "explore":open(.explore)
         case "insights":path=[.insights]
         case "calendar":path=[.calendar]
         case "recap":path=[.recap]
@@ -305,6 +319,66 @@ struct OverviewView: View {
 }
 
 enum OverviewRoute: Hashable { case habit(UUID), dashboard, explore, insights, calendar, recap, notes, milestones(UUID?), routines }
+/// What the bottom switcher shows: the habits in the chosen layout, the Dashboard or Explore.
+enum HomePage: String { case habits, dashboard, explore
+    var title: String { rawValue.capitalized }
+}
+
+/// The overview's top controls: Settings at the leading edge and the page's own controls at the trailing edge. The
+/// habits, Dashboard and Explore share them, so Settings stays put when the switcher changes page.
+struct HomeBar<Trailing: View>: ViewModifier {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.glass) private var glass
+    let settings: () -> Void
+    let trailing: Trailing
+    func body(content: Content) -> some View {
+        content
+            .topBar(backdrop: 0) {
+                GlassGroup(spacing: 8) {
+                    HStack(spacing: 8) {
+                        CircleControl(symbol: "settings", label: "Settings", action: settings)
+                        Spacer()
+                        trailing
+                    }
+                }.padding(.leading, 7).padding(.trailing, 10).padding(.top, 7).padding(.bottom, 12)
+            }
+            // The reference fades content (and the top of the controls) into the canvas under the status bar.
+            // Liquid Glass leaves that to iOS's scroll edge effect (see `topBar`).
+            .overlay(alignment: .top) {
+                if glass == nil {
+                    GeometryReader { proxy in
+                        LinearGradient(colors: [BuddyStyle.canvas(scheme), BuddyStyle.canvas(scheme).opacity(0)], startPoint: .top, endPoint: .bottom)
+                            .frame(height: proxy.safeAreaInsets.top + 29)
+                    }.ignoresSafeArea().allowsHitTesting(false)
+                }
+            }
+    }
+}
+/// Dashboard's and Explore's top controls: the overview's bar while the bottom switcher shows them in place, or a back
+/// control like the other pages while they're pushed with the switcher hidden. `trailing` learns which, to size its controls.
+struct SwitcherPageBar<Trailing: View>: ViewModifier {
+    @Environment(\.dismiss) private var dismiss
+    let settings: (() -> Void)?
+    let trailing: (_ pushed: Bool) -> Trailing
+    @ViewBuilder func body(content: Content) -> some View {
+        if let settings { content.homeBar(settings: settings) { trailing(false) } }
+        else {
+            content.topBar {
+                GlassGroup(spacing: 8) {
+                    HStack(spacing: 8) {
+                        CircleControl(symbol: "chevron-left", label: "Back", size: 38, glyph: 12.5) { dismiss() }
+                        Spacer()
+                        trailing(true)
+                    }
+                }.padding(.horizontal, 12).padding(.top, 8.8).padding(.bottom, 8)
+            }
+        }
+    }
+}
+extension View {
+    func homeBar(settings: @escaping () -> Void, @ViewBuilder trailing: () -> some View) -> some View { modifier(HomeBar(settings: settings, trailing: trailing())) }
+    func switcherPageBar<Trailing: View>(settings: (() -> Void)?, @ViewBuilder trailing: @escaping (_ pushed: Bool) -> Trailing) -> some View { modifier(SwitcherPageBar(settings: settings, trailing: trailing)) }
+}
 
 extension Day {
     var monthTitle: String { Day.monthYear.string(from: date) }
@@ -426,12 +500,12 @@ struct StreakListRow: View, Equatable {
     }
     static func == (a: Self, b: Self) -> Bool { a.version == b.version && a.habit == b.habit && a.today == b.today }
 }
-struct HabitDrag: ViewModifier {
-    let id:UUID
+/// Takes a habit dropped on a card and moves it to that card's place. Cards are dragged by their history grid.
+struct HabitDrop: ViewModifier {
     let enabled:Bool
     let move:(UUID)->Void
     @ViewBuilder func body(content:Content)->some View {
-        if enabled{content.draggable(id.uuidString).dropDestination(for:String.self){items,_ in guard let first=items.first,let source=UUID(uuidString:first) else{return false};move(source);return true}}
+        if enabled{content.dropDestination(for:String.self){items,_ in guard let first=items.first,let source=UUID(uuidString:first) else{return false};move(source);return true}}
         else{content}
     }
 }
@@ -559,6 +633,24 @@ struct HideHabitsView: View {
         .accessibilityElement(children: .ignore).accessibilityLabel(habit.name).accessibilityValue(habit.isHidden ? "Hidden" : "Shown")
         .accessibilityAddTraits(habit.isHidden ? [.isButton, .isSelected] : .isButton).accessibilityHint(habit.isHidden ? "Shows the habit again" : "Hides the habit everywhere")
         .accessibilityIdentifier("hide-habit")
+    }
+}
+/// The switcher's Dashboard and Explore icons, two equal boxes side by side and a compass drawn in the layout icons' thin stroke.
+struct PageGlyph: View {
+    let page: HomePage
+    var body: some View {
+        Canvas { context, _ in
+            var p = Path()
+            switch page {
+            case .habits: break
+            case .dashboard:
+                for x: CGFloat in [0.5, 10.5] { p.addRoundedRect(in: CGRect(x: x, y: 2.5, width: 8, height: 14), cornerSize: CGSize(width: 1.6, height: 1.6)) }
+            case .explore:
+                p.addEllipse(in: CGRect(x: 0.5, y: 0.5, width: 18, height: 18))
+                p.addLines([CGPoint(x: 13.3, y: 5.7), CGPoint(x: 11.4, y: 11.4), CGPoint(x: 5.7, y: 13.3), CGPoint(x: 7.6, y: 7.6)]); p.closeSubpath()
+            }
+            context.stroke(p, with: .foreground, style: StrokeStyle(lineWidth: 1, lineCap: .round, lineJoin: .round))
+        }.frame(width: 19, height: 19).accessibilityHidden(true)
     }
 }
 /// The three drawn view-switcher icons: card rows, a checklist, and a two-column list.

@@ -4,9 +4,10 @@ import SwiftUI
 /// and large a full row at double height.
 struct DashboardView: View {
     @EnvironmentObject private var store: AppStore
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accent) private var accent
+    /// Opens Settings while the board is shown in place by the bottom switcher; nil when it's pushed, with a back control.
+    var settings: (() -> Void)? = nil
     var open: (OverviewRoute) -> Void
     @State private var editing = false
     @State private var adding = false
@@ -35,15 +36,9 @@ struct DashboardView: View {
             }.scrollIndicators(.hidden)
         }
         .background(BuddyStyle.canvas(scheme)).toolbar(.hidden, for: .navigationBar)
-        .topBar {
-            GlassGroup(spacing: 8) {
-                HStack(spacing: 8) {
-                    CircleControl(symbol: "chevron-left", label: "Back", size: 38, glyph: 12.5) { dismiss() }
-                    Spacer()
-                    CircleControl(symbol: "sliders-horizontal", label: "Edit Dashboard", size: 38, glyph: 16) { editing = true }
-                    CircleControl(symbol: "plus", label: "Add Widget", filled: true, size: 38, glyph: 17) { adding = true }.disabled(store.visible.active.isEmpty)
-                }
-            }.padding(.horizontal, 12).padding(.top, 8.8).padding(.bottom, 8)
+        .switcherPageBar(settings: settings) { pushed in
+            CircleControl(symbol: "sliders-horizontal", label: "Edit Dashboard", size: pushed ? 38 : 42, glyph: pushed ? 16 : 18) { editing = true }
+            CircleControl(symbol: "plus", label: "Add Widget", filled: true, size: pushed ? 38 : 42, glyph: pushed ? 17 : 19) { adding = true }.disabled(store.visible.active.isEmpty)
         }
         .sheet(isPresented: $editing) { DashboardEditorView().buddySheet() }
         .sheet(isPresented: $adding) { WidgetConfigurator(widget: DashboardWidget(kind: .streak, habitID: store.visible.active.first?.id), isNew: true).buddySheet() }

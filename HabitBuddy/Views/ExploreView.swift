@@ -4,8 +4,9 @@ import SwiftUI
 struct ExploreView: View {
     @EnvironmentObject private var store: AppStore
     @EnvironmentObject private var timer: TimerController
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
+    /// Opens Settings while Explore is shown in place by the bottom switcher; nil when it's pushed, with a back control.
+    var settings: (() -> Void)? = nil
     @State private var timing = false
     /// Counts for the tile captions, worked out off the main thread so the page opens at once.
     @State private var summary: Summary?
@@ -38,10 +39,7 @@ struct ExploreView: View {
         }
         .scrollIndicators(.hidden)
         .background(BuddyStyle.canvas(scheme)).toolbar(.hidden, for: .navigationBar)
-        .topBar {
-            HStack { CircleControl(symbol: "chevron-left", label: "Back", size: 38, glyph: 12.5) { dismiss() }; Spacer() }
-                .padding(.horizontal, 12).padding(.top, 8.8).padding(.bottom, 8)
-        }
+        .switcherPageBar(settings: settings) { _ in }
         .sheet(isPresented: $timing) { TimerView().buddySheet() }
         .task(id: store.revision) {
             let data = store.visible, today = Day()

@@ -28,7 +28,8 @@ final class HabitBuddyUITests:XCTestCase {
             case "notes":XCTAssertTrue(app.buttons["Close Notes"].waitForExistence(timeout:20))
             case "detail","years":XCTAssertTrue(app.buttons["Back"].waitForExistence(timeout:20))
             case "dashboard","today-ring":XCTAssertTrue(app.buttons["Edit Dashboard"].waitForExistence(timeout:20))
-            case "insights","calendar","recap","notes-timeline","milestones","habit-milestones","routines","explore":XCTAssertTrue(app.buttons["Back"].firstMatch.waitForExistence(timeout:20));sleep(2)
+            case "explore":XCTAssertTrue(app.buttons["explore-timer"].waitForExistence(timeout:20));sleep(2)
+            case "insights","calendar","recap","notes-timeline","milestones","habit-milestones","routines":XCTAssertTrue(app.buttons["Back"].firstMatch.waitForExistence(timeout:20));sleep(2)
             case "routine":XCTAssertTrue(app.buttons["Complete All in Morning"].firstMatch.waitForExistence(timeout:20))
             case "timer":XCTAssertTrue(app.buttons["Start Timer"].waitForExistence(timeout:20))
             case "year-calendar":XCTAssertTrue(app.buttons["Share Year Calendar"].waitForExistence(timeout:20))
@@ -39,7 +40,18 @@ final class HabitBuddyUITests:XCTestCase {
             app.terminate()
         }
         for screen in ["cards","welcome"]{let app=launch(screen,theme:"light");XCTAssertTrue(app.buttons[screen=="cards" ? "Settings":"Continue"].waitForExistence(timeout:20));capture(app,screen+"-light");app.terminate()}
-        for screen in ["explore","insights","recap","today-ring"]{let app=launch(screen,theme:"light");XCTAssertTrue(app.buttons["Back"].firstMatch.waitForExistence(timeout:20));sleep(2);capture(app,screen+"-light");app.terminate()}
+        for screen in ["explore","insights","recap","today-ring"]{let app=launch(screen,theme:"light");XCTAssertTrue((screen=="explore" ? app.buttons["explore-timer"]:screen=="today-ring" ? app.buttons["Edit Dashboard"]:app.buttons["Back"].firstMatch).waitForExistence(timeout:20));sleep(2);capture(app,screen+"-light");app.terminate()}
+    }
+    func testSwitcherOpensDashboardAndExploreInPlace() {
+        let app=launch("cards"),dashboard=app.buttons["Dashboard"],explore=app.buttons["Explore"]
+        XCTAssertTrue(dashboard.waitForExistence(timeout:20));XCTAssertTrue(explore.exists)
+        XCTAssertLessThan(app.buttons["list view"].frame.midX,dashboard.frame.midX,"Dashboard follows the layouts");XCTAssertLessThan(dashboard.frame.midX,explore.frame.midX,"Explore is last")
+        dashboard.tap();XCTAssertTrue(app.buttons["Edit Dashboard"].waitForExistence(timeout:5));XCTAssertTrue(dashboard.isSelected);XCTAssertFalse(app.buttons["Back"].exists,"Dashboard opens in place")
+        XCTAssertTrue(app.buttons["Settings"].exists);capture(app,"switcher-dashboard")
+        explore.tap();XCTAssertTrue(app.buttons["explore-timer"].waitForExistence(timeout:5));XCTAssertTrue(explore.isSelected);XCTAssertFalse(app.buttons["Back"].exists,"Explore opens in place");capture(app,"switcher-explore")
+        app.buttons.matching(NSPredicate(format:"label BEGINSWITH 'Insights'")).firstMatch.tap();XCTAssertTrue(app.buttons["Back"].firstMatch.waitForExistence(timeout:5));XCTAssertFalse(explore.isHittable,"Pages pushed from Explore cover the switcher")
+        app.buttons["Back"].firstMatch.tap();XCTAssertTrue(app.buttons["explore-timer"].waitForExistence(timeout:5),"Back returns to Explore")
+        app.buttons["cards view"].tap();XCTAssertTrue(app.buttons["Log progress for Gym Day"].waitForExistence(timeout:5));XCTAssertTrue(app.buttons["cards view"].isSelected);XCTAssertFalse(dashboard.isSelected)
     }
     func testCompletionPersistsAfterRelaunch() {
         let app=launch("cards"),button=app.buttons["Log progress for Gym Day"]
@@ -67,6 +79,16 @@ final class HabitBuddyUITests:XCTestCase {
             XCTAssertFalse(app.buttons["Back"].exists,"rather than the habit");XCTAssertEqual(check.value as? String,before,"without logging")
             app.terminate()
         }
+    }
+    private func grid(_ app:XCUIApplication,_ habit:String)->XCUIElement { app.otherElements.matching(NSPredicate(format:"label BEGINSWITH %@",habit+", contribution grid")).firstMatch }
+    func testDraggingACardByItsGridReordersHabits() {
+        let app=launch("cards")
+        func gymFirst()->Bool { app.buttons.matching(NSPredicate(format:"label BEGINSWITH 'Gym Day'")).firstMatch.frame.minY<app.buttons.matching(NSPredicate(format:"label BEGINSWITH 'Push-Ups'")).firstMatch.frame.minY }
+        XCTAssertTrue(grid(app,"Gym Day").waitForExistence(timeout:20));XCTAssertTrue(gymFirst())
+        grid(app,"Gym Day").press(forDuration:1.0,thenDragTo:grid(app,"Push-Ups"),withVelocity:.slow,thenHoldForDuration:1.0)
+        let moved=expectation(for:NSPredicate{_,_ in !gymFirst()},evaluatedWith:nil);wait(for:[moved],timeout:10)
+        app.terminate();app.launchEnvironment["BUDDY_VISUAL_RESET"]="false";app.launch()
+        XCTAssertTrue(grid(app,"Gym Day").waitForExistence(timeout:20));XCTAssertFalse(gymFirst(),"The new order is saved")
     }
     func testCompactRowNameOpensHabitMenu() {
         let app=launch("compact"),name=app.buttons["Gym Day"]
