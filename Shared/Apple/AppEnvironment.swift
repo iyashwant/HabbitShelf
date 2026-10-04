@@ -22,16 +22,41 @@ enum AppEnvironment {
         return FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group)
     }()
     static var hasSharedContainer: Bool { sharedContainer != nil }
-    /// Refreshes what a saved change affects outside the app.
-    static func changed(_ data: BuddyData, scope: SyncScope = .all) async {
+    /// Refreshes what a saved change affects outside the app. With `habits`, the habits whose widgets it may alter,
+    /// only the widget kinds and controls that can show them reload; nil reloads every widget and control.
+    static func changed(_ data: BuddyData, scope: SyncScope = .all, habits: Set<UUID>? = nil) async {
         #if DEBUG
         if ProcessInfo.processInfo.environment["BUDDY_VISUAL_SCREEN"] != nil{return}
         #endif
-        if scope.contains(.widgets) {
+        if scope.contains(.widgets) { await reloadWidgets(data, habits: habits) }
+        if scope.contains(.reminders) { await ReminderCoordinator.shared.reconcile(data) }
+    }
+    private static func reloadWidgets(_ data: BuddyData, habits: Set<UUID>?) async {
+        guard let habits, let installed = try? await WidgetCenter.shared.currentConfigurations() else {
             WidgetCenter.shared.reloadAllTimelines()
             ControlCenter.shared.reloadAllControls()
+            return
         }
-        if scope.contains(.reminders) { await ReminderCoordinator.shared.reconcile(data) }
+        guard !habits.isEmpty else { return }
+        for kind in WidgetTargets.kinds(installed.map(target), touching: habits, data: data) { WidgetCenter.shared.reloadTimelines(ofKind: kind) }
+        // The timer control never changes; the others show whether their habit or routine is done.
+        ControlCenter.shared.reloadControls(ofKind: "LogHabitControl")
+        ControlCenter.shared.reloadControls(ofKind: "CompleteRoutineControl")
+    }
+    /// What an installed widget shows, read from the configuration intent its kind uses.
+    private static func target(_ info: WidgetInfo) -> WidgetTargets.Installed {
+        let choice: WidgetTargets.Choice
+        switch info.kind {
+        case "SingleHabit", "MediumHabit", "Streak", "Month", "Weeks", "ThreeMonths", "GoalRing", "HabitStats", "HabitYear", "NextBadge":
+            choice = info.widgetConfigurationIntent(of: ChooseHabitIntent.self).map { .habit($0.habit?.id) } ?? .unknown
+        case "HabitLock": choice = info.widgetConfigurationIntent(of: ChooseLockHabitIntent.self).map { .habit($0.habit?.id) } ?? .unknown
+        case "CompactHabits", "CompactHabitsLarge", "TodayList", "TodayRing", "QuickCheck", "ThisWeek":
+            choice = info.widgetConfigurationIntent(of: ChooseCompactHabitsIntent.self).map { .habits($0.habits?.map(\.id)) } ?? .unknown
+        case "TodayLock": choice = info.widgetConfigurationIntent(of: ChooseLockHabitsIntent.self).map { .habits($0.habits?.map(\.id)) } ?? .unknown
+        case "RoutineWidget": choice = info.widgetConfigurationIntent(of: ChooseRoutineWidgetIntent.self).map { .routine($0.routine?.id) } ?? .unknown
+        default: choice = .unknown
+        }
+        return WidgetTargets.Installed(kind: info.kind, choice: choice)
     }
 }
 

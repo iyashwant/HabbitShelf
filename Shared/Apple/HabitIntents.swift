@@ -38,10 +38,11 @@ struct ChooseCompactHabitsIntent: WidgetConfigurationIntent {
     @Parameter(title: "Theme", default: .system) var theme: WidgetAppearance
 }
 enum IntentWrite {
-    static func run(_ change: (inout BuddyData) throws -> Void) async throws {
+    /// `habits` names the habits the change edits, so only widgets that can show them reload; nil reloads them all.
+    static func run(touching habits: Set<UUID>? = nil, _ change: (inout BuddyData) throws -> Void) async throws {
         guard AppEnvironment.hasSharedContainer else { throw BuddyError.storage("configure the App Group for the app and widget targets in Xcode") }
         let data = try AppEnvironment.repository.transaction(change)
-        await AppEnvironment.changed(data)
+        await AppEnvironment.changed(data, habits: habits)
     }
     static func day(_ date: Date?) -> Day { Day(date ?? Date()) }
 }
@@ -49,18 +50,18 @@ struct CompleteHabitIntent: AppIntent {
     static var title: LocalizedStringResource = "Complete Habit"
     static var description = IntentDescription("Complete today. An already saved amount above the goal is kept.")
     @Parameter(title: "Habit") var habit: HabitEntity
-    func perform() async throws -> some IntentResult { try await IntentWrite.run { try Engine.complete(habit.id, day: Day(), data: &$0) }; return .result() }
+    func perform() async throws -> some IntentResult { try await IntentWrite.run(touching: [habit.id]) { try Engine.complete(habit.id, day: Day(), data: &$0) }; return .result() }
 }
 struct ClearHabitIntent: AppIntent {
     static var title: LocalizedStringResource = "Clear Habit"
     static var description = IntentDescription("Clear today's progress and preserve its note.")
     @Parameter(title: "Habit") var habit: HabitEntity
-    func perform() async throws -> some IntentResult { try await IntentWrite.run { try Engine.setAmount(0, habitID: habit.id, day: Day(), data: &$0) }; return .result() }
+    func perform() async throws -> some IntentResult { try await IntentWrite.run(touching: [habit.id]) { try Engine.setAmount(0, habitID: habit.id, day: Day(), data: &$0) }; return .result() }
 }
 struct IncrementHabitIntent: AppIntent {
     static var title: LocalizedStringResource = "Increment Habit"
     @Parameter(title: "Habit") var habit: HabitEntity
-    func perform() async throws -> some IntentResult { try await IntentWrite.run { try Engine.increment(habitID: habit.id, day: Day(), data: &$0) }; return .result() }
+    func perform() async throws -> some IntentResult { try await IntentWrite.run(touching: [habit.id]) { try Engine.increment(habitID: habit.id, day: Day(), data: &$0) }; return .result() }
 }
 struct LogAmountIntent: AppIntent {
     static var title: LocalizedStringResource = "Log Habit Amount"
@@ -70,7 +71,7 @@ struct LogAmountIntent: AppIntent {
     @Parameter(title: "Add to existing total", default: false) var add: Bool
     func perform() async throws -> some IntentResult {
         let value = try Amount.parse(amount), day = IntentWrite.day(date)
-        try await IntentWrite.run { if add { try Engine.increment(value, habitID: habit.id, day: day, data: &$0) } else { try Engine.setAmount(value, habitID: habit.id, day: day, data: &$0) } }
+        try await IntentWrite.run(touching: [habit.id]) { if add { try Engine.increment(value, habitID: habit.id, day: day, data: &$0) } else { try Engine.setAmount(value, habitID: habit.id, day: day, data: &$0) } }
         return .result()
     }
 }
@@ -80,7 +81,7 @@ struct LogNoteIntent: AppIntent {
     @Parameter(title: "Note") var note: String
     @Parameter(title: "Date") var date: Date?
     @Parameter(title: "Append", default: false) var append: Bool
-    func perform() async throws -> some IntentResult { try await IntentWrite.run { try Engine.note(note, append: append, habitID: habit.id, day: IntentWrite.day(date), data: &$0) }; return .result() }
+    func perform() async throws -> some IntentResult { try await IntentWrite.run(touching: [habit.id]) { try Engine.note(note, append: append, habitID: habit.id, day: IntentWrite.day(date), data: &$0) }; return .result() }
 }
 struct GetHabitProgressIntent: AppIntent {
     static var title: LocalizedStringResource = "Get Habit Progress"
@@ -114,7 +115,7 @@ struct WidgetLogIntent: AppIntent {
     init(_ id: UUID, day: Day = Day()) { habitID = id.uuidString; dayKey = day.rawValue }
     func perform() async throws -> some IntentResult {
         guard let id = UUID(uuidString: habitID), let day = Day(rawValue: dayKey) else { throw BuddyError.unavailable }
-        try await IntentWrite.run { data in
+        try await IntentWrite.run(touching: [id]) { data in
             guard let h = data.active.first(where: { $0.id == id }) else { throw BuddyError.unavailable }
             let g = h.goal(on: day), old = data.record(id, day).amount
             if g.tracking == .yesNo { try Engine.setAmount(old == 0 ? 1_000 : 0, habitID: id, day: day, data: &data) }
@@ -158,7 +159,7 @@ struct ControlLogIntent: AppIntent {
     init(_ habit: HabitEntity?) { self.habit = habit }
     func perform() async throws -> some IntentResult {
         guard let id = habit?.id else { throw BuddyError.unavailable }
-        try await IntentWrite.run { data in
+        try await IntentWrite.run(touching: [id]) { data in
             guard let h = data.active.first(where: { $0.id == id }) else { throw BuddyError.unavailable }
             let day = Day(), g = h.goal(on: day), old = data.record(id, day).amount
             if g.tracking == .yesNo { try Engine.setAmount(old == 0 ? 1_000 : 0, habitID: id, day: day, data: &data) }

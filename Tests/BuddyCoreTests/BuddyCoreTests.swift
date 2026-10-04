@@ -465,6 +465,26 @@ final class BuddyCoreTests: XCTestCase {
         var calendar = Calendar(identifier: .gregorian); calendar.timeZone = zone
         for request in ReminderPlanner.plan(data, now: now, timeZone: zone).requests { XCTAssertEqual(calendar.component(.hour, from: request.fireDate), 8) }
     }
+    func testWidgetKindsReloadOnlyForTheHabitsTheyShow() {
+        var (data, read) = fixture(); let walk = Habit(name: "Walk", created: read.created), swim = Habit(name: "Swim", created: read.created)
+        var morning = Routine(name: "Morning"); morning.habitIDs = [walk.id]
+        data.habits = [read, walk, swim]; data.routines = [morning]
+        let installed = [
+            WidgetTargets.Installed(kind: "Streak", choice: .habit(read.id)), WidgetTargets.Installed(kind: "GoalRing", choice: .habit(walk.id)),
+            WidgetTargets.Installed(kind: "QuickCheck", choice: .habits([read.id, swim.id])), WidgetTargets.Installed(kind: "RoutineWidget", choice: .routine(morning.id)),
+        ]
+        XCTAssertEqual(WidgetTargets.kinds(installed, touching: [read.id], data: data), ["Streak", "QuickCheck"])
+        XCTAssertEqual(WidgetTargets.kinds(installed, touching: [walk.id], data: data), ["GoalRing", "RoutineWidget"])
+        XCTAssertEqual(WidgetTargets.kinds(installed, touching: [], data: data), [], "A change that touched no habit reloads nothing")
+        // A kind reloads when any of its widgets shows the habit.
+        XCTAssertEqual(WidgetTargets.kinds(installed + [WidgetTargets.Installed(kind: "Streak", choice: .habit(swim.id))], touching: [swim.id], data: data), ["Streak", "QuickCheck"])
+        // Defaults follow whichever habit or routine comes first, so they reload for any habit; a deleted routine shows nothing.
+        let defaults = [WidgetTargets.Installed(kind: "Weeks", choice: .habit(nil)), WidgetTargets.Installed(kind: "TodayList", choice: .habits(nil)),
+                        WidgetTargets.Installed(kind: "TodayRing", choice: .habits([])), WidgetTargets.Installed(kind: "Mystery", choice: .unknown)]
+        XCTAssertEqual(WidgetTargets.kinds(defaults, touching: [swim.id], data: data), ["Weeks", "TodayList", "TodayRing", "Mystery"])
+        XCTAssertEqual(WidgetTargets.kinds([WidgetTargets.Installed(kind: "RoutineWidget", choice: .routine(nil))], touching: [walk.id], data: data), ["RoutineWidget"])
+        XCTAssertEqual(WidgetTargets.kinds([WidgetTargets.Installed(kind: "RoutineWidget", choice: .routine(UUID()))], touching: [walk.id], data: data), [])
+    }
 }
 private final class LockedFailures: @unchecked Sendable {
     private let lock = NSLock(); private var values: [Error] = []

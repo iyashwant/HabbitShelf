@@ -49,7 +49,8 @@ enum TimerSessions {
         for activity in Activity<HabitTimerAttributes>.activities where session == nil || activity.content.state.start == session!.start {
             await activity.end(nil, dismissalPolicy: .immediate)
         }
-        NotificationCenter.default.post(name: changed, object: nil)
+        // Observers update the screen, so they hear of it on the main thread; this runs on a background one.
+        await MainActor.run { NotificationCenter.default.post(name: changed, object: nil) }
     }
     private struct AlreadyFinished: Error {}
     /// Logs a session exactly once. The session is claimed inside the store's locked transaction, so the app's
@@ -80,7 +81,7 @@ struct FinishTimerIntent: LiveActivityIntent {
         guard let session = TimerSessions.current else { return .result() }
         let data = try TimerSessions.finish(session, repository: AppEnvironment.repository)
         await TimerSessions.stop(session)
-        if let data { await AppEnvironment.changed(data) }
+        if let data { await AppEnvironment.changed(data, habits: [session.habitID]) }
         return .result()
     }
 }
