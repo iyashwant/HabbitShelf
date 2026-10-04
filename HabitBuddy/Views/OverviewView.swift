@@ -67,11 +67,7 @@ struct OverviewView: View {
                         case .explore: ExploreView(settings: { settings = true })
                         }
                     }
-                    .simultaneousGesture(DragGesture(minimumDistance: 24).onEnded { drag in
-                        let dx = drag.translation.width, dy = drag.translation.height
-                        guard !lifted, abs(dx) > 60, abs(dx) > abs(dy) * 1.6 else { return }
-                        step(dx < 0 ? 1 : -1)
-                    })
+                    .gesture(PageSwipe(enabled: !lifted) { step($0) })
                 } else {
                     habitsPage
                 }
@@ -842,5 +838,45 @@ struct LayoutGlyph: View {
             case .rings, .weeks, .year: break
             }
         }.frame(width:layout == .compact ? 19.75:layout == .month ? 17:layout == .cards ? 18.7:18.5,height:layout == .compact ? 15.3:layout == .month ? 16:layout == .list ? 16:19).accessibilityHidden(true)
+    }
+}
+
+/// A sideways pan over the whole page. It's a UIKit recognizer that begins only for a mostly horizontal move, so the
+/// page's own vertical scrolling is untouched, and once it begins it cancels the tap of the card under the finger.
+struct PageSwipe: UIGestureRecognizerRepresentable {
+    let enabled: Bool
+    let step: (Int) -> Void
+    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator { Coordinator() }
+    func makeUIGestureRecognizer(context: Context) -> UIPanGestureRecognizer {
+        let pan = HorizontalPan()
+        pan.delegate = context.coordinator
+        return pan
+    }
+    func updateUIGestureRecognizer(_ recognizer: UIPanGestureRecognizer, context: Context) { recognizer.isEnabled = enabled }
+    func handleUIGestureRecognizerAction(_ recognizer: UIPanGestureRecognizer, context: Context) {
+        guard recognizer.state == .ended else { return }
+        let move = recognizer.translation(in: recognizer.view), speed = recognizer.velocity(in: recognizer.view).x
+        guard abs(move.x) > 60 || abs(speed) > 500, abs(move.x) > abs(move.y) else { return }
+        step(move.x < 0 ? 1 : -1)
+    }
+    /// Fails as soon as the first real movement is more vertical than horizontal; the velocity isn't known yet when a
+    /// delegate is asked whether to begin, so the direction is read from the touches themselves.
+    final class HorizontalPan: UIPanGestureRecognizer {
+        private var origin = CGPoint.zero
+        override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
+            origin = touches.first?.location(in: view) ?? .zero
+            super.touchesBegan(touches, with: event)
+        }
+        override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent) {
+            if state == .possible, let point = touches.first?.location(in: view) {
+                let dx = abs(point.x - origin.x), dy = abs(point.y - origin.y)
+                if max(dx, dy) > 8 { if dx < dy * 1.5 { state = .failed; return } }
+            }
+            super.touchesMoved(touches, with: event)
+        }
+    }
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        // Alongside the scroll views' own pans only; a card's tap or hold must give way once the swipe begins.
+        func gestureRecognizer(_ a: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith b: UIGestureRecognizer) -> Bool { b is UIPanGestureRecognizer }
     }
 }
