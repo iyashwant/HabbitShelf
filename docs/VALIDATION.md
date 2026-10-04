@@ -93,3 +93,27 @@ Shared core compiled with `-O` on this Mac (Apple silicon), one run before and o
 | History refill for the summaries cache | every visible habit (1.6–2.0 ms for 6 cards) | the tapped habit only |
 
 Not checked: the streak, list and month layouts' checks under touch and hold (they sit in lazy grids like the cards did); tap latency, frame rate, hitches, memory and launch time on an iPhone.
+
+## Liquid Glass mode, 4 October 2026 (local Mac)
+
+Checked with **Xcode 27.0 (27A266a)** on a dedicated **iPhone 18 Pro simulator, iOS 27**. Another change was in progress in the shared working tree, so this change was built and tested in a clean clone, then rebased onto `3488649` and tested again.
+
+- `swift test`: **94 core tests passed, 0 failures**, including the new `testLiquidGlassIsOffByDefaultAndRoundTrips`:
+  - glass that was never set isn't written;
+  - every field round-trips, and turning the mode off keeps the look;
+  - out-of-range transparency or strength and malformed tints are rejected.
+- `python3 scripts/check-project.py` passed. Unsigned app and widget simulator build succeeded with no compiler warnings from source files.
+- Full UI run after the rebase: **19 passed, 1 skipped (opt-in Home Screen gallery), 0 failures**. This includes the new `testLiquidGlass`:
+  - turn the mode on, then choose Clear and the teal tint;
+  - relaunch, and all three are kept;
+  - choose Frosted, then turn the mode off and its options disappear.
+- **Glass off matches the previous commit pixel for pixel.** Screenshots of the overview, Compact List (and its settings sheet), Settings, Insights and habit detail compared with zero differing pixels. The Theme page differs only by the new section.
+- Screenshots inspected:
+  - **Overview:** System, Clear + teal and Frosted + teal in dark; Frosted in light.
+  - **Other screens:** the Theme page with the live preview; New Habit (disabled Save on glass); habit detail in light.
+  - **Glass sheets:** Compact List Settings, and the routine sheet in dark and in light with the accent tint.
+  - **Fix found:** a first pass showed clear glass turning the violet plus a deep, saturated blue, so prominent actions now always use regular glass.
+- Accessibility: with Reduce Transparency on (set through the simulator's accessibility defaults), the clear switcher turns solid and card text no longer shows through. With Increase Contrast on, the glass darkens and its edges sharpen.
+
+Not checked: scrolling hitches with glass on were not measured with Instruments, and the custom tint picker was not driven by a test.
+

@@ -38,9 +38,9 @@ struct ExploreView: View {
         }
         .scrollIndicators(.hidden)
         .background(BuddyStyle.canvas(scheme)).toolbar(.hidden, for: .navigationBar)
-        .safeAreaInset(edge: .top, spacing: 0) {
+        .topBar {
             HStack { CircleControl(symbol: "chevron-left", label: "Back", size: 38, glyph: 12.5) { dismiss() }; Spacer() }
-                .padding(.horizontal, 12).padding(.top, 8.8).padding(.bottom, 8).background(BuddyStyle.canvas(scheme))
+                .padding(.horizontal, 12).padding(.top, 8.8).padding(.bottom, 8)
         }
         .sheet(isPresented: $timing) { TimerView().buddySheet() }
         .task(id: store.revision) {

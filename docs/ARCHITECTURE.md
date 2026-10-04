@@ -44,6 +44,16 @@ Completion rate counts eligible build dates through yesterday plus today if comp
 
 `Theme.colorScheme` maps the theme to the root `preferredColorScheme`. The Settings sheet also takes the overview's effective scheme: a presented sheet otherwise keeps the scheme it opened with, and keeps a light or dark one after System is chosen.
 
+`settings.glass` (`GlassSettings`, optional, not written until first set) holds the Liquid Glass switch, transparency (0 Clear, nil System, 1 Frosted), tint (`accent`, a palette name or `#RRGGBB`) and tint strength. Turning the switch off keeps the rest. Validation checks the ranges and the tint's form.
+
+The root resolves it with the accent into the `glass` environment value (`GlassStyle`, nil when off). Views read it through these helpers:
+- **`glassChrome(in:prominent:fill:border:)`**: the flat fill and hairline when off. When on, the control color at the chosen strength, then an interactive `glassEffect`. Prominent controls take regular glass tinted with the accent.
+- **`GlassGroup`**: wraps neighbouring controls in a `GlassEffectContainer`, in glass mode only.
+- **`topBar`**: puts a screen's top controls in a `safeAreaBar`. It hides the scroll edge effect, and draws the canvas backdrop that flat bars had, unless glass is on.
+- **`buddySheet(partial:)`**: in glass mode, leaves a half-height sheet's background to iOS.
+
+Widgets, reminders and exports don't read the glass settings, so a change doesn't reload widgets.
+
 ## Routines, timers and analysis
 
 `BuddyData.routines` holds named groups of habits (name, icon, color, ordered habit IDs). Older schema-1 files decode with no routines. Validation requires unique IDs, a name, no repeated habit and only existing habit IDs; deleting a habit permanently goes through `Engine.deleteHabit`, which also removes it from routines. `Engine.completeRoutine` completes every open build habit in the routine on one day through `Engine.complete` (so a count fills to its target and an over-goal total is kept); quit habits and already successful habits are left alone. The app, the Complete Routine Shortcut and the Control Center control all use it.
@@ -74,7 +84,7 @@ Widgets request periodic/midnight refreshes and use the same repository and engi
 
 ## Visual audit fixtures
 
-Debug-only launch environment options select an isolated `VisualAudit` repository, deterministic synthetic habits and a civil date. `BUDDY_VISUAL_SCREEN`, `BUDDY_VISUAL_DATE`, `BUDDY_VISUAL_THEME` and `BUDDY_VISUAL_ACCENT` (a palette name or `#RRGGBB`) drive native UI capture, and the `theme` screen opens Settings on the Theme page; `BUDDY_VISUAL_RESET=false` verifies relaunch persistence. `BUDDY_VISUAL_FIXTURE=reference` loads the two habits from the owner's comparison screenshots into its own `VisualAudit-reference` store, so its October dates cannot invalidate the August-dated test store. `BUDDY_VISUAL_HABIT` picks which habit a detail or editor screen opens. The fixture writes never touch the normal App Group/private habit repository. No private user data is captured or printed. UI test attachments retain PNG screenshots; JPEG chunks in CI logs allow reference review without an artifact download.
+Debug-only launch environment options select an isolated `VisualAudit` repository, deterministic synthetic habits and a civil date. `BUDDY_VISUAL_SCREEN`, `BUDDY_VISUAL_DATE`, `BUDDY_VISUAL_THEME`, `BUDDY_VISUAL_ACCENT` (a palette name or `#RRGGBB`) and `BUDDY_VISUAL_GLASS` (`on`, or `transparency:tint:strength`) drive native UI capture, and the `theme` screen opens Settings on the Theme page; `BUDDY_VISUAL_RESET=false` verifies relaunch persistence. `BUDDY_VISUAL_FIXTURE=reference` loads the two habits from the owner's comparison screenshots into its own `VisualAudit-reference` store, so its October dates cannot invalidate the August-dated test store. `BUDDY_VISUAL_HABIT` picks which habit a detail or editor screen opens. The fixture writes never touch the normal App Group/private habit repository. No private user data is captured or printed. UI test attachments retain PNG screenshots; JPEG chunks in CI logs allow reference review without an artifact download.
 
 Overview visibility fields decode with defaults so schema-one backups from before the new options remain readable. New installs start with the dark theme and plain overview cards (no month/weekday labels, streak or goal chips). Decoding keeps the earlier fallbacks (System theme, everything shown) for keys missing from older backups, so restored data looks as it did. A habit can override its seven card appearance fields; reverting to defaults clears the optional override. Font Awesome Free 7.0.0, Lucide 1.51.0 (`lucide-static`, ISC) and five Figtree weights (SIL OFL) are included in both app and widget resource bundles with their licenses; `scripts/import-ui-assets.py` regenerates `Lucide.ttf`, `lucide-icons.json` and the Figtree files from the upstream packages. Fonts are registered for the process at app and widget launch. Habit symbols keep their `fa:` or `lu:` prefix, so existing icons are never reinterpreted. Third-party app screenshots remain outside both bundles.
 

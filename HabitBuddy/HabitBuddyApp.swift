@@ -10,6 +10,7 @@ import UserNotifications
             let accent = Accent(store.data.settings.accent)
             OverviewView().environmentObject(store).environmentObject(timer).environment(\.summaries, store.summaries)
                 .environment(\.accent, accent).tint(accent.color)
+                .environment(\.glass, GlassStyle(store.data.settings.glass, accent: accent))
                 .preferredColorScheme(store.data.settings.theme.colorScheme)
                 // Alerts, menus, the color picker and the share sheet take the window's tint rather than SwiftUI's.
                 .onChange(of: accent, initial: true) { _, accent in

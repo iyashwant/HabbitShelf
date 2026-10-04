@@ -35,7 +35,7 @@ struct InsightsView: View {
         }
         .scrollIndicators(.hidden)
         .background(BuddyStyle.canvas(scheme)).toolbar(.hidden, for: .navigationBar)
-        .safeAreaInset(edge: .top, spacing: 0) { PageBar(title: "Insights") { dismiss() } }
+        .topBar { PageBar(title: "Insights") { dismiss() } }
         .task(id: request) { await refresh(request) }
     }
     private func refresh(_ request: Request) async {

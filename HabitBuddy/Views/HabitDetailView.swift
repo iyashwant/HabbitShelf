@@ -38,8 +38,8 @@ struct HabitDetailView: View {
                         }.padding(.horizontal,18).padding(.top,20.8).padding(.bottom,60)
                     }
                     .scrollIndicators(.hidden)
-                    .safeAreaInset(edge:.top,spacing:0){
-                        HStack(spacing:8) {
+                    .topBar{
+                        GlassGroup(spacing:8){HStack(spacing:8) {
                             CircleControl(symbol:"chevron-left",label:"Back",size:38,glyph:12.5){dismiss()};Spacer()
                             CircleControl(symbol:"square-pen",label:"Edit Habit",size:38,glyph:16.8){editor=habit}.disabled(habit.archived != nil)
                             Menu {
@@ -51,8 +51,8 @@ struct HabitDetailView: View {
                                 if store.data.settings.notes{Button("Notes",systemImage:"note.text"){notes=true}}
                                 Button("Share Habit",systemImage:"square.and.arrow.up"){share=true}
                                 Button(habit.archived == nil ? "Archive":"Restore",systemImage:"archivebox"){store.archive(habit.id,restore:habit.archived != nil)}
-                            } label:{LucideIcon("settings",size:17).frame(width:38,height:38).background(BuddyStyle.control(scheme),in:Circle()).overlay{Circle().strokeBorder(BuddyStyle.controlBorder(scheme),lineWidth:1)}.foregroundStyle(BuddyStyle.text(scheme))}.accessibilityLabel("Habit Options")
-                        }.padding(.horizontal,12).padding(.top,8.8).padding(.bottom,4).background(BuddyStyle.canvas(scheme))
+                            } label:{LucideIcon("settings",size:17).frame(width:38,height:38).glassChrome(in:Circle(),fill:BuddyStyle.control(scheme),border:AnyShapeStyle(BuddyStyle.controlBorder(scheme))).foregroundStyle(BuddyStyle.text(scheme))}.accessibilityLabel("Habit Options")
+                        }}.padding(.horizontal,12).padding(.top,8.8).padding(.bottom,4)
                     }
                     .overlay{BottomFade()}
                 }

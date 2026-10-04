@@ -83,6 +83,27 @@ final class HabitBuddyUITests:XCTestCase {
         standard.tap();XCTAssertTrue(standard.isSelected);XCTAssertFalse(teal.isSelected)
         app.buttons["System"].tap();XCTAssertTrue(app.buttons["System"].isSelected);sleep(1);capture(app,"theme-system")
     }
+    func testLiquidGlass() {
+        let app=launch("theme"),glass=app.switches["Liquid Glass"]
+        func reveal(_ element:XCUIElement) { for _ in 0..<8 where !(element.exists && element.isHittable) { app.swipeUp() } }
+        func tint(_ name:String)->XCUIElement { app.buttons["\(name) tint"] }
+        XCTAssertTrue(app.buttons["Default"].waitForExistence(timeout:20));reveal(glass)
+        XCTAssertEqual(glass.value as? String,"0","Liquid Glass starts off");XCTAssertFalse(app.buttons["Frosted"].exists)
+        glass.switches.firstMatch.tap();XCTAssertEqual(glass.value as? String,"1");sleep(1);capture(app,"theme-glass-on")
+        let clear=app.buttons["Clear"];reveal(clear);XCTAssertTrue(app.buttons["System"].firstMatch.exists)
+        clear.tap();XCTAssertTrue(clear.isSelected)
+        reveal(tint("teal"));tint("teal").tap();XCTAssertTrue(tint("teal").isSelected);XCTAssertTrue(app.sliders["Tint Strength"].exists)
+        sleep(1);capture(app,"theme-glass")
+        app.buttons["Back"].tap();app.buttons["Close Settings"].tap();XCTAssertTrue(app.buttons["Create Habit"].waitForExistence(timeout:10));sleep(1);capture(app,"glass-clear-teal")
+        app.terminate();app.launchEnvironment["BUDDY_VISUAL_RESET"]="false";app.launch()
+        XCTAssertTrue(app.buttons["Default"].waitForExistence(timeout:20));reveal(glass);XCTAssertEqual(glass.value as? String,"1","The mode is saved")
+        reveal(clear);XCTAssertTrue(clear.isSelected,"The transparency is saved");reveal(tint("teal"));XCTAssertTrue(tint("teal").isSelected,"The tint is saved")
+        let frosted=app.buttons["Frosted"];reveal(frosted);frosted.tap();XCTAssertTrue(frosted.isSelected)
+        app.buttons["Back"].tap();app.buttons["Close Settings"].tap();XCTAssertTrue(app.buttons["Create Habit"].waitForExistence(timeout:10));sleep(1);capture(app,"glass-frosted-teal")
+        // The visual route keeps Settings opening on the Theme page.
+        app.buttons["Settings"].tap();XCTAssertTrue(app.buttons["Default"].waitForExistence(timeout:10));reveal(glass);glass.switches.firstMatch.tap()
+        XCTAssertEqual(glass.value as? String,"0");XCTAssertFalse(app.buttons["Frosted"].exists,"Turning the mode off hides its options")
+    }
     func testHiddenHabitsLeaveEveryView() {
         let app=launch("compact")
         func hideRow(_ name:String)->XCUIElement{app.buttons.matching(NSPredicate(format:"identifier == 'hide-habit' AND label == %@",name)).firstMatch}

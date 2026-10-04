@@ -63,7 +63,7 @@ struct NotesTimelineView: View {
         }
         .scrollIndicators(.hidden).scrollDismissesKeyboard(.interactively)
         .background(BuddyStyle.canvas(scheme)).toolbar(.hidden, for: .navigationBar)
-        .safeAreaInset(edge: .top, spacing: 0) { PageBar(title: "Notes") { dismiss() } }
+        .topBar { PageBar(title: "Notes") { dismiss() } }
         .sheet(item: $selection) { DayEditorView(selection: $0) }
         .task(id: store.revision) {
             let data = store.visible, revision = store.revision

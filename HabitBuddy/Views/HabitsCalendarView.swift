@@ -47,7 +47,7 @@ struct HabitsCalendarView: View {
         }
         .scrollIndicators(.hidden)
         .background(BuddyStyle.canvas(scheme)).toolbar(.hidden, for: .navigationBar)
-        .safeAreaInset(edge: .top, spacing: 0) { PageBar(title: "Calendar") { dismiss() } }
+        .topBar { PageBar(title: "Calendar") { dismiss() } }
         .sheet(item: $selected) { DayHabitsView(day: $0).buddySheet().presentationDetents([.medium, .large]) }
     }
     /// One pass over the month for both the day cells and the summary.

@@ -70,7 +70,7 @@ struct SettingsView: View {
             .scrollIndicators(.hidden)
             .background(BuddyStyle.canvas(scheme))
             .toolbar(.hidden, for: .navigationBar)
-            .safeAreaInset(edge: .top, spacing: 0) { SheetHeader(title: "Settings").background(BuddyStyle.canvas(scheme).opacity(0.94)) }
+            .topBar(backdrop: 0.94) { SheetHeader(title: "Settings") }
             .navigationDestination(for: SettingsPage.self) { page in self.page(page) }
             .fileExporter(isPresented: $exporting, document: document, contentType: .json, defaultFilename: "habit-buddy-\(Day().rawValue)") { outcome in
                 switch outcome { case .success: result = "Backup exported."; case .failure(let error): if (error as NSError).code != NSUserCancelledError { result = error.localizedDescription } }
@@ -233,11 +233,11 @@ struct SettingsPageView<Content: View>: View {
         ScrollView { VStack(alignment: .leading, spacing: 0) { content() }.padding(.horizontal, 8).padding(.bottom, 40) }
             .scrollIndicators(.hidden)
             .background(BuddyStyle.canvas(scheme)).toolbar(.hidden, for: .navigationBar)
-            .safeAreaInset(edge: .top, spacing: 0) {
+            .topBar(backdrop: 0.94) {
                 ZStack {
                     Text(title).font(BuddyFont.text(20, .bold)).tracking(1.7).foregroundStyle(BuddyStyle.text(scheme)).lineLimit(1).padding(.horizontal, 56)
                     HStack { CircleControl(symbol: "chevron-left", label: "Back", size: 38, glyph: 16) { dismiss() }; Spacer() }
-                }.padding(.horizontal, 12).padding(.top, 25).padding(.bottom, 10).background(BuddyStyle.canvas(scheme).opacity(0.94))
+                }.padding(.horizontal, 12).padding(.top, 25).padding(.bottom, 10)
             }
     }
 }
@@ -357,8 +357,11 @@ struct ThemeSettings: View {
     @Environment(\.accent) private var accent
     /// The color picker's choice, saved once it stops changing: dragging reports many colors a second.
     @State private var picked: UInt32?
+    /// Liquid Glass changes from the sliders and the tint picker, saved once they stop changing like `picked`.
+    @State private var glassDraft: GlassSettings?
     private var saved: String? { store.data.settings.accent }
     private var custom: Bool { saved.flatMap(AccentCode.hex) != nil }
+    private var glass: GlassSettings { glassDraft ?? store.data.settings.glass ?? GlassSettings() }
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             SettingsGroup("Appearance") {
@@ -377,9 +380,67 @@ struct ThemeSettings: View {
                 }.padding(.trailing, 19.4).accessibilityAddTraits(custom ? .isSelected : [])
             }
             SettingsNote("The accent colors buttons, switches, selections and widgets that show several habits. Each habit keeps its own color.")
+            SettingsGroup("Liquid Glass") {
+                GlassPreview().environment(\.glass, GlassStyle(glass, accent: accent))
+                SettingsToggle(title: "Liquid Glass", isOn: Binding(get: { glass.enabled }, set: { on in setGlass { $0.enabled = on } }))
+            }
+            SettingsNote("The floating controls (the toolbar, the view switcher, and Save and other main buttons) become Liquid Glass. Habit cards keep their look.")
+            if glass.enabled {
+                SettingsGroup("Transparency") {
+                    SettingsRow(icon: "smartphone", color: "gray", title: "System", chevron: false, selected: glass.transparency == nil) { setGlass { $0.transparency = nil } }
+                    SettingsRow(icon: "droplet", color: "sky", title: "Clear", chevron: false, selected: glass.transparency == 0) { setGlass { $0.transparency = 0 } }
+                    SettingsRow(icon: "snowflake", color: "slate", title: "Frosted", chevron: false, selected: glass.transparency == 1) { setGlass { $0.transparency = 1 } }
+                    SettingsLine {
+                        Slider(value: Binding(get: { glass.transparency ?? 0.5 }, set: { value in draftGlass { $0.transparency = Self.snapped(value) } }), in: 0...1) {
+                            Text("Transparency")
+                        } minimumValueLabel: { Text("Clear").font(BuddyFont.text(13)) } maximumValueLabel: { Text("Frosted").font(BuddyFont.text(13)) }
+                            .accessibilityValue(transparencyDescription)
+                    }
+                }
+                SettingsNote("System is Apple's standard glass and follows your iPhone's Liquid Glass and accessibility settings. Reduce Transparency always applies.")
+                SettingsGroup("Tint") {
+                    Button { setGlass { $0.tint = nil } } label: { AccentRowLabel(swatch: AnyShapeStyle(LinearGradient(colors: [Color.white.opacity(0.5), Color.gray.opacity(0.25)], startPoint: .topLeading, endPoint: .bottomTrailing)), title: "None", selected: glass.tint == nil) }
+                        .buttonStyle(.plain).accessibilityAddTraits(glass.tint == nil ? .isSelected : [])
+                    Button { setGlass { $0.tint = "accent" } } label: { AccentRowLabel(swatch: AnyShapeStyle(accent.color), title: "Match Accent", selected: glass.tint == "accent") }
+                        .buttonStyle(.plain).accessibilityAddTraits(glass.tint == "accent" ? .isSelected : [])
+                    ColorPalette(selection: Binding(get: { glass.tint.flatMap { BuddyStyle.hex($0) == nil ? nil : $0 } ?? "" }, set: { token in setGlass { $0.tint = token } }), label: { "\($0) tint" }).padding(.horizontal, 16).padding(.vertical, 18)
+                    ColorPicker(selection: Binding(get: { Color(hex: glass.tint.flatMap(AccentCode.hex) ?? accent.hex) }, set: { color in draftGlass { $0.tint = AccentCode.code(color.hex) } }), supportsOpacity: false) {
+                        AccentRowLabel(swatch: customTint.map { AnyShapeStyle(Color(hex: $0)) } ?? AnyShapeStyle(AngularGradient(colors: ["coral", "amber", "lime", "teal", "sky", "lavender", "magenta", "coral"].map(BuddyStyle.color), center: .center)), title: "Custom", selected: customTint != nil)
+                    }.padding(.trailing, 19.4).accessibilityLabel("Custom tint").accessibilityAddTraits(customTint != nil ? .isSelected : [])
+                    if glass.tint != nil {
+                        SettingsLine {
+                            Text("Strength")
+                            Slider(value: Binding(get: { glass.tintStrength ?? GlassSettings.defaultTintStrength }, set: { value in draftGlass { $0.tintStrength = value } }), in: GlassSettings.tintStrengths) { Text("Tint Strength") }
+                        }
+                    }
+                }
+                SettingsNote("The tint colors the glass of the round controls and the view switcher. Create Habit and Save keep the accent.")
+            }
         }
         .task(id: picked) { try? await Task.sleep(for: .milliseconds(300)); if !Task.isCancelled { commit() } }
-        .onDisappear(perform: commit)
+        .task(id: glassDraft) { try? await Task.sleep(for: .milliseconds(300)); if !Task.isCancelled { commitGlass() } }
+        .onDisappear { commit(); commitGlass() }
+    }
+    private var customTint: UInt32? { glass.tint.flatMap(AccentCode.hex) }
+    private var transparencyDescription: String {
+        switch glass.transparency { case nil: "System"; case 0: "Clear"; case 1: "Frosted"; case let value?: "\(Int((value * 100).rounded()))% frosted" }
+    }
+    /// The presets are easy to land on again: within 3% of Clear, System or Frosted snaps to it.
+    private static func snapped(_ value: Double) -> Double? {
+        if abs(value - 0.5) < 0.03 { return nil }
+        if value < 0.03 { return 0 }
+        if value > 0.97 { return 1 }
+        return value
+    }
+    /// A tap saves at once and drops any change still waiting.
+    private func setGlass(_ change: (inout GlassSettings) -> Void) {
+        var value = glass; change(&value); glassDraft = nil
+        store.change { $0.settings.glass = value }
+    }
+    private func draftGlass(_ change: (inout GlassSettings) -> Void) { var value = glass; change(&value); glassDraft = value }
+    private func commitGlass() {
+        guard let glassDraft, glassDraft != store.data.settings.glass else { return }
+        store.change { $0.settings.glass = glassDraft }
     }
     private func choose(_ code: String?) { picked = nil; store.change { $0.settings.accent = code } }
     private func commit() {
@@ -397,6 +458,30 @@ struct AccentPreview: View {
             PrimaryAction(title: "Save") {}
             Toggle("Switch", isOn: .constant(true)).labelsHidden().tint(accent.color)
         }.padding(.horizontal, 18).padding(.vertical, 16).allowsHitTesting(false).accessibilityHidden(true)
+    }
+}
+/// The floating controls over a patch of habit tiles, so the glass has color to bend. Drawn with the page's unsaved
+/// glass settings.
+struct GlassPreview: View {
+    private static let tiles = ["mint", "teal", "sky", "lavender", "rose", "amber"]
+    var body: some View {
+        ZStack {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 15), spacing: 4) {
+                ForEach(0..<60, id: \.self) { n in
+                    let row = n / 15, column = n % 15
+                    RoundedRectangle(cornerRadius: 4, style: .circular).fill(BuddyStyle.color(Self.tiles[(row + column / 3) % Self.tiles.count]).opacity([0.09, 0.35, 0.6, 1, 0.8][(row * 7 + column * 3) % 5]))
+                        .aspectRatio(1, contentMode: .fit)
+                }
+            }
+            GlassGroup(spacing: 8) {
+                HStack(spacing: 8) {
+                    CircleControl(symbol: "settings", label: "Settings") {}
+                    CircleControl(symbol: "compass", label: "Explore") {}
+                    Spacer()
+                    CircleControl(symbol: "plus", label: "Create Habit", filled: true, glyph: 19) {}
+                }.padding(.horizontal, 22)
+            }
+        }.padding(.horizontal, 16).padding(.vertical, 16).allowsHitTesting(false).accessibilityHidden(true)
     }
 }
 /// A settings row whose tile is a color swatch.

@@ -56,6 +56,7 @@ public enum DataValidation {
         }
         try require((0...7).contains(data.settings.freezesPerMonth), "invalid streak freeze allowance")
         try require(data.settings.accent.map(AccentCode.isValid) ?? true, "invalid accent color")
+        try require(data.settings.glass?.isValid ?? true, "invalid Liquid Glass settings")
         try require(data.routines.count <= 100 && Set(data.routines.map(\.id)).count == data.routines.count, "invalid routines")
         for routine in data.routines {
             try require(!routine.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && routine.name.count <= 100, "invalid routine name")

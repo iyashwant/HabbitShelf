@@ -406,6 +406,22 @@ final class BuddyCoreTests: XCTestCase {
         XCTAssertEqual(AccentCode.hex("#8b8af8"),0x8B8AF8);XCTAssertNil(AccentCode.hex("teal"));XCTAssertEqual(AccentCode.code(0x0A0B0C),"#0A0B0C")
     }
 
+    func testLiquidGlassIsOffByDefaultAndRoundTrips() throws {
+        var (data,_)=fixture();XCTAssertNil(data.settings.glass)
+        XCTAssertFalse(String(decoding:try DataValidation.encode(data),as:UTF8.self).contains("glass"),"Glass that was never set is not written")
+        var glass=GlassSettings(enabled:true);glass.transparency=0.2;glass.tint="teal";glass.tintStrength=0.5
+        data.settings.glass=glass;XCTAssertEqual(try DataValidation.decode(DataValidation.encode(data),today:today).settings.glass,glass)
+        // Turning the mode off keeps the look for next time.
+        data.settings.glass?.enabled=false;XCTAssertEqual(try DataValidation.decode(DataValidation.encode(data),today:today).settings.glass?.tint,"teal")
+        for tint in ["accent","#1A2B3C"] { data.settings.glass?.tint=tint;XCTAssertNoThrow(try DataValidation.validate(data,today:today),tint) }
+        for bad:(inout GlassSettings)->Void in [{$0.transparency=1.5},{$0.transparency = -0.1},{$0.tintStrength=0},{$0.tintStrength=0.9},{$0.tint="#12"},{$0.tint="Teal"}] {
+            var broken=glass;bad(&broken);data.settings.glass=broken;XCTAssertThrowsError(try DataValidation.validate(data,today:today))
+        }
+        // A file with only the switch decodes with System transparency and no tint.
+        let minimal=try JSONDecoder().decode(GlassSettings.self,from:Data(#"{"enabled":true}"#.utf8))
+        XCTAssertEqual(minimal,GlassSettings(enabled:true))
+    }
+
     func testPortableRoundTripPreservesAllData() throws { var (data, h) = fixture(); data.settings.theme = .dark; try Engine.note("hello", habitID: h.id, day: today, data: &data, today: today); XCTAssertEqual(try DataValidation.decode(DataValidation.encode(data), today: today), data) }
     func testCorruptAndEmptyImportsRejected() { XCTAssertThrowsError(try DataValidation.decode(Data())); XCTAssertThrowsError(try DataValidation.decode(Data("{bad}".utf8))) }
     func testRepositoryAtomicTransactionAndFailedChange() throws {

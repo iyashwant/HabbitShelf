@@ -221,13 +221,16 @@ public struct Settings: Codable, Equatable, Sendable {
     public var recapReminder = false
     /// The app accent (see `AccentCode`); nil keeps the default violet and is not written.
     public var accent: String?
+    /// Liquid Glass on the floating controls; nil has never been customized (off) and is not written.
+    public var glass: GlassSettings?
     public init() {}
-    enum CodingKeys: String, CodingKey { case theme, accent, layout, weekStart, recentDays, showToday, notes, haptics, showDescriptions, showStreak, showGoal, showCompletionIndicator, showMonthLabels, showWeekdayLabels, showCategoryIcons, showCategoryFilter, showLayoutSwitcher, compactNames, dragToReorder, onboarding, checkIn, checkInTitle, checkInBody, dashboard, freezesPerMonth, recapReminder }
+    enum CodingKeys: String, CodingKey { case theme, accent, glass, layout, weekStart, recentDays, showToday, notes, haptics, showDescriptions, showStreak, showGoal, showCompletionIndicator, showMonthLabels, showWeekdayLabels, showCategoryIcons, showCategoryFilter, showLayoutSwitcher, compactNames, dragToReorder, onboarding, checkIn, checkInTitle, checkInBody, dashboard, freezesPerMonth, recapReminder }
     public init(from decoder: Decoder) throws {
         self.init()
         let c = try decoder.container(keyedBy: CodingKeys.self)
         theme = try c.decodeIfPresent(Theme.self, forKey: .theme) ?? .system
         accent = try c.decodeIfPresent(String.self, forKey: .accent)
+        glass = try c.decodeIfPresent(GlassSettings.self, forKey: .glass)
         layout = try c.decodeIfPresent(Layout.self, forKey: .layout) ?? layout
         weekStart = try c.decodeIfPresent(Int.self, forKey: .weekStart) ?? weekStart
         recentDays = try c.decodeIfPresent(Int.self, forKey: .recentDays) ?? recentDays
@@ -265,6 +268,34 @@ public enum AccentCode {
     /// A custom code, or a palette name of lowercase letters.
     public static func isValid(_ code: String) -> Bool {
         hex(code) != nil || ((1...40).contains(code.count) && code.unicodeScalars.allSatisfy { ("a"..."z").contains($0) })
+    }
+}
+/// The Liquid Glass mode and its look. Turning the mode off keeps the look for next time.
+public struct GlassSettings: Codable, Equatable, Sendable {
+    public var enabled = false
+    /// 0 is Clear, 0.5 System and 1 Frosted. nil is System: Apple's regular glass, which follows the iPhone's own
+    /// Liquid Glass and accessibility settings.
+    public var transparency: Double?
+    /// nil leaves the glass untinted, like system controls; otherwise "accent" (follows the app accent), a palette
+    /// name or "#RRGGBB".
+    public var tint: String?
+    /// How strongly the tint colors the glass (see `tintStrengths`); nil is `defaultTintStrength`.
+    public var tintStrength: Double?
+    public static let tintStrengths = 0.1...0.8
+    public static let defaultTintStrength = 0.35
+    public init(enabled: Bool = false) { self.enabled = enabled }
+    enum CodingKeys: String, CodingKey { case enabled, transparency, tint, tintStrength }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? false
+        transparency = try c.decodeIfPresent(Double.self, forKey: .transparency)
+        tint = try c.decodeIfPresent(String.self, forKey: .tint)
+        tintStrength = try c.decodeIfPresent(Double.self, forKey: .tintStrength)
+    }
+    public var isValid: Bool {
+        (transparency.map { (0...1).contains($0) } ?? true)
+            && (tintStrength.map(Self.tintStrengths.contains) ?? true)
+            && (tint.map(AccentCode.isValid) ?? true)
     }
 }
 public struct BuddyData: Codable, Equatable, Sendable {

@@ -25,7 +25,7 @@ struct YearHistoryView: View {
                         }
                     }.padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 40)
                 }.scrollIndicators(.hidden)
-                .safeAreaInset(edge: .top, spacing: 0) { PageBar(title: habit.name) { dismiss() } }
+                .topBar { PageBar(title: habit.name) { dismiss() } }
             } else { ContentUnavailableView("Habit unavailable", systemImage: "archivebox") }
         }.background(BuddyStyle.canvas(scheme)).toolbar(.hidden, for: .navigationBar)
     }
@@ -94,7 +94,7 @@ struct YearCalendarView: View {
                         if let message { Text(message).font(BuddyFont.text(13)).foregroundStyle(.red) }
                     }.padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 40)
                 }.scrollIndicators(.hidden)
-                .safeAreaInset(edge: .top, spacing: 0) { PageBar(title: "Year Calendar", trailing: "share", trailingLabel: "Share Year Calendar", trailingAction: { share(habit) }) { dismiss() } }
+                .topBar { PageBar(title: "Year Calendar", trailing: "share", trailingLabel: "Share Year Calendar", trailingAction: { share(habit) }) { dismiss() } }
             } else { ContentUnavailableView("Habit unavailable", systemImage: "archivebox") }
         }.background(BuddyStyle.canvas(scheme)).toolbar(.hidden, for: .navigationBar)
         .sheet(item: $export) { image in NativeShareSheet(items: [image.url]) }
@@ -158,11 +158,13 @@ struct PageBar: View {
     var body: some View {
         ZStack {
             Text(title).font(BuddyFont.text(18, .bold)).foregroundStyle(BuddyStyle.text(scheme)).lineLimit(1).padding(.horizontal, 56)
-            HStack {
-                CircleControl(symbol: "chevron-left", label: "Back", size: 38, glyph: 12.5, action: back)
-                Spacer()
-                if let trailing, let trailingAction { CircleControl(symbol: trailing, label: trailingLabel, size: 38, glyph: 17, action: trailingAction) }
+            GlassGroup(spacing: 8) {
+                HStack {
+                    CircleControl(symbol: "chevron-left", label: "Back", size: 38, glyph: 12.5, action: back)
+                    Spacer()
+                    if let trailing, let trailingAction { CircleControl(symbol: trailing, label: trailingLabel, size: 38, glyph: 17, action: trailingAction) }
+                }
             }
-        }.padding(.horizontal, 12).padding(.top, 8.8).padding(.bottom, 8).background(BuddyStyle.canvas(scheme))
+        }.padding(.horizontal, 12).padding(.top, 8.8).padding(.bottom, 8)
     }
 }

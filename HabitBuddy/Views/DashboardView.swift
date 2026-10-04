@@ -35,19 +35,21 @@ struct DashboardView: View {
             }.scrollIndicators(.hidden)
         }
         .background(BuddyStyle.canvas(scheme)).toolbar(.hidden, for: .navigationBar)
-        .safeAreaInset(edge: .top, spacing: 0) {
-            HStack(spacing: 8) {
-                CircleControl(symbol: "chevron-left", label: "Back", size: 38, glyph: 12.5) { dismiss() }
-                Spacer()
-                CircleControl(symbol: "sliders-horizontal", label: "Edit Dashboard", size: 38, glyph: 16) { editing = true }
-                CircleControl(symbol: "plus", label: "Add Widget", filled: true, size: 38, glyph: 17) { adding = true }.disabled(store.visible.active.isEmpty)
-            }.padding(.horizontal, 12).padding(.top, 8.8).padding(.bottom, 8).background(BuddyStyle.canvas(scheme))
+        .topBar {
+            GlassGroup(spacing: 8) {
+                HStack(spacing: 8) {
+                    CircleControl(symbol: "chevron-left", label: "Back", size: 38, glyph: 12.5) { dismiss() }
+                    Spacer()
+                    CircleControl(symbol: "sliders-horizontal", label: "Edit Dashboard", size: 38, glyph: 16) { editing = true }
+                    CircleControl(symbol: "plus", label: "Add Widget", filled: true, size: 38, glyph: 17) { adding = true }.disabled(store.visible.active.isEmpty)
+                }
+            }.padding(.horizontal, 12).padding(.top, 8.8).padding(.bottom, 8)
         }
         .sheet(isPresented: $editing) { DashboardEditorView().buddySheet() }
         .sheet(isPresented: $adding) { WidgetConfigurator(widget: DashboardWidget(kind: .streak, habitID: store.visible.active.first?.id), isNew: true).buddySheet() }
         .sheet(item: $configuring) { WidgetConfigurator(widget: $0, isNew: false).buddySheet() }
         .sheet(item: $daySelection) { DayEditorView(selection: $0) }
-        .sheet(item: $routine) { RoutineSheet(routineID: $0.id).buddySheet().presentationDetents([.medium, .large]) }
+        .sheet(item: $routine) { RoutineSheet(routineID: $0.id).buddySheet(partial: true).presentationDetents([.medium, .large]) }
         .task {
             #if DEBUG
             if ProcessInfo.processInfo.environment["BUDDY_VISUAL_SCREEN"] == "widget-config" { configuring = DashboardWidget(kind: .checks, style: .tinted) }

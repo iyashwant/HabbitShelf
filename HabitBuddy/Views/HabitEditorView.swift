@@ -80,7 +80,7 @@ struct HabitEditorView: View {
             .scrollDismissesKeyboard(.interactively)
             .background(BuddyStyle.canvas(scheme))
             .toolbar(.hidden,for:.navigationBar)
-            .safeAreaInset(edge:.top,spacing:0){SheetHeader(title:existing ? "Edit Habit":"New Habit")}
+            .topBar(backdrop:0){SheetHeader(title:existing ? "Edit Habit":"New Habit")}
             .overlay(alignment: .bottom) {
                 PrimaryAction(title:"Save",action:save).disabled(!named).padding(.horizontal,24).padding(.bottom,6)
                     .background(alignment: .bottom) { LinearGradient(colors: [BuddyStyle.canvas(scheme).opacity(0), BuddyStyle.canvas(scheme).opacity(0.85)], startPoint: .top, endPoint: .bottom).frame(height: 120).ignoresSafeArea().allowsHitTesting(false) }

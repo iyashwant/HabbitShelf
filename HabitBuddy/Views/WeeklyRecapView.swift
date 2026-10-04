@@ -35,7 +35,7 @@ struct WeeklyRecapView: View {
         }
         .scrollIndicators(.hidden)
         .background(BuddyStyle.canvas(scheme)).toolbar(.hidden, for: .navigationBar)
-        .safeAreaInset(edge: .top, spacing: 0) { PageBar(title: "Weekly Recap", trailing: "share", trailingLabel: "Share Weekly Recap", trailingAction: { share(recap) }) { dismiss() } }
+        .topBar { PageBar(title: "Weekly Recap", trailing: "share", trailingLabel: "Share Weekly Recap", trailingAction: { share(recap) }) { dismiss() } }
         .sheet(item: $export) { image in NativeShareSheet(items: [image.url]) }
         .onAppear {
             guard !configured else { return }

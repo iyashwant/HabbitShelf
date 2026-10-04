@@ -81,3 +81,23 @@ A choice applies at once. The color picker saves 0.3 seconds after the color sto
 ## Touch feedback
 
 Added at the owner's request ("very nice to use"); HabitKit's motion can't be read from screenshots, so these are our choices and change nothing at rest. Buttons with the flat style (check badges, the streak and dashboard checks, compact day tiles and pills, calendar days, Explore tiles, note cards) dim to 70% and press in to 97% while touched, easing out over 0.16 s, so a tap is felt before the screen changes; Reduce Motion keeps the dimming and drops the scale. Streak counts, the week's "done / 7" and the card's streak chip roll to their new value during the check-in animation. A completed check doesn't bounce: checks are tapped many times a day, and the fill, the press and the haptic already confirm it. Touching and holding anywhere on a card, its name and check included, or on a compact row's name, opens the habit's menu over the lifted card or row instead of opening the habit or logging.
+
+## Liquid Glass
+
+Added at the owner's request (not in HabitKit): a Liquid Glass group on the Theme page turns the app's floating controls into Apple's Liquid Glass. It is off by default, so the reference look stays the default. Apple keeps glass for the control layer above content, so only floating controls change:
+- the round toolbar and header controls (settings, explore, dashboard, statistics, back, close, edit and the plus);
+- Save and the other full-width actions;
+- the bottom view switcher. Its selection becomes a lighter lens that slides to the chosen view: a critically damped spring with a 0.35 s response, cross-fading instead under Reduce Motion.
+
+Habit cards, panels, chips, widgets and shared images keep their look. Top bars float over the content with iOS's soft scroll edge in place of the canvas backdrop and gradient. The half-height Compact List Settings and routine sheets use iOS's glass sheet.
+
+**Transparency** offers three presets and a Clear–Frosted slider for the steps between:
+- **System** is Apple's regular glass, untouched, so it follows the iPhone's own Liquid Glass look and accessibility settings.
+- **Clear** is Apple's clear glass.
+- **Frosted** is regular glass with the control color laid inside it at 60%.
+
+Below the middle, the slider uses clear glass with the control color inside it at up to 30%; above the middle, regular glass with up to 60%. Within 3% of a preset, the slider snaps to it.
+
+**Tint** is None (the default), Match Accent, a palette color or a custom color. A Strength slider (10–80%, default 35%) appears once a tint is chosen. The tint colors the neutral controls and the switcher. Create Habit, Save and the other prominent actions are regular glass carrying the accent at full strength, like Apple's prominent glass buttons; clear glass turned the accent a deep, saturated blue.
+
+Reduce Transparency always gives regular glass without the control-color layer. The sliders and the custom tint save 0.3 s after they stop changing. A preview of habit tiles under real controls shows the result at once. iOS draws the half-height sheet glass itself, so transparency and tint don't apply to it.

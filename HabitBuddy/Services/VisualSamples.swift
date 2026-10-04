@@ -45,11 +45,23 @@ enum VisualSamples {
             } }
         }
     }
+    /// `on`, or `transparency:tint:strength` with any part left empty (e.g. `0:teal:0.4`); empty is off.
+    static func visualGlass(_ text:String)->GlassSettings? {
+        guard !text.isEmpty else{return nil}
+        var glass=GlassSettings(enabled:true)
+        guard text != "on" else{return glass}
+        let parts=text.split(separator:":",omittingEmptySubsequences:false).map(String.init)
+        glass.transparency=parts.first.flatMap{Double($0)}
+        glass.tint=parts.count>1 && !parts[1].isEmpty ? parts[1]:nil
+        glass.tintStrength=parts.count>2 ? Double(parts[2]):nil
+        return glass
+    }
     static func audit(_ screen:String)->BuddyData {
         var data=BuddyData()
         if ProcessInfo.processInfo.environment["BUDDY_VISUAL_FIXTURE"] == "reference" { reference(&data) } else { populate(&data) }
 data.settings.onboarding=screen != "welcome";data.settings.theme=ProcessInfo.processInfo.environment["BUDDY_VISUAL_THEME"] == "light" ? .light:.dark
         data.settings.accent=ProcessInfo.processInfo.environment["BUDDY_VISUAL_ACCENT"].flatMap{$0.isEmpty ? nil:$0}
+        data.settings.glass=ProcessInfo.processInfo.environment["BUDDY_VISUAL_GLASS"].flatMap(visualGlass)
         data.settings.layout=Layout(rawValue:screen) ?? (screen=="compact-settings" ? .compact:.cards)
         if screen=="today-ring" { data.settings.dashboard=[DashboardWidget(kind:.today,style:.dark),DashboardWidget(kind:.today,style:.light),DashboardWidget(kind:.today,style:.tinted),DashboardWidget(kind:.streak,habitID:data.habits[6].id,style:.automatic)] }
         // Every design in the sizes and options the default dashboard doesn't show.

@@ -5,6 +5,9 @@ struct OverviewView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accent) private var accent
+    @Environment(\.glass) private var glass
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Namespace private var switcher
     @State private var path: [OverviewRoute] = []
     @State private var editor: Habit?
     @State private var appearance: Habit?
@@ -53,22 +56,27 @@ struct OverviewView: View {
             }
             .background(BuddyStyle.canvas(scheme))
             .toolbar(.hidden, for: .navigationBar)
-            .safeAreaInset(edge: .top, spacing: 0) {
-                HStack(spacing: 8) {
-                    CircleControl(symbol: "settings", label: "Settings") { settings = true }
-                    Spacer()
-                    CircleControl(symbol: "compass", label: "Explore") { path.append(.explore) }
-                    CircleControl(symbol: "layout-dashboard", label: "Dashboard") { path.append(.dashboard) }
-                    CircleControl(symbol: "stats", label: "Statistics") { stats = true }
-                    CircleControl(symbol: "plus", label: "Create Habit", filled: true, glyph: 19) { editor = .draft() }
+            .topBar(backdrop: 0) {
+                GlassGroup(spacing: 8) {
+                    HStack(spacing: 8) {
+                        CircleControl(symbol: "settings", label: "Settings") { settings = true }
+                        Spacer()
+                        CircleControl(symbol: "compass", label: "Explore") { path.append(.explore) }
+                        CircleControl(symbol: "layout-dashboard", label: "Dashboard") { path.append(.dashboard) }
+                        CircleControl(symbol: "stats", label: "Statistics") { stats = true }
+                        CircleControl(symbol: "plus", label: "Create Habit", filled: true, glyph: 19) { editor = .draft() }
+                    }
                 }.padding(.leading, 7).padding(.trailing, 10).padding(.top, 7).padding(.bottom, 12)
             }
             // The reference fades content (and the top of the controls) into the canvas under the status bar.
+            // Liquid Glass leaves that to iOS's scroll edge effect (see `topBar`).
             .overlay(alignment: .top) {
-                GeometryReader { proxy in
-                    LinearGradient(colors: [BuddyStyle.canvas(scheme), BuddyStyle.canvas(scheme).opacity(0)], startPoint: .top, endPoint: .bottom)
-                        .frame(height: proxy.safeAreaInsets.top + 29)
-                }.ignoresSafeArea().allowsHitTesting(false)
+                if glass == nil {
+                    GeometryReader { proxy in
+                        LinearGradient(colors: [BuddyStyle.canvas(scheme), BuddyStyle.canvas(scheme).opacity(0)], startPoint: .top, endPoint: .bottom)
+                            .frame(height: proxy.safeAreaInsets.top + 29)
+                    }.ignoresSafeArea().allowsHitTesting(false)
+                }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) { if store.data.settings.showLayoutSwitcher { layoutSwitcher } }
             .navigationDestination(for: OverviewRoute.self) { route in
@@ -96,7 +104,7 @@ struct OverviewView: View {
             .sheet(isPresented: $compactSettings) { CompactListSettingsView() }
             .sheet(isPresented: $stats) { StatisticsView().buddySheet() }
             .sheet(isPresented: $reorder) { ReorderView() }
-            .sheet(item: $routine) { RoutineSheet(routineID: $0.id).buddySheet().presentationDetents([.medium, .large]) }
+            .sheet(item: $routine) { RoutineSheet(routineID: $0.id).buddySheet(partial: true).presentationDetents([.medium, .large]) }
             .sheet(isPresented: $timing) { TimerView().buddySheet() }
             .fullScreenCover(isPresented: Binding(get: { store.loaded && !store.data.settings.onboarding }, set: { _ in })) { WelcomeView() }
             .alert("Couldn’t complete the action", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) { Button("OK") { store.error = nil } } message: { Text(store.error ?? "") }
@@ -143,17 +151,26 @@ struct OverviewView: View {
                 Button { store.change { $0.settings.layout = layout } } label: {
                     LayoutGlyph(layout: layout).foregroundStyle(Color(hex: scheme == .dark ? 0xECECEC : 0x1C1C1E))
                         .frame(width: 48, height: 44)
-                        .background { if selected { Capsule().fill(scheme == .dark ? Color(hex: 0x3E3E40) : Color.black.opacity(0.08)).overlay { Capsule().strokeBorder(scheme == .dark ? Color(hex: 0x545456) : Color.black.opacity(0.08), lineWidth: 1) } } }
+                        .background {
+                            if selected && glass != nil {
+                                // A lighter lens slides to the chosen view, like the selection in an iOS tab bar.
+                                // Reduce Motion gives each view its own lens, so the change cross-fades instead.
+                                Capsule().fill(scheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.07))
+                                    .matchedGeometryEffect(id: reduceMotion ? layout.rawValue : "selection", in: switcher)
+                            } else if selected {
+                                Capsule().fill(scheme == .dark ? Color(hex: 0x3E3E40) : Color.black.opacity(0.08)).overlay { Capsule().strokeBorder(scheme == .dark ? Color(hex: 0x545456) : Color.black.opacity(0.08), lineWidth: 1) }
+                            }
+                        }
                         .contentShape(Capsule())
                 }.buttonStyle(.plain).accessibilityLabel("\(layout.rawValue) view")
                     .accessibilityAddTraits(selected ? .isSelected : [])
             }
         }
         .padding(.horizontal, 7).padding(.vertical, 6)
-        .background {
-            Capsule().fill(scheme == .dark ? AnyShapeStyle(LinearGradient(colors: [Color(hex: 0x2B2B2E), Color(hex: 0x1E1E21)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(.regularMaterial))
-                .overlay { Capsule().strokeBorder(scheme == .dark ? AnyShapeStyle(LinearGradient(colors: [Color(hex: 0x4B4B4D), Color(hex: 0x27272A)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(Color.black.opacity(0.08)), lineWidth: 1) }
-        }
+        .animation(glass == nil ? nil : .spring(response: 0.35, dampingFraction: 1), value: store.data.settings.layout)
+        .glassChrome(in: Capsule(),
+                     fill: scheme == .dark ? AnyShapeStyle(LinearGradient(colors: [Color(hex: 0x2B2B2E), Color(hex: 0x1E1E21)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(.regularMaterial),
+                     border: scheme == .dark ? AnyShapeStyle(LinearGradient(colors: [Color(hex: 0x4B4B4D), Color(hex: 0x27272A)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(Color.black.opacity(0.08)))
         .padding(.bottom, 16)
     }
     private func card(_ habit: Habit) -> some View {
@@ -459,8 +476,7 @@ struct CompactListSettingsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
         .sheet(isPresented: $hiding) { HideHabitsView().buddySheet().presentationDetents([.medium, .large]) }
         .presentationDetents([.height(425)])
-        .presentationDragIndicator(.visible)
-        .presentationBackground(BuddyStyle.field(scheme))
+        .buddySheet(partial: true, background: BuddyStyle.field(scheme))
     }
 }
 /// Opens Hide Habits; shaped like the segmented control above it, with the number hidden.

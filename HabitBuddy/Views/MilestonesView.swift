@@ -22,7 +22,7 @@ struct MilestonesView: View {
         }
         .scrollIndicators(.hidden)
         .background(BuddyStyle.canvas(scheme)).toolbar(.hidden, for: .navigationBar)
-        .safeAreaInset(edge: .top, spacing: 0) { PageBar(title: habitID.flatMap { store.habit($0)?.name } ?? "Milestones") { dismiss() } }
+        .topBar { PageBar(title: habitID.flatMap { store.habit($0)?.name } ?? "Milestones") { dismiss() } }
     }
     private func row(_ habit: Habit, _ m: Milestones) -> some View {
         NavigationLink(value: OverviewRoute.milestones(habit.id)) {

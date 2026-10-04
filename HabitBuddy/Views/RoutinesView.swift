@@ -24,9 +24,9 @@ struct RoutinesView: View {
         }
         .scrollIndicators(.hidden)
         .background(BuddyStyle.canvas(scheme)).toolbar(.hidden, for: .navigationBar)
-        .safeAreaInset(edge: .top, spacing: 0) { PageBar(title: "Routines", trailing: "plus", trailingLabel: "New Routine", trailingAction: { editing = Routine(name: "") }) { dismiss() } }
+        .topBar { PageBar(title: "Routines", trailing: "plus", trailingLabel: "New Routine", trailingAction: { editing = Routine(name: "") }) { dismiss() } }
         .sheet(item: $editing) { RoutineEditorView(routine: $0).buddySheet() }
-        .sheet(item: $open) { RoutineSheet(routineID: $0.id).buddySheet().presentationDetents([.medium, .large]) }
+        .sheet(item: $open) { RoutineSheet(routineID: $0.id).buddySheet(partial: true).presentationDetents([.medium, .large]) }
         .task {
             #if DEBUG
             if ProcessInfo.processInfo.environment["BUDDY_VISUAL_SCREEN"] == "routine", let first = store.data.routines.first { open = first }
@@ -96,6 +96,7 @@ struct CompleteAllButton: View {
 struct RoutineSheet: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.glass) private var glass
     let routineID: UUID
     @State private var editing: DaySelection?
     @State private var editor: Routine?
@@ -113,7 +114,8 @@ struct RoutineSheet: View {
                 .overlay(alignment: .bottom) { CompleteAllButton(routine: routine).padding(.horizontal, 24).padding(.bottom, 6) }
             } else { ContentUnavailableView("Routine deleted", systemImage: "trash") }
         }
-        .background(BuddyStyle.canvas(scheme))
+        // With Liquid Glass the half-height sheet shows iOS's glass (see `BuddySheet`).
+        .background(BuddyStyle.canvas(scheme).opacity(glass == nil ? 1 : 0))
         .sheet(item: $editing) { DayEditorView(selection: $0) }
         .sheet(item: $editor) { RoutineEditorView(routine: $0).buddySheet() }
     }

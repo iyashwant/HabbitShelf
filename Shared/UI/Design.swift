@@ -52,6 +52,57 @@ extension Theme {
     /// nil follows the system appearance.
     var colorScheme:ColorScheme? { switch self { case .system:nil; case .light:.light; case .dark:.dark } }
 }
+/// Liquid Glass on the floating controls (see `GlassSettings`). Absent from the environment, controls keep the flat
+/// HabitKit look. Glass stays on the control layer: cards and other content never take it.
+struct GlassStyle: Equatable, Sendable {
+    /// Clear glass below the middle of the transparency range, regular glass from it.
+    let clear:Bool
+    /// The control color laid inside the glass: up to 30% toward the middle on the clear side, up to 60% at Frosted.
+    let frost:Double
+    let tint:Color?
+    let accent:Color
+    init?(_ settings:GlassSettings?,accent:Accent) {
+        guard let settings,settings.enabled else { return nil }
+        let t=settings.transparency ?? 0.5
+        clear=t<0.5
+        frost=t<0.5 ? t/0.5*0.3:(t-0.5)/0.5*0.6
+        let strength=settings.tintStrength ?? GlassSettings.defaultTintStrength
+        tint=settings.tint.flatMap{$0 == "accent" ? accent.hex:AccentCode.hex($0) ?? BuddyStyle.hex($0)}.map{Color(hex:$0).opacity(strength)}
+        self.accent=accent.color
+    }
+    /// Prominent controls (Create Habit, Save) are regular glass carrying the accent at full strength, as
+    /// `glassProminent` is: clear glass turns a tint into a deep, saturated color. Reduce Transparency keeps regular
+    /// glass, which iOS frosts.
+    func glass(prominent:Bool,reduceTransparency:Bool)->Glass {
+        prominent ? Glass.regular.tint(accent).interactive():(clear && !reduceTransparency ? Glass.clear:.regular).tint(tint).interactive()
+    }
+}
+extension EnvironmentValues { @Entry var glass:GlassStyle?=nil }
+/// A control's background: the flat fill and hairline, or Liquid Glass in that shape when the mode is on.
+struct GlassChrome<S:InsettableShape>: ViewModifier {
+    @Environment(\.glass) private var glass
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    let shape:S
+    var prominent=false
+    let fill:AnyShapeStyle
+    var border:AnyShapeStyle?
+    func body(content:Content)->some View {
+        if let glass {
+            content.background { if !prominent && !reduceTransparency && glass.frost>0 { shape.fill(BuddyStyle.control(scheme).opacity(glass.frost)) } }
+                .glassEffect(glass.glass(prominent:prominent,reduceTransparency:reduceTransparency),in:shape)
+        } else {
+            content.background { shape.fill(fill).overlay { if let border { shape.strokeBorder(border,lineWidth:1) } } }
+        }
+    }
+}
+/// Neighbouring glass controls share one container, so they sample what's behind them together and render once.
+struct GlassGroup<Content:View>: View {
+    @Environment(\.glass) private var glass
+    var spacing:CGFloat
+    @ViewBuilder var content:Content
+    var body:some View { if glass != nil { GlassEffectContainer(spacing:spacing) { content } } else { content } }
+}
 extension Color { init(hex:UInt32) { self.init(red:Double((hex>>16)&255)/255,green:Double((hex>>8)&255)/255,blue:Double(hex&255)/255) } }
 
 /// Figtree for text, SF Mono for dates and counts, matching the reference's two type families.
@@ -113,16 +164,27 @@ struct FlatButtonStyle: ButtonStyle {
         }
     }
 }
-/// HabitKit-style sheets: visible grabber over the dark canvas.
+/// HabitKit-style sheets: visible grabber over the dark canvas. With Liquid Glass, a half-height sheet (`partial`)
+/// keeps iOS's glass sheet instead, which turns opaque at full height.
 struct BuddySheet: ViewModifier {
     @Environment(\.colorScheme) private var scheme
-    func body(content:Content)->some View { content.presentationDragIndicator(.visible).presentationBackground(BuddyStyle.canvas(scheme)) }
+    @Environment(\.glass) private var glass
+    var partial=false
+    var background:Color?
+    func body(content:Content)->some View {
+        if partial && glass != nil { content.presentationDragIndicator(.visible) }
+        else { content.presentationDragIndicator(.visible).presentationBackground(background ?? BuddyStyle.canvas(scheme)) }
+    }
 }
 extension View {
-    func buddySheet()->some View { modifier(BuddySheet()) }
+    func buddySheet(partial:Bool=false,background:Color?=nil)->some View { modifier(BuddySheet(partial:partial,background:background)) }
     func buddyField()->some View { modifier(BuddyField()) }
     func surface(padding:CGFloat=14,radius:CGFloat=24,tint:Color = .clear)->some View { modifier(Surface(padding:padding,radius:radius,tint:tint)) }
     func panel(padding:CGFloat=0,radius:CGFloat=20,border:Double=0.07)->some View { modifier(Panel(padding:padding,radius:radius,border:border)) }
+    func glassChrome(in shape:some InsettableShape,prominent:Bool=false,fill:some ShapeStyle,border:AnyShapeStyle?=nil)->some View { modifier(GlassChrome(shape:shape,prominent:prominent,fill:AnyShapeStyle(fill),border:border)) }
+    /// A screen's floating top controls, over `backdrop` (the canvas opacity) in the flat look. With Liquid Glass the
+    /// backdrop goes and iOS softens the content scrolling under them instead.
+    func topBar(backdrop:Double=1,@ViewBuilder _ bar:()->some View)->some View { modifier(TopBar(backdrop:backdrop,bar:bar())) }
     /// Uppercase field caption used by the editor and settings.
     func fieldCaption()->some View { font(BuddyFont.text(11.5,.medium)).tracking(1.3).textCase(.uppercase) }
 }
@@ -237,6 +299,16 @@ struct HabitIcon: View {
             .background(c.opacity(0.14),in:RoundedRectangle(cornerRadius:circular ? size/2:size*0.29,style:.circular)).accessibilityHidden(true)
     }
 }
+struct TopBar<Bar:View>: ViewModifier {
+    @Environment(\.glass) private var glass
+    @Environment(\.colorScheme) private var scheme
+    let backdrop:Double
+    let bar:Bar
+    func body(content:Content)->some View {
+        content.safeAreaBar(edge:.top,spacing:0){ bar.background(BuddyStyle.canvas(scheme).opacity(glass == nil ? backdrop:0)) }
+            .scrollEdgeEffectHidden(glass == nil,for:.top)
+    }
+}
 struct MetricChip: View {
     var symbol:String
     var text:String
@@ -258,8 +330,7 @@ struct CircleControl: View {
     var body:some View {
         Button(action:action) {
             LucideIcon(symbol,size:glyph).frame(width:size,height:size)
-                .background(filled ? accent.color:BuddyStyle.control(scheme),in:Circle())
-                .overlay { if !filled { Circle().strokeBorder(BuddyStyle.controlBorder(scheme),lineWidth:1) } }
+                .glassChrome(in:Circle(),prominent:filled,fill:filled ? accent.color:BuddyStyle.control(scheme),border:filled ? nil:AnyShapeStyle(BuddyStyle.controlBorder(scheme)))
                 .foregroundStyle(filled ? accent.foreground:BuddyStyle.text(scheme)).contentShape(Circle())
         }.buttonStyle(.plain).accessibilityLabel(label)
     }
@@ -274,10 +345,12 @@ struct SheetHeader: View {
     var body:some View {
         ZStack {
             Text(title).font(BuddyFont.text(20,.bold)).tracking(1.7).foregroundStyle(BuddyStyle.text(scheme)).lineLimit(1).padding(.horizontal,56)
-            HStack {
-                CircleControl(symbol:"x",label:"Close \(title)",size:38,glyph:16){dismiss()}
-                Spacer()
-                if let trailingSymbol,let trailingAction { CircleControl(symbol:trailingSymbol,label:title,filled:true,size:38,glyph:17,action:trailingAction) }
+            GlassGroup(spacing:8) {
+                HStack {
+                    CircleControl(symbol:"x",label:"Close \(title)",size:38,glyph:16){dismiss()}
+                    Spacer()
+                    if let trailingSymbol,let trailingAction { CircleControl(symbol:trailingSymbol,label:title,filled:true,size:38,glyph:17,action:trailingAction) }
+                }
             }
         }.padding(.horizontal,12).padding(.top,25).padding(.bottom,10)
     }
@@ -293,13 +366,15 @@ struct PrimaryAction: View {
             HStack(spacing:8){if let symbol{LucideIcon(symbol,size:18)};Text(title)}.font(BuddyFont.text(18,.semibold))
                 .frame(maxWidth:.infinity,minHeight:54).contentShape(Capsule())
         }.buttonStyle(.plain).foregroundStyle(enabled ? accent.foreground:Color(hex:0x88888A))
-            .background(accent.color.opacity(enabled ? 1:0.5),in:Capsule())
+            .glassChrome(in:Capsule(),prominent:enabled,fill:accent.color.opacity(enabled ? 1:0.5))
     }
 }
 /// The 7 × 3 color grid. Swatches are centered in seven equal columns, with a ring around the selection.
 struct ColorPalette: View {
     @Environment(\.colorScheme) private var scheme
     @Binding var selection:String
+    /// What VoiceOver calls each swatch, for telling two palettes on one page apart.
+    var label:(String)->String={$0}
     var body:some View {
         LazyVGrid(columns:Array(repeating:GridItem(.flexible(),spacing:0),count:7),spacing:8) {
             ForEach(BuddyStyle.colors,id:\.0){token,_ in
@@ -307,7 +382,7 @@ struct ColorPalette: View {
                     RoundedRectangle(cornerRadius:10,style:.circular).fill(BuddyStyle.color(token)).frame(width:37,height:37)
                         .overlay{if selection==token{RoundedRectangle(cornerRadius:14,style:.circular).strokeBorder(BuddyStyle.color(token),lineWidth:2).padding(-5)}}
                         .frame(maxWidth:.infinity).contentShape(Rectangle())
-                }.buttonStyle(.plain).accessibilityLabel(token).accessibilityAddTraits(selection==token ? .isSelected:[])
+                }.buttonStyle(.plain).accessibilityLabel(label(token)).accessibilityAddTraits(selection==token ? .isSelected:[])
             }
         }
     }
