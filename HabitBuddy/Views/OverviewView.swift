@@ -151,9 +151,13 @@ struct OverviewView: View {
                 }
             }.padding(.horizontal, 8).padding(.bottom, 110)
         }
+        .overlay {
+            // A tap anywhere outside the open toggle minimises it back to the bubble.
+            if toggleOpen { Color.clear.contentShape(Rectangle()).onTapGesture { withAnimation(.snappy(duration: 0.25)) { toggleOpen = false } } }
+        }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if store.loaded, !habits.isEmpty, Self.streakViews.contains(store.settings.layout) {
-                streakListToggle.padding(.bottom, store.settings.showLayoutSwitcher ? 4 : 16)
+                streakListToggle.padding(.bottom, store.settings.showLayoutSwitcher ? 14 : 26)
             }
         }
         .sensoryFeedback(.selection, trigger: arranged) { old, new in old != nil && new != nil && store.settings.haptics }
