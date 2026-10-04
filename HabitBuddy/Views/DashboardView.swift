@@ -55,7 +55,7 @@ struct DashboardView: View {
         }
     }
     private func tile(_ widget: DashboardWidget, width: CGFloat, height: CGFloat) -> some View {
-        DashboardTile(widget: widget, data: store.visible, onCheck: check, onRoutine: complete)
+        DashboardTile(widget: widget, data: store.visible, versions: versions(widget), onCheck: check, onRoutine: complete)
             .frame(width: width, height: height)
             .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
             .onTapGesture { tap(widget) }
@@ -94,7 +94,12 @@ struct DashboardView: View {
         if goal.tracking == .yesNo || (goal.tap == .addOne && !p.success && goal.mode == .build) { store.quickLog(habit) }
         else { daySelection = DaySelection(habit: habit, day: Day()) }
     }
-    private func complete(_ routine: Routine) { withAnimation(.snappy(duration: 0.22)) { _ = store.change { try Engine.completeRoutine(routine.id, day: Day(), data: &$0) } } }
+    private func complete(_ routine: Routine) { withAnimation(.snappy(duration: 0.22)) { _ = store.log(Set(routine.habitIDs)) { try Engine.completeRoutine(routine.id, day: Day(), data: &$0) } } }
+    /// The versions of every habit a widget shows, so it redraws only when one of them changes.
+    private func versions(_ widget: DashboardWidget) -> [HabitVersion] {
+        let ids = widget.kind == .routine ? store.visible.routines.first { $0.id == widget.routineID }?.habitIDs ?? [] : widget.habits(in: store.visible).map(\.id)
+        return ids.map(store.version)
+    }
     private func update(_ widget: DashboardWidget, _ change: (inout DashboardWidget) -> Void) {
         var list = DashboardLayout.current(store)
         guard let index = list.firstIndex(where: { $0.id == widget.id }) else { return }
@@ -113,14 +118,16 @@ struct DashboardTile: View {
     @Environment(\.colorScheme) private var scheme
     let widget: DashboardWidget
     let data: BuddyData
+    /// In the app, the versions of the habits the widget shows (see `HabitWidgetContent.versions`).
+    var versions: [HabitVersion]?
     var onCheck: ((Habit) -> Void)?
     var onRoutine: ((Routine) -> Void)?
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 22, style: .continuous), habits = widget.habits(in: data)
         let palette = WidgetPalette(widget.style, scheme: scheme, tint: widget.tint(data))
         HabitWidgetContent(kind: widget.kind, size: widget.resolvedSize, habit: widget.kind.needsHabit ? habits.first : nil, data: data, habits: habits,
-                           routine: data.routines.first { $0.id == widget.routineID }, title: widget.title, palette: palette, onCheck: onCheck, onRoutine: onRoutine)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                           routine: data.routines.first { $0.id == widget.routineID }, title: widget.title, palette: palette, versions: versions, onCheck: onCheck, onRoutine: onRoutine)
+            .equatable().frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(palette.background(shape))
             .overlay { shape.strokeBorder(palette.dark ? Color.white.opacity(0.07) : Color.black.opacity(scheme == .dark ? 0 : 0.06), lineWidth: 1) }
     }

@@ -99,8 +99,19 @@ struct BuddyField: ViewModifier {
     }
 }
 /// Buttons whose disabled state is drawn by the label itself (no system dimming).
+/// Dims and presses in slightly while touched, so a tap is felt before the screen changes.
 struct FlatButtonStyle: ButtonStyle {
-    func makeBody(configuration:Configuration)->some View { configuration.label.opacity(configuration.isPressed ? 0.7:1) }
+    func makeBody(configuration:Configuration)->some View { Pressable(label:configuration.label,pressed:configuration.isPressed) }
+    private struct Pressable<Label:View>: View {
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+        let label:Label
+        let pressed:Bool
+        // Reduce Motion keeps the dimming and drops the scale.
+        var body:some View {
+            label.opacity(pressed ? 0.7:1).scaleEffect(pressed && !reduceMotion ? 0.97:1)
+                .animation(.timingCurve(0.23,1,0.32,1,duration:0.16),value:pressed)
+        }
+    }
 }
 /// HabitKit-style sheets: visible grabber over the dark canvas.
 struct BuddySheet: ViewModifier {
@@ -231,7 +242,7 @@ struct MetricChip: View {
     var text:String
     var color:Color
     var body:some View {
-        HStack(spacing:2.7){LucideIcon(symbol,size:15.2);Text(text).font(BuddyFont.mono(12.2))}
+        HStack(spacing:2.7){LucideIcon(symbol,size:15.2);Text(text).font(BuddyFont.mono(12.2)).contentTransition(.numericText())}
             .padding(.leading,8.5).padding(.trailing,11).frame(height:29).foregroundStyle(color).background(color.opacity(0.12),in:Capsule())
     }
 }

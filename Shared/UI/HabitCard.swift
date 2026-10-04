@@ -1,14 +1,21 @@
 import SwiftUI
 
-struct HabitCard: View {
+struct HabitCard<Menu: View>: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.summaries) private var summaries
     let habit: Habit
     let data: BuddyData
+    /// The store's version of this habit; with one, the card redraws only when it, the habit or the day changes.
+    var version: HabitVersion?
     var appearance: CardAppearance?
     var interactive = true
+    /// Compared only, so cards redraw when the date changes; the parts read today's date themselves.
+    var today = Day()
     var onOpen: () -> Void = {}
     var onComplete: () -> Void = {}
+    /// The habit's menu, for holding the card. The name and the check carry it too: in a lazy list, holding a
+    /// button inside the card's menu area ran the button instead of opening the menu (iOS 27 simulator).
+    @ViewBuilder var menu: () -> Menu
     var body: some View {
         let a=appearance ?? habit.cardAppearance(data.settings),c=BuddyStyle.color(habit.color)
         VStack(alignment:.leading,spacing:0) {
@@ -21,8 +28,8 @@ struct HabitCard: View {
                             if a.description && !habit.detail.isEmpty { Text(habit.detail).font(BuddyFont.text(13)).foregroundStyle(BuddyStyle.secondaryText(scheme)).lineLimit(1) }
                         }.frame(maxWidth:.infinity,alignment:.leading)
                     }.contentShape(Rectangle())
-                }.buttonStyle(.plain)
-                if a.indicator { Button(action:onComplete){CompletionBadge(habit:habit,data:data)}.buttonStyle(.plain).accessibilityLabel("Log progress for \(habit.name)").accessibilityValue(Amount.text(data.record(habit.id,Day()).amount)) }
+                }.buttonStyle(.plain).contextMenu(menuItems:menu)
+                if a.indicator { Button(action:onComplete){CompletionBadge(habit:habit,data:data)}.buttonStyle(FlatButtonStyle()).contextMenu(menuItems:menu).accessibilityLabel("Log progress for \(habit.name)").accessibilityValue(Amount.text(data.record(habit.id,Day()).amount)) }
             }.frame(height:48).padding(.horizontal,15)
             // The grid bleeds to the card's leading edge, where older weeks fade out.
             Group {
@@ -37,6 +44,21 @@ struct HabitCard: View {
                     if a.categoryIcons { ForEach(data.categories.filter{habit.categories.contains($0.id)}){BuddyGlyph(symbol:$0.symbol,size:14).foregroundStyle(c)} }
                 }.padding(.horizontal,15).padding(.top,10)
             }
-        }.padding(.top,15).padding(.bottom,14.7).surface(padding:0,tint:c).clipShape(RoundedRectangle(cornerRadius:24,style:.circular)).allowsHitTesting(interactive)
+        }.padding(.top,15).padding(.bottom,14.7).surface(padding:0,tint:c).clipShape(RoundedRectangle(cornerRadius:24,style:.circular)).contextMenu(menuItems:menu).allowsHitTesting(interactive)
+    }
+}
+
+extension HabitCard where Menu == EmptyView {
+    /// A card without a menu, as the appearance preview and shared images draw it.
+    init(habit: Habit, data: BuddyData, appearance: CardAppearance? = nil, interactive: Bool = true) {
+        self.init(habit: habit, data: data, appearance: appearance, interactive: interactive) { EmptyView() }
+    }
+}
+
+extension HabitCard: Equatable {
+    /// Without a version every update redraws the card. Actions are left out: they act on the same habit.
+    static func == (a: HabitCard, b: HabitCard) -> Bool {
+        guard let version = a.version, version == b.version else { return false }
+        return a.habit == b.habit && a.today == b.today && a.appearance == b.appearance && a.interactive == b.interactive
     }
 }

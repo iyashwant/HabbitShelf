@@ -77,7 +77,7 @@ struct CompleteAllButton: View {
     var compact = false
     var body: some View {
         let progress = Engine.routineProgress(routine, data: store.visible), done = progress.done == progress.total
-        let action = { withAnimation(.snappy(duration: 0.22)) { _ = store.change { try Engine.completeRoutine(routine.id, day: Day(), data: &$0) } } }
+        let action = { withAnimation(.snappy(duration: 0.22)) { _ = store.log(Set(routine.habitIDs)) { try Engine.completeRoutine(routine.id, day: Day(), data: &$0) } } }
         Group {
             if compact {
                 Button(action: action) {

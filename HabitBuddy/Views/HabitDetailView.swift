@@ -179,7 +179,7 @@ struct DayEditorView: View {
         do {
             let value = goal.tracking == .yesNo ? (complete ? Int64(1_000) : 0) : try Amount.parse(amount)
             let locked = self.locked, id = habit.id, day = selection.day, note = self.note, freeze = self.freeze
-            if store.change({ data in
+            if store.change(touching: [id], { data in
                 if !locked { try Engine.setAmount(value, habitID: id, day: day, data: &data) }
                 if data.settings.notes { try Engine.note(note, habitID: id, day: day, data: &data) }
                 // Logging the day as done replaces a freeze, so a freeze applies only to a day that stays missed.

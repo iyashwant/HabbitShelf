@@ -6,7 +6,8 @@ import os
 /// reads, validation and writes never hold up a tap. If a save fails, its change is undone and reported.
 @MainActor final class AppStore: ObservableObject {
     /// What the screens show: the latest saved snapshot with any changes still being saved applied on top.
-    @Published private(set) var data = BuddyData() { didSet { revision &+= 1; summaries.reset() } }
+    /// Set only through `publish`, which records which habits changed.
+    @Published private(set) var data = BuddyData() { didSet { revision &+= 1 } }
     @Published var error: String?
     @Published var loaded = false
     /// True until the first read from disk finishes, so launch shows neither onboarding nor an empty list early.
@@ -22,15 +23,21 @@ import os
     }
     private var visibleData = BuddyData()
     private var visibleRevision = -1
-    /// Streaks, stats and milestones, computed once per habit for each published snapshot.
+    /// Streaks, stats and milestones, computed once per habit and kept until that habit changes.
     let summaries = HabitSummaries(caching: true)
     let repository = AppEnvironment.repository
     private let worker: PersistenceWorker
     /// The latest snapshot read from or written to disk.
     private var committed = BuddyData()
-    /// Changes shown but not yet saved, oldest first.
-    private var pending: [(id: Int, change: Change)] = []
+    /// Changes shown but not yet saved, oldest first, with the habits whose days each one edits (nil if unknown).
+    private var pending: [(id: Int, habits: Set<UUID>?, change: Change)] = []
     private var nextChange = 0
+    /// What the saved changes touched since the screen last took a saved snapshot, which it does when the queue drains.
+    private var savedHabits: Set<UUID>? = []
+    private var savedElsewhere = false
+    /// Counts changes per habit, and for every habit at once (`allVersion`) when a change can't tell which it touched.
+    private var habitVersions: [UUID: Int] = [:]
+    private var allVersion = 0
     private var syncScope: SyncScope = []
     private var sync: Task<Void, Never>?
     private var syncPending = false
@@ -44,7 +51,7 @@ import os
         haptic.prepare()
         #if DEBUG
         if let screen=ProcessInfo.processInfo.environment["BUDDY_VISUAL_SCREEN"],ProcessInfo.processInfo.environment["BUDDY_VISUAL_RESET"] != "false" {
-            do { committed=try repository.transaction{$0=VisualSamples.audit(screen)};data=committed;loaded=true } catch { self.error=error.localizedDescription }
+            do { committed=try repository.transaction{$0=VisualSamples.audit(screen)};publish(committed,everything:true);loaded=true } catch { self.error=error.localizedDescription }
             loading=false
             return
         }
@@ -54,45 +61,89 @@ import os
     /// Reads the latest saved data, after any queued saves, keeping changes that are still being saved.
     /// `reschedule` then refreshes reminders from it, as when the app returns to the foreground.
     func reload(reschedule: Bool = false) {
-        worker.submit({ try $0.load() }) { [weak self] result in
+        worker.load { [weak self] result in
             guard let self else { return }
             switch result {
-            case .success(let value):
-                committed = value; data = rebased(); loaded = true
-                if reschedule { Task { await NotificationService.reconcile(value) } }
+            case .success(let saved):
+                committed = saved.data
+                // An unchanged file redraws nothing; one written by a widget or Shortcut redraws every habit.
+                publish(rebased(), touched: [], everything: saved.changedElsewhere || !loaded); loaded = true
+                if reschedule { Task { await NotificationService.reconcile(saved.data) } }
             case .failure(let failure): error = failure.localizedDescription; loaded = false
             }
             loading = false
         }
     }
     /// Applies a change now and queues it to be saved. Returns false, changing nothing, if it is invalid.
-    @discardableResult func change(_ block: @escaping Change) -> Bool {
+    /// `touching` names the habits whose days it edits, so only they redraw; leave it out when unsure.
+    @discardableResult func change(touching habits: Set<UUID>? = nil, _ block: @escaping Change) -> Bool {
+        apply(block, habits: habits, validate: true)
+    }
+    /// A check-in through the shared engine, which checks every value it writes. The full check of all records
+    /// waits for the save on the persistence queue instead of holding up the tap. Only `habits` redraw.
+    @discardableResult func log(_ habits: Set<UUID>, _ block: @escaping Change) -> Bool {
+        apply(block, habits: habits, validate: false)
+    }
+    private func apply(_ block: @escaping Change, habits: Set<UUID>?, validate: Bool) -> Bool {
         guard loaded else { error = loading ? "Your habits are still loading. Try again in a moment." : "Data could not be loaded. Restore a backup before making changes."; return false }
         var next = data
-        do { try block(&next); try DataValidation.validate(next) }
+        do { try block(&next); if validate { try DataValidation.validate(next) } }
         catch { self.error = error.localizedDescription; return false }
         syncScope.formUnion(SyncScope(from: data, to: next))
-        data = next
         let id = nextChange
         nextChange += 1
-        pending.append((id, block))
-        worker.submit({ try $0.transaction(block) }) { [weak self] result in self?.saved(id, result) }
+        pending.append((id, habits, block))
+        publish(next, touched: habits)
+        worker.save(block) { [weak self] result in self?.saved(id, result) }
         return true
     }
-    private func saved(_ id: Int, _ result: Result<BuddyData, Error>) {
+    private func saved(_ id: Int, _ result: Result<PersistenceWorker.Snapshot, Error>) {
+        let habits = pending.first { $0.id == id }?.habits
         pending.removeAll { $0.id == id }
         switch result {
-        case .success(let value):
-            committed = value
-            // During a burst of taps the screen already shows every queued change; it takes the saved data once they finish.
-            if pending.isEmpty { data = value }
+        case .success(let saved):
+            committed = saved.data
+            if let touched = savedHabits, let habits { savedHabits = touched.union(habits) } else { savedHabits = nil }
+            savedElsewhere = savedElsewhere || saved.changedElsewhere
+            // During a burst of taps the screen already shows every queued change; it takes the saved data once they
+            // finish. The habits they touched redraw from it, and every habit does if another process wrote too.
+            if pending.isEmpty {
+                publish(saved.data, touched: savedHabits, everything: savedElsewhere)
+                savedHabits = []; savedElsewhere = false
+            }
             scheduleSync()
         case .failure(let failure):
             error = failure.localizedDescription
-            data = rebased()
+            publish(rebased(), everything: true)
         }
         endBackgroundTaskIfIdle()
     }
+    /// Shows a snapshot. A habit redraws when its days (`touched`) or definition changed; with `touched` nil every
+    /// record is compared. Every habit redraws for `everything`, or when settings, categories or routines changed.
+    private func publish(_ next: BuddyData, touched: Set<UUID>? = nil, everything: Bool = false) {
+        if !everything, let habits = Self.changedHabits(from: data, to: next, touched: touched) {
+            for id in habits { habitVersions[id, default: 0] &+= 1 }
+            summaries.invalidate(habits)
+        } else {
+            allVersion &+= 1
+            summaries.reset()
+        }
+        data = next
+    }
+    /// The habits whose definition or days differ, or nil when every habit may have. Collections a change left
+    /// alone still share storage with the old snapshot, so comparing them is immediate.
+    private static func changedHabits(from old: BuddyData, to new: BuddyData, touched: Set<UUID>?) -> Set<UUID>? {
+        guard old.settings == new.settings, old.categories == new.categories, old.routines == new.routines else { return nil }
+        if touched == nil && old.records != new.records { return nil }
+        var habits = touched ?? []
+        if old.habits != new.habits {
+            let before = Dictionary(old.habits.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            for habit in new.habits where before[habit.id] != habit { habits.insert(habit.id) }
+        }
+        return habits
+    }
+    /// Changes when the habit or its days change on screen. Views compare it to skip redrawing for other habits' changes.
+    func version(_ id: UUID) -> HabitVersion { HabitVersion(all: allVersion, habit: habitVersions[id, default: 0]) }
     /// The saved snapshot with the changes still being saved applied again; one that no longer applies is left out.
     private func rebased() -> BuddyData {
         var value = committed
@@ -133,13 +184,13 @@ import os
     }
     func habit(_ id: UUID) -> Habit? { data.habits.first { $0.id == id } }
     @discardableResult func setAmount(_ value: Int64, _ id: UUID, _ day: Day) -> Bool {
-        change { try Engine.setAmount(value, habitID: id, day: day, data: &$0) }
+        log([id]) { try Engine.setAmount(value, habitID: id, day: day, data: &$0) }
     }
     /// A yes/no habit toggles and a count adds one, judged from the latest saved amount when it is saved.
     @discardableResult func quickLog(_ habit: Habit, day: Day = Day()) -> Bool {
         let id = habit.id
         let result = withAnimation(UIAccessibility.isReduceMotionEnabled ? nil : .snappy(duration: 0.22)) {
-            change { data in
+            log([id]) { data in
                 guard let current = data.habits.first(where: { $0.id == id }) else { throw BuddyError.unavailable }
                 if current.goal(on: day).tracking == .yesNo { try Engine.setAmount(data.record(id, day).amount == 0 ? 1_000 : 0, habitID: id, day: day, data: &data) }
                 else { try Engine.increment(habitID: id, day: day, data: &data) }
@@ -162,8 +213,8 @@ import os
     /// Replaces everything with a validated backup, after the queued saves.
     func restore(_ bytes: Data) async -> Bool {
         do {
-            committed = try await worker.run { try $0.restore(bytes) }
-            data = rebased(); loaded = true
+            committed = try await worker.replace { try $0.restore(bytes) } ?? committed
+            publish(rebased(), everything: true); loaded = true
             syncScope = .all; scheduleSync(); return true
         } catch { self.error = error.localizedDescription; return false }
     }
@@ -171,8 +222,8 @@ import os
     /// True once the session is logged or was already finished elsewhere.
     func finishTimer(_ session: TimerSession, at now: Date) async -> Bool {
         do {
-            guard let value = try await worker.run({ try TimerSessions.finish(session, repository: $0, at: now) }) else { return true }
-            committed = value; data = rebased()
+            guard let value = try await worker.replace({ try TimerSessions.finish(session, repository: $0, at: now) }) else { return true }
+            committed = value; publish(rebased(), everything: true)
             syncScope = .all; scheduleSync(); return true
         } catch { self.error = error.localizedDescription; return false }
     }
@@ -186,7 +237,37 @@ final class PersistenceWorker: @unchecked Sendable {
     private let repository: BuddyRepository
     /// Each job shows as a "Persistence job" interval in Instruments' os_signpost track.
     private static let signposter = OSSignposter(subsystem: "com.iyashwant.habbitbuddy", category: "Persistence")
+    /// The snapshot this worker last read or saved. Used only on the queue.
+    private var latest: BuddyData?
+    /// A snapshot read or saved, and whether the file held changes this worker didn't make, written since by a
+    /// widget, Shortcut, Live Activity or other user of the repository.
+    struct Snapshot { let data: BuddyData; let changedElsewhere: Bool }
     init(_ repository: BuddyRepository) { self.repository = repository }
+    func load(completion: @escaping @MainActor (Result<Snapshot, Error>) -> Void) {
+        submit({ [self] repository in
+            let data = try repository.load()
+            defer { latest = data }
+            return Snapshot(data: data, changedElsewhere: data != latest)
+        }, completion: completion)
+    }
+    /// Runs `change` in a locked transaction on the latest file.
+    func save(_ change: @escaping AppStore.Change, completion: @escaping @MainActor (Result<Snapshot, Error>) -> Void) {
+        submit({ [self] repository in
+            var elsewhere = false
+            // While the file is unchanged the repository hands back the snapshot it last saved, so this is immediate.
+            let data = try repository.transaction { current in elsewhere = current != latest; try change(&current) }
+            latest = data
+            return Snapshot(data: data, changedElsewhere: elsewhere)
+        }, completion: completion)
+    }
+    /// Runs work that replaces the store, such as a restore, and remembers the snapshot it saved.
+    func replace(_ work: @escaping (BuddyRepository) throws -> BuddyData?) async throws -> BuddyData? {
+        try await run { [self] repository in
+            let data = try work(repository)
+            if let data { latest = data }
+            return data
+        }
+    }
     /// Completions run on the main queue in the same order as their jobs.
     func submit<T>(_ work: @escaping (BuddyRepository) throws -> T, completion: @escaping @MainActor (Result<T, Error>) -> Void) {
         let job = Unchecked((work, completion)), repository = repository

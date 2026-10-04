@@ -57,6 +57,22 @@ final class HabitBuddyUITests:XCTestCase {
         app.terminate();app.launchEnvironment["BUDDY_VISUAL_RESET"]="false";app.launch()
         XCTAssertTrue(app.buttons["Last 3 days"].waitForExistence(timeout:20),"The day count is saved");XCTAssertFalse(app.buttons["Gym Day"].exists,"Hidden names are saved")
     }
+    func testHoldingACardOpensItsMenu() {
+        // Each hold starts from a fresh launch: tapping outside didn't always close the menu in the simulator.
+        for part in ["name","check"] {
+            let app=launch("cards"),check=app.buttons["Log progress for Gym Day"],menu=app.buttons["Complete Yesterday"]
+            let held=part=="name" ? app.buttons.matching(NSPredicate(format:"label BEGINSWITH 'Gym Day'")).firstMatch:check
+            XCTAssertTrue(held.waitForExistence(timeout:20));let before=check.value as? String
+            held.press(forDuration:1.2);XCTAssertTrue(menu.waitForExistence(timeout:5),"Holding a card's \(part) opens the habit menu")
+            XCTAssertFalse(app.buttons["Back"].exists,"rather than the habit");XCTAssertEqual(check.value as? String,before,"without logging")
+            app.terminate()
+        }
+    }
+    func testCompactRowNameOpensHabitMenu() {
+        let app=launch("compact"),name=app.buttons["Gym Day"]
+        XCTAssertTrue(name.waitForExistence(timeout:20));name.press(forDuration:1.2)
+        XCTAssertTrue(app.buttons["Complete Yesterday"].waitForExistence(timeout:5),"Holding a compact row's name opens the habit menu");XCTAssertFalse(app.buttons["Back"].exists,"rather than the habit")
+    }
     func testThemeAccent() {
         let app=launch("theme"),teal=app.buttons["teal"],standard=app.buttons["Default"]
         XCTAssertTrue(teal.waitForExistence(timeout:20));XCTAssertTrue(standard.isSelected,"New installs keep the violet accent")

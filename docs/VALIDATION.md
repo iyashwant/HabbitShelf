@@ -73,3 +73,23 @@ Checked with **Xcode 27.0 (27A266a)** on an **iPhone 18 Pro simulator, iOS 27**.
 - Screenshots inspected: the Theme page with the default, amber, teal and a custom crimson accent; Compact List Settings with mint; New Habit with yellow. On amber, yellow, mint and teal, text on accent fills is dark and readable. A first run showed the open Settings sheet keeping its old appearance after Light or System was chosen. Settings now takes the overview's scheme, and the captures show it switch at once to Light, and to dark under System on a dark simulator.
 
 Not checked: the custom color picker was not driven by a test, and home-screen widgets with a non-default accent were not placed.
+
+## Per-habit redraws, lighter check-ins and touch feedback, 4 October 2026 (local Mac)
+
+Checked with **Xcode 27.0 (27A266a)** on **iPhone 18 Pro simulators, iOS 27**. Other sessions were using the same working tree and the default simulator, so the app and UI tests were built from copies of this change, each with its own derived data and simulator.
+
+- `swift test`: **93 core tests passed, 0 failures**. `testHiddenHabitsLeaveScreensButKeepTheirData` now checks that the shown data keeps every record, since screens find records only through their habit. Under load from two simulator builds, the icon search timing test once took 3.66 s against its 3.0 s limit; it passed in the final run.
+- `python3 scripts/check-project.py` passed. Unsigned app and widget simulator build succeeded with no compiler warnings from source files.
+- Full UI run on the finished app code: **17 passed, 1 skipped (opt-in Home Screen gallery), 1 failed**: a first version of the new `testHoldingACardOpensItsMenu`, whose tap on the status bar didn't close the menu. The final version of that test and `testCompactRowNameOpensHabitMenu` then passed twice each in a separate run. The two timer tests log "Publishing changes from background threads"; earlier full runs on the code before this change log the same warning.
+- Redraws, counted by a temporary counter in each view's body on a copy of the app (not committed), tapping one habit's check: cards view, 8–12 card bodies before and 2 after; compact view, 50 day tiles before and 5 after.
+- Touching and holding, on the previous code: holding a card's check logged progress and holding a compact row's name opened the habit. With the name and the check carrying the habit's menu themselves, every card hold made on a fresh launch opened the menu without logging (13 holds), but 2 of 5 holds made a few seconds after another menu closed ran the button instead: the check logged progress once (while another test run was finishing on the same Mac) and the name opened the habit once. A version that made the name and check menus with a primary action (SwiftUI `Menu` with `primaryAction`) did no better: one of its 6 such check holds logged progress (also while another build was running), and a tap outside failed to close its menu 3 times in 8, against 6 of 6 for the context menu. It wasn't kept. With Drag to Reorder off, that version had no misfires and no failed closes in 3 rounds, so the cards' drag-to-reorder interaction may be involved; that wasn't followed up. The committed tests hold the card's name and check, each from a fresh launch, and the compact row's name; earlier versions of the card test closed the menu between holds, and failed once on the close and once when the check hold logged progress.
+
+Shared core compiled with `-O` on this Mac (Apple silicon), one run before and one after on synthetic data, so the validation row shows run-to-run spread; not the app, SwiftUI or a device:
+
+| Per check-in, 50 habits / 66,650 records | Before | After |
+|---|---|---|
+| `withoutHidden` with one habit hidden | 8.36 ms | 0.01 ms (records are kept, not copied) |
+| Full validation on the main thread | 7.4–11.2 ms | not run for check-ins (the save still validates) |
+| History refill for the summaries cache | every visible habit (1.6–2.0 ms for 6 cards) | the tapped habit only |
+
+Not checked: the streak, list and month layouts' checks under touch and hold (they sit in lazy grids like the cards did); tap latency, frame rate, hitches, memory and launch time on an iPhone.

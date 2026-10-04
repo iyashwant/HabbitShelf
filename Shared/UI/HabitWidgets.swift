@@ -2,7 +2,7 @@ import SwiftUI
 import AppIntents
 
 /// Colors for one widget style. Tinted widgets wash the habit color over the base surface.
-struct WidgetPalette {
+struct WidgetPalette: Equatable {
     let base: Color
     let wash: Double
     let dark: Bool
@@ -48,6 +48,7 @@ struct StreakBadge: View {
         VStack(alignment: trailing ? .trailing : .leading, spacing: 0) {
             HStack(alignment: .center, spacing: 2) {
                 Text("\(summary.value)").font(BuddyFont.text(size, .heavy)).monospacedDigit().foregroundStyle(palette.primary).lineLimit(1).minimumScaleFactor(0.6)
+                    .contentTransition(.numericText(value: Double(summary.value)))
                 Image(systemName: "flame.fill").font(.system(size: size * 0.52)).foregroundStyle(palette.tint)
             }
             if unit { Text(summary.unit.rawValue.uppercased()).font(BuddyFont.text(max(9, size * 0.34), .medium)).tracking(0.5).foregroundStyle(palette.secondary) }
@@ -76,7 +77,7 @@ struct HabitCheck: View {
             else { Image(systemName: p.slip ? "xmark" : g.tracking != .yesNo && !p.success ? "plus" : "checkmark").font(.system(size: size * 0.36, weight: .bold)).foregroundStyle(p.success ? Color.white : palette.tint) }
         }.frame(width: size, height: size).contentShape(Circle())
         Group {
-            if let onTap { Button(action: onTap) { label }.buttonStyle(.plain) }
+            if let onTap { Button(action: onTap) { label }.buttonStyle(FlatButtonStyle()) }
             else if g.tracking != .yesNo && (g.mode == .quit || g.tap == .enterTotal || p.success) { Link(destination: URL(string: "habitbuddy://\(habit.id.uuidString)?day=\(today.rawValue)")!) { label } }
             else { Button(intent: WidgetLogIntent(habit.id, day: today)) { label }.buttonStyle(.plain) }
         }
@@ -95,7 +96,7 @@ struct WeekStrip: View {
     var count = true
     var body: some View {
         let start = today.startOfWeek(data.settings.weekStart), days = (0..<7).map { start.adding($0) }
-        let marks = days.map { DayMark(habit, $0, data, today: today) }
+        let marks = days.map { DayMark(habit, $0, data, today: today) }, done = marks.filter { $0 == .done }.count
         HStack(spacing: cell * 0.2) {
             ForEach(0..<7, id: \.self) { i in
                 let mark = marks[i], shape = RoundedRectangle(cornerRadius: cell * 0.28, style: .continuous)
@@ -104,9 +105,9 @@ struct WeekStrip: View {
                     .frame(width: cell, height: cell).background(mark.fill(palette), in: shape)
                     .overlay { if mark == .future || mark == .inactive { shape.strokeBorder(palette.outline, lineWidth: 1) } }
             }
-            if count { Text("\(marks.filter { $0 == .done }.count)/7").font(BuddyFont.text(cell * 0.82)).monospacedDigit().foregroundStyle(palette.secondary).padding(.leading, cell * 0.3).fixedSize() }
+            if count { Text("\(done)/7").font(BuddyFont.text(cell * 0.82)).monospacedDigit().foregroundStyle(palette.secondary).padding(.leading, cell * 0.3).fixedSize().contentTransition(.numericText(value: Double(done))) }
         }
-        .accessibilityElement(children: .ignore).accessibilityLabel("This week, \(marks.filter { $0 == .done }.count) of 7 days done")
+        .accessibilityElement(children: .ignore).accessibilityLabel("This week, \(done) of 7 days done")
     }
 }
 
@@ -189,6 +190,9 @@ struct HabitWidgetContent: View {
     var title: String?
     var today = Day()
     let palette: WidgetPalette
+    /// In the app, the store's versions of every habit shown, including a routine's. With them the design redraws
+    /// only when one of those habits or its own options change, not each time another habit is logged.
+    var versions: [HabitVersion]?
     /// Logs today in the app; nil on the home screen, where the check runs an intent.
     var onCheck: ((Habit) -> Void)?
     /// Completes a routine in the app; nil on the home screen, where the button runs an intent.
@@ -349,6 +353,15 @@ struct HabitWidgetContent: View {
     }
     /// Each habit keeps its own color inside multi-habit designs.
     func rowPalette(_ habit: Habit) -> WidgetPalette { WidgetPalette(palette.dark ? .dark : .light, scheme: palette.dark ? .dark : .light, tint: BuddyStyle.color(habit.color)) }
+}
+
+extension HabitWidgetContent: Equatable {
+    /// Without versions every update redraws the design. Actions are left out: they act on the same habits.
+    static func == (a: HabitWidgetContent, b: HabitWidgetContent) -> Bool {
+        guard let versions = a.versions, versions == b.versions else { return false }
+        return a.kind == b.kind && a.size == b.size && a.habit == b.habit && a.habits == b.habits && a.routine == b.routine
+            && a.title == b.title && a.today == b.today && a.palette == b.palette
+    }
 }
 
 /// One arc per habit around a ring, in the habit's color: solid when done, faint when open.

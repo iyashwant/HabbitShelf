@@ -157,8 +157,8 @@ struct OverviewView: View {
         .padding(.bottom, 16)
     }
     private func card(_ habit: Habit) -> some View {
-        HabitCard(habit:habit,data:store.data,onOpen:{path.append(.habit(habit.id))},onComplete:{tap(habit,Day())})
-            .contextMenu { habitMenu(habit) }
+        HabitCard(habit:habit,data:store.data,version:store.version(habit.id),onOpen:{path.append(.habit(habit.id))},onComplete:{tap(habit,Day())}) { habitMenu(habit) }
+            .equatable()
             .modifier(HabitDrag(id:habit.id,enabled:store.data.settings.dragToReorder) { source in
                 var ids=store.visible.active.map(\.id)
                 guard let from=ids.firstIndex(of:source),let to=ids.firstIndex(of:habit.id),from != to else{return}
@@ -198,20 +198,9 @@ struct OverviewView: View {
                 ForEach(habits) { habit in
                     VStack(spacing: 0) {
                         line.frame(height: 1)
-                        HStack(spacing: 4) {
-                            Button { path.append(.habit(habit.id)) } label: {
-                                HStack(spacing: 11) { HabitIcon(habit: habit, size: 34); if store.data.settings.compactNames { Text(habit.name).font(BuddyFont.text(15.2)).lineLimit(1).foregroundStyle(BuddyStyle.text(scheme)) } }
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading).contentShape(Rectangle())
-                            }.buttonStyle(.plain)
-                            // Each tile takes half the 8-point gap on both sides, so the whole 38-point pitch is tappable.
-                            HStack(spacing: 0) {
-                                ForEach(days) { day in
-                                    Button { tap(habit, day) } label: { DayTile(habit: habit, day: day, data: store.data, size: 30).frame(maxHeight: .infinity).padding(.horizontal, 4).contentShape(Rectangle()) }
-                                        .buttonStyle(.plain).disabled(!habit.loggable(on: day, today: today))
-                                        .contextMenu { Button("Edit amount and note") { daySelection = DaySelection(habit: habit, day: day) } }
-                                }
-                            }
-                        }.padding(.leading, 15).padding(.trailing, 11).frame(height: 52).contextMenu { habitMenu(habit) }
+                        CompactRow(habit: habit, data: store.data, version: store.version(habit.id), days: days, today: today, names: store.data.settings.compactNames,
+                                   onOpen: { path.append(.habit(habit.id)) }, onTap: { tap(habit, $0) }, onEdit: { daySelection = DaySelection(habit: habit, day: $0) }) { habitMenu(habit) }
+                            .equatable()
                     }
                 }
             }.panel(radius: 20, border: 0.07)
@@ -222,8 +211,8 @@ struct OverviewView: View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
             ForEach(habits) { habit in
                 let palette = WidgetPalette(.tinted, scheme: scheme, tint: BuddyStyle.color(habit.color)), shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
-                HabitWidgetContent(kind: .streak, habit: habit, data: store.data, palette: palette, onCheck: { tap($0, Day()) })
-                    .frame(height: 158).background(palette.background(shape)).contentShape(shape)
+                HabitWidgetContent(kind: .streak, habit: habit, data: store.data, palette: palette, versions: [store.version(habit.id)], onCheck: { tap($0, Day()) })
+                    .equatable().frame(height: 158).background(palette.background(shape)).contentShape(shape)
                     .onTapGesture { path.append(.habit(habit.id)) }.contextMenu { habitMenu(habit) }
             }
         }
@@ -232,18 +221,9 @@ struct OverviewView: View {
     private var streakList: some View {
         LazyVStack(spacing: 8) {
             ForEach(habits) { habit in
-                let palette = WidgetPalette(.tinted, scheme: scheme, tint: BuddyStyle.color(habit.color)), shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
-                HStack(spacing: 12) {
-                    HabitCheck(habit: habit, data: store.data, size: 44, palette: palette) { tap(habit, Day()) }
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(habit.name).font(BuddyFont.text(17, .semibold)).foregroundStyle(palette.primary).lineLimit(1)
-                        WeekStrip(habit: habit, data: store.data, palette: palette, cell: 16)
-                    }
-                    Spacer(minLength: 4)
-                    StreakBadge(summary: store.summaries.streak(habit, data: store.data), palette: palette, size: 26, trailing: true)
-                }
-                .padding(.horizontal, 14).padding(.vertical, 12).background(palette.background(shape)).contentShape(shape)
-                .onTapGesture { path.append(.habit(habit.id)) }.contextMenu { habitMenu(habit) }
+                StreakListRow(habit: habit, data: store.data, version: store.version(habit.id)) { tap(habit, Day()) }
+                    .equatable().contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .onTapGesture { path.append(.habit(habit.id)) }.contextMenu { habitMenu(habit) }
             }
         }
     }
@@ -256,7 +236,7 @@ struct OverviewView: View {
     }
     private var monthGrid: some View {
         LazyVGrid(columns:Array(repeating:GridItem(.flexible(),spacing:8),count:3),spacing:10) {
-            ForEach(habits) { habit in MonthHabitCard(habit:habit,data:store.data,onOpen:{path.append(.habit(habit.id))},onComplete:{tap(habit,Day())}).contextMenu{habitMenu(habit)} }
+            ForEach(habits) { habit in MonthHabitCard(habit:habit,data:store.data,version:store.version(habit.id),onOpen:{path.append(.habit(habit.id))},onComplete:{tap(habit,Day())}).equatable().contextMenu{habitMenu(habit)} }
         }
     }
     @ViewBuilder private func habitMenu(_ habit: Habit) -> some View {
@@ -266,7 +246,7 @@ struct OverviewView: View {
         if store.data.settings.notes { Button("Notes",systemImage:"note.text"){notes=habit} }
         Button("Reorder Habits",systemImage:"arrow.up.arrow.down"){reorder=true}
         Button("Edit Today", systemImage: "calendar") { daySelection = DaySelection(habit: habit, day: Day()) }
-        Button("Complete Yesterday", systemImage: "checkmark") { store.change { try Engine.complete(habit.id, day: Day().adding(-1), data: &$0) } }.disabled(!habit.loggable(on: Day().adding(-1), today: Day()))
+        Button("Complete Yesterday", systemImage: "checkmark") { store.log([habit.id]) { try Engine.complete(habit.id, day: Day().adding(-1), data: &$0) } }.disabled(!habit.loggable(on: Day().adding(-1), today: Day()))
         Button("Uncomplete Yesterday", systemImage: "eraser") { store.setAmount(0, habit.id, Day().adding(-1)) }.disabled(!habit.loggable(on: Day().adding(-1), today: Day()))
         Button("Archive", systemImage: "archivebox") { store.archive(habit.id) }
     }
@@ -334,16 +314,20 @@ struct MiniMonth: View {
     }
 }
 
-struct MonthHabitCard: View {
+struct MonthHabitCard: View, Equatable {
     let habit:Habit
     let data:BuddyData
+    /// The store's version of this habit; with one, the card redraws only when it, the habit or the day changes.
+    var version:HabitVersion?
+    var today=Day()
     var onOpen:()->Void
     var onComplete:()->Void
     @State private var month=Day().startOfMonth
+    static func ==(a:Self,b:Self)->Bool { guard let version=a.version,version==b.version else{return false}; return a.habit==b.habit && a.today==b.today }
     var body:some View {
         VStack(alignment:.leading,spacing:8) {
             HStack(spacing:5) {
-                Button(action:onComplete){MonthIndicator(habit:habit,data:data)}.buttonStyle(.plain).accessibilityLabel("Log progress for \(habit.name)")
+                Button(action:onComplete){MonthIndicator(habit:habit,data:data)}.buttonStyle(FlatButtonStyle()).accessibilityLabel("Log progress for \(habit.name)")
                 Button(action:onOpen){VStack(alignment:.leading,spacing:2){Text(habit.name).font(.system(size:11,weight:.medium)).lineLimit(1);Text(month.monthTitle).font(.system(size:9,design:.monospaced)).foregroundStyle(.secondary)}.frame(maxWidth:.infinity,alignment:.leading)}.buttonStyle(.plain)
             }
             Button(action:onOpen){MiniMonth(habit:habit,data:data,month:month)}.buttonStyle(.plain)
@@ -364,6 +348,66 @@ struct MonthIndicator:View {
             else {Image(systemName:p.slip ? "xmark":"checkmark").font(.system(size:13)).foregroundStyle(.secondary).frame(width:26,height:26).background(Color.primary.opacity(0.035),in:Circle()).overlay{Circle().stroke(Color.primary.opacity(0.12),lineWidth:1)}}
         }
     }
+}
+/// One habit in the compact list: its icon (and name) and a tile per recent day. It redraws only when its habit,
+/// version, days or name setting change, not each time another habit is logged.
+struct CompactRow<Menu: View>: View, Equatable {
+    @Environment(\.colorScheme) private var scheme
+    let habit: Habit
+    let data: BuddyData
+    let version: HabitVersion
+    let days: [Day]
+    let today: Day
+    let names: Bool
+    var onOpen: () -> Void
+    var onTap: (Day) -> Void
+    var onEdit: (Day) -> Void
+    /// The habit's menu, for holding the row. The name's button carries it too: in the lazy list, holding a button
+    /// inside the row's menu area opened the habit instead of the menu (iOS 27 simulator).
+    @ViewBuilder var menu: () -> Menu
+    var body: some View {
+        HStack(spacing: 4) {
+            Button(action: onOpen) {
+                HStack(spacing: 11) { HabitIcon(habit: habit, size: 34); if names { Text(habit.name).font(BuddyFont.text(15.2)).lineLimit(1).foregroundStyle(BuddyStyle.text(scheme)) } }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading).contentShape(Rectangle())
+            }.buttonStyle(.plain).contextMenu(menuItems: menu)
+            // Each tile takes half the 8-point gap on both sides, so the whole 38-point pitch is tappable.
+            HStack(spacing: 0) {
+                ForEach(days) { day in
+                    Button { onTap(day) } label: { DayTile(habit: habit, day: day, data: data, size: 30).frame(maxHeight: .infinity).padding(.horizontal, 4).contentShape(Rectangle()) }
+                        .buttonStyle(FlatButtonStyle()).disabled(!habit.loggable(on: day, today: today))
+                        .contextMenu { Button("Edit amount and note") { onEdit(day) } }
+                }
+            }
+        }.padding(.leading, 15).padding(.trailing, 11).frame(height: 52).contextMenu(menuItems: menu)
+    }
+    static func == (a: Self, b: Self) -> Bool {
+        a.version == b.version && a.habit == b.habit && a.days == b.days && a.today == b.today && a.names == b.names
+    }
+}
+/// One habit in the streak list: today's check, this week and the streak. Redraws only when its habit changes.
+struct StreakListRow: View, Equatable {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.summaries) private var summaries
+    let habit: Habit
+    let data: BuddyData
+    let version: HabitVersion
+    var today = Day()
+    var onCheck: () -> Void
+    var body: some View {
+        let palette = WidgetPalette(.tinted, scheme: scheme, tint: BuddyStyle.color(habit.color)), shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
+        HStack(spacing: 12) {
+            HabitCheck(habit: habit, data: data, size: 44, palette: palette, onTap: onCheck)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(habit.name).font(BuddyFont.text(17, .semibold)).foregroundStyle(palette.primary).lineLimit(1)
+                WeekStrip(habit: habit, data: data, palette: palette, cell: 16)
+            }
+            Spacer(minLength: 4)
+            StreakBadge(summary: summaries.streak(habit, data: data), palette: palette, size: 26, trailing: true)
+        }
+        .padding(.horizontal, 14).padding(.vertical, 12).background(palette.background(shape))
+    }
+    static func == (a: Self, b: Self) -> Bool { a.version == b.version && a.habit == b.habit && a.today == b.today }
 }
 struct HabitDrag: ViewModifier {
     let id:UUID

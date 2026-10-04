@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Streaks, stats and milestones per habit. The app's store owns a caching instance that keeps each habit's
-/// results until it publishes a new snapshot; widgets and previews use the default, which computes on request.
+/// results until that habit or its days change; widgets and previews use the default, which computes on request.
 /// Use the caching instance only with the store's current snapshot, from the main thread.
 final class HabitSummaries: @unchecked Sendable {
     private let caching: Bool
@@ -16,8 +16,10 @@ final class HabitSummaries: @unchecked Sendable {
     init(caching: Bool) { self.caching = caching }
     /// The environment's default, created once.
     static let direct = HabitSummaries(caching: false)
-    /// Called whenever the snapshot changes.
+    /// Called when a snapshot may have changed any habit.
     func reset() { entries.removeAll(keepingCapacity: true) }
+    /// Called when a snapshot changed only these habits or their days.
+    func invalidate(_ habits: Set<UUID>) { for id in habits { entries[id] = nil } }
     func history(_ habit: Habit, data: BuddyData, today: Day = Day()) -> HabitHistory {
         guard caching else { return Engine.history(habit, data: data, today: today) }
         if let history = entry(habit, data, today).history { return history }
@@ -42,6 +44,13 @@ final class HabitSummaries: @unchecked Sendable {
         entries[habit.id] = entry
         return entry
     }
+}
+
+/// How many times the app's store has changed a habit or its days (`habit`), or possibly every habit (`all`).
+/// A view given one redraws only when it differs, not each time another habit is logged.
+struct HabitVersion: Equatable {
+    var all = 0
+    var habit = 0
 }
 
 extension EnvironmentValues {
