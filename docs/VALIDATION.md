@@ -117,3 +117,28 @@ Checked with **Xcode 27.0 (27A266a)** on a dedicated **iPhone 18 Pro simulator, 
 
 Not checked: scrolling hitches with glass on were not measured with Instruments, and the custom tint picker was not driven by a test.
 
+## Dragging cards by the history grid, 4 October 2026 (local Mac)
+
+Checked with **Xcode 27.0 (27A266a)** on dedicated **iPhone 18 Pro simulators, iOS 27**. Another change was in progress in the shared working tree, so this change was built and tested in a copy of `0d691c2` plus this change only. It reached `dev` inside `facc5f9`, with the bottom-switcher change, and its tests were run again there. Other simulator builds kept the Mac heavily loaded for most of the session (load average 10–112); the results say which runs had the Mac to themselves.
+
+- `python3 scripts/check-project.py` passed. No core code changed, so `swift test` wasn't rerun.
+- **Dragging works from the grid.** The new `testDraggingACardByItsGridReordersHabits` holds Gym Day's grid for a second, moves it slowly onto Push-Ups and holds there for a second. It then checks that Gym Day moved below Push-Ups and is still there after a relaunch. It passed running alone (22 s) and in the full run.
+- **The same drag failed on three other layouts:**
+  - the code before this change (`0d691c2`), where the whole card was draggable and carried the menu;
+  - the grid draggable while the card around it still carried the menu;
+  - the grid draggable and carrying its own menu.
+
+  Each time, the menu opened and the card never moved. On the code before this change that happened with a quick drag and with the slow one, so dragging to reorder probably didn't work before. Those runs were all made under load; that code wasn't retried alone.
+- **Repeated holds:** a probe holds the name, the check and the grid in turn, closing the menu between holds, for 3 rounds.
+  - On the final layout, the name and the check opened the menu 3 of 3 times each, nothing logged or opened the habit, every close worked, and the grid opened no menu. The probe was clean both alone and in one run under load.
+  - On the layout with the card still carrying the menu, the check logged progress once, in round 1, under load.
+- **Misfires and load:**
+  - Every hold that ran a button instead of opening the menu, here and in the previous section, happened while the Mac was heavily loaded. One was a fresh-launch name hold on an earlier version of this change, which opened the habit after 12 seconds.
+  - With one simulator running, none happened, so the previous section's suspicion of drag to reorder is withdrawn. An app too busy to run the hold timer before the finger lifts is a likelier cause, but this isn't confirmed.
+  - A guard that ignored presses held half a second or longer didn't stop that misfire: it times the press when the app handles it, so a stalled app sees a short press. It would also have ignored long taps, such as from people who set Haptic Touch to Slow, so it wasn't kept.
+- Full UI run on `0d691c2` plus this change, under load: **20 passed, 1 skipped (opt-in Home Screen gallery), 0 failures**. The two timer tests still log "Publishing changes from background threads", as before.
+- On `facc5f9`, the drag test, both hold tests and `testSwitcherOpensDashboardAndExploreInPlace` passed, under load.
+
+Not checked:
+- dragging and holding on an iPhone;
+- the lifted card's look against HabitKit.
