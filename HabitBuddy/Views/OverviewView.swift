@@ -141,11 +141,19 @@ struct OverviewView: View {
                     case .cards: LazyVStack(spacing: 15.3) { ForEach(habits) { habit in card(habit) } }
                     case .compact: compact
                     case .month: monthGrid
-                    case .streaks: streakGrid
+                    case .streaks: tileGrid(.streak)
+                    case .rings: tileGrid(.ring)
+                    case .weeks: tileGrid(.weeks, columns: 1)
+                    case .year: tileGrid(.year, columns: 1)
                     case .list: streakList
                     }
                 }
             }.padding(.horizontal, 8).padding(.bottom, 110)
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if store.loaded, !habits.isEmpty, Self.streakViews.contains(store.settings.layout) {
+                streakListToggle.padding(.bottom, store.settings.showLayoutSwitcher ? 4 : 16)
+            }
         }
         .sensoryFeedback(.selection, trigger: arranged) { old, new in old != nil && new != nil && store.settings.haptics }
         .background(BuddyStyle.canvas(scheme))
@@ -175,10 +183,12 @@ struct OverviewView: View {
     private var layoutSwitcher: some View {
         let layout = store.settings.layout
         return HStack(spacing: 4) {
-            ForEach(Layout.allCases, id: \.self) { item in
-                switcherButton(item.rawValue, label: "\(item.rawValue) view", selected: shown == .habits && layout == item) {
+            // Streaks and List share one button, shown with the List icon; the toggle at the bottom of that view switches between them.
+            ForEach(Layout.allCases.filter { !Self.streakViews.contains($0) || $0 == .list }, id: \.self) { item in
+                let merged = item == .list, selected = shown == .habits && (layout == item || (merged && Self.streakViews.contains(layout)))
+                switcherButton(item.rawValue, label: merged ? "Streaks, list, rings, weeks and year views" : "\(item.rawValue) view", selected: selected) {
                     page = .habits
-                    if layout != item { store.change { $0.settings.layout = item } }
+                    if layout != item && !(merged && Self.streakViews.contains(layout)) { store.change { $0.settings.layout = item } }
                 } glyph: { LayoutGlyph(layout: item) }
             }
             Capsule().fill(BuddyStyle.border(scheme, 0.12)).frame(width: 1, height: 20).padding(.horizontal, 2).accessibilityHidden(true)
@@ -191,8 +201,33 @@ struct OverviewView: View {
         .glassChrome(in: Capsule(),
                      fill: scheme == .dark ? AnyShapeStyle(LinearGradient(colors: [Color(hex: 0x2B2B2E), Color(hex: 0x1E1E21)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(.regularMaterial),
                      border: scheme == .dark ? AnyShapeStyle(LinearGradient(colors: [Color(hex: 0x4B4B4D), Color(hex: 0x27272A)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(Color.black.opacity(0.08)))
-        // Seven buttons fit a 375-point phone: they narrow from 48 points to fit inside a 16-point margin.
+        // Six buttons fit a 375-point phone: they narrow from 48 points to fit inside a 16-point margin.
         .padding(.horizontal, 16).padding(.bottom, 16)
+    }
+    /// Switches the merged Streaks and List view between its two-column tiles and its rows.
+    private var streakListToggle: some View {
+        HStack(spacing: 2) {
+            ForEach(Self.streakViews, id: \.self) { item in
+                let on = store.settings.layout == item
+                Button { if !on { store.change { $0.settings.layout = item } } } label: {
+                    toggleGlyph(item).foregroundStyle(on ? accent.foreground : .primary)
+                        .frame(width: 44, height: 32)
+                        .background { if on { Capsule().fill(accent.color) } }
+                        .contentShape(Capsule())
+                }.buttonStyle(.plain).accessibilityLabel(item.title)
+                    .accessibilityAddTraits(on ? .isSelected : [])
+            }
+        }
+        .padding(3).opacity(lifted ? 0 : 1).allowsHitTesting(!lifted)
+        .glassChrome(in: Capsule(), fill: AnyShapeStyle(.regularMaterial), border: AnyShapeStyle(Color.black.opacity(0.08)))
+    }
+    @ViewBuilder private func toggleGlyph(_ item: Layout) -> some View {
+        switch item {
+        case .rings: LucideIcon("circle-gauge", size: 18)
+        case .weeks: LucideIcon("grid-3x3", size: 18)
+        case .year: LucideIcon("calendar-days", size: 18)
+        default: LayoutGlyph(layout: item)
+        }
     }
     private func switcherButton(_ id: String, label: String, selected: Bool, action: @escaping () -> Void, @ViewBuilder glyph: () -> some View) -> some View {
         Button(action: action) {
@@ -307,12 +342,14 @@ struct OverviewView: View {
             }.panel(radius: 20, border: 0.07)
         }
     }
-    /// Streak tiles in two columns: streak, today's check and this week for each habit.
-    private var streakGrid: some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+    /// The views that share the bottom switcher's one streak button; the toggle above it moves between them.
+    static let streakViews: [Layout] = [.streaks, .list, .rings, .weeks, .year]
+    /// One widget design per habit in a grid: streak tiles and goal rings in two columns, 20 weeks and the year in one.
+    private func tileGrid(_ kind: DashboardKind, columns: Int = 2) -> some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: columns), spacing: 12) {
             ForEach(habits) { habit in
                 let palette = WidgetPalette(.tinted, scheme: scheme, tint: BuddyStyle.color(habit.color)), shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
-                HabitWidgetContent(kind: .streak, habit: habit, data: store.data, palette: palette, versions: [store.version(habit.id)], onCheck: { tap($0, Day()) })
+                HabitWidgetContent(kind: kind, habit: habit, data: store.data, palette: palette, versions: [store.version(habit.id)], onCheck: { tap($0, Day()) })
                     .equatable().frame(height: 158).background(palette.background(shape)).contentShape(shape)
                     .matchedTransitionSource(id: habit.id, in: zoom) { $0.clipShape(shape) }
                     .onTapGesture { path.append(.habit(habit.id)) }.contextMenu { habitMenu(habit) }
@@ -757,6 +794,7 @@ struct LayoutGlyph: View {
             case .month:
                 for y:CGFloat in [0.5,5.5,10.5,15.5] { for (a,b) in [(0.5,6.17),(10.5,16.17)] as [(CGFloat,CGFloat)] { p.move(to:CGPoint(x:a,y:y));p.addLine(to:CGPoint(x:b,y:y)) } }
                 context.stroke(p,with:.foreground,style:thin)
+            case .rings, .weeks, .year: break
             }
         }.frame(width:layout == .compact ? 19.75:layout == .month ? 17:layout == .cards ? 18.7:18.5,height:layout == .compact ? 15.3:layout == .month ? 16:layout == .list ? 16:19).accessibilityHidden(true)
     }

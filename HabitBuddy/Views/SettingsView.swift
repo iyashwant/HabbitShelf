@@ -554,5 +554,5 @@ struct CategoryEditorView: View {
 }
 
 extension Layout {
-    var title: String { switch self { case .cards: "Classic"; case .compact: "Compact"; case .month: "Month"; case .streaks: "Streaks"; case .list: "List" } }
+    var title: String { switch self { case .cards: "Classic"; case .compact: "Compact"; case .month: "Month"; case .streaks: "Streaks"; case .list: "List"; case .rings: "Rings"; case .weeks: "Weeks"; case .year: "Year" } }
 }

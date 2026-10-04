@@ -5,7 +5,7 @@ public enum Tracking: String, Codable, CaseIterable, Sendable { case yesNo, coun
 public enum Cadence: String, Codable, CaseIterable, Sendable { case none, daily, weekly, monthly }
 public enum TapAction: String, Codable, CaseIterable, Sendable { case addOne, enterTotal }
 public enum Theme: String, Codable, CaseIterable, Sendable { case system, light, dark }
-public enum Layout: String, Codable, CaseIterable, Sendable { case cards, compact, month, streaks, list }
+public enum Layout: String, Codable, CaseIterable, Sendable { case cards, compact, month, streaks, list, rings, weeks, year }
 /// Widget sizes as on the home screen: small takes half a dashboard row, medium a full row, large a full row at double height.
 public enum WidgetSize: String, Codable, CaseIterable, Sendable { case small, medium, large }
 /// Dashboard and home-screen widget designs.
