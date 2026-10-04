@@ -8,6 +8,7 @@ struct OverviewView: View {
     @Environment(\.glass) private var glass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var switcher
+    @State private var toggleOpen = false
     /// A habit opens by zooming out of the card, row or tile that was tapped.
     @Namespace private var zoom
     @State private var path: [OverviewRoute] = []
@@ -206,16 +207,28 @@ struct OverviewView: View {
     }
     /// Switches the merged Streaks and List view between its two-column tiles and its rows.
     private var streakListToggle: some View {
-        HStack(spacing: 2) {
-            ForEach(Self.streakViews, id: \.self) { item in
-                let on = store.settings.layout == item
-                Button { if !on { store.change { $0.settings.layout = item } } } label: {
-                    toggleGlyph(item).foregroundStyle(on ? accent.foreground : .primary)
-                        .frame(width: 44, height: 32)
-                        .background { if on { Capsule().fill(accent.color) } }
-                        .contentShape(Capsule())
-                }.buttonStyle(.plain).accessibilityLabel(item.title)
-                    .accessibilityAddTraits(on ? .isSelected : [])
+        let current = store.settings.layout
+        return HStack(spacing: 2) {
+            if toggleOpen {
+                ForEach(Self.streakViews, id: \.self) { item in
+                    let on = current == item
+                    Button {
+                        if !on { store.change { $0.settings.layout = item } }
+                        withAnimation(.snappy(duration: 0.25)) { toggleOpen = false }
+                    } label: {
+                        toggleGlyph(item).foregroundStyle(on ? accent.foreground : .primary)
+                            .frame(width: 44, height: 32)
+                            .background { if on { Capsule().fill(accent.color) } }
+                            .contentShape(Capsule())
+                    }.buttonStyle(.plain).accessibilityLabel(item.title)
+                        .accessibilityAddTraits(on ? .isSelected : [])
+                }
+            } else {
+                // Collapsed to a bubble showing the current view; tapping it opens the full set.
+                Button { withAnimation(.snappy(duration: 0.25)) { toggleOpen = true } } label: {
+                    toggleGlyph(current).foregroundStyle(.primary)
+                        .frame(width: 44, height: 32).contentShape(Capsule())
+                }.buttonStyle(.plain).accessibilityLabel("\(current.title) view. Show all streak views")
             }
         }
         .padding(3).opacity(lifted ? 0 : 1).allowsHitTesting(!lifted)
