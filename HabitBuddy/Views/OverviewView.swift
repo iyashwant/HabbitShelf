@@ -58,10 +58,18 @@ struct OverviewView: View {
     var body: some View {
         NavigationStack(path: $path) {
             ZStack {
-                switch shown {
-                case .habits: habitsPage
-                case .dashboard: DashboardView(settings: { settings = true }, lifting: { liftingWidget = $0 }) { path.append($0) }
-                case .explore: ExploreView(settings: { settings = true })
+                if store.settings.showLayoutSwitcher {
+                    // Swiping sideways moves between the pages the bottom switcher lists.
+                    TabView(selection: Binding(get: { page }, set: { page = $0 })) {
+                        habitsPage.tag(HomePage.habits)
+                        DashboardView(settings: { settings = true }, lifting: { liftingWidget = $0 }) { path.append($0) }.tag(HomePage.dashboard)
+                        ExploreView(settings: { settings = true }).tag(HomePage.explore)
+                    }
+                    .tabViewStyle(.page(indexDisplayMode: .never))
+                    .ignoresSafeArea(.container, edges: .bottom)
+                    .animation(.snappy, value: page)
+                } else {
+                    habitsPage
                 }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
