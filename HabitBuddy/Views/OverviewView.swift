@@ -59,20 +59,19 @@ struct OverviewView: View {
         NavigationStack(path: $path) {
             ZStack {
                 if store.settings.showLayoutSwitcher {
-                    // Swiping sideways moves between the pages the bottom switcher lists.
-                    // A paging scroll view, not a page-style TabView: that drops the top safe area the bars rely on.
-                    ScrollView(.horizontal) {
-                        LazyHStack(spacing: 0) {
-                            habitsPage.containerRelativeFrame(.horizontal).id(HomePage.habits)
-                            DashboardView(settings: { settings = true }, lifting: { liftingWidget = $0 }) { path.append($0) }
-                                .containerRelativeFrame(.horizontal).id(HomePage.dashboard)
-                            ExploreView(settings: { settings = true }).containerRelativeFrame(.horizontal).id(HomePage.explore)
-                        }.scrollTargetLayout()
+                    // One page per bottom-bar button; a sideways swipe steps to the neighbouring one.
+                    Group {
+                        switch page {
+                        case .habits: habitsPage
+                        case .dashboard: DashboardView(settings: { settings = true }, lifting: { liftingWidget = $0 }) { path.append($0) }
+                        case .explore: ExploreView(settings: { settings = true })
+                        }
                     }
-                    .scrollTargetBehavior(.paging)
-                    .scrollPosition(id: Binding(get: { page }, set: { if let v = $0 { page = v } }))
-                    .scrollIndicators(.hidden)
-                    .scrollBounceBehavior(.basedOnSize)
+                    .simultaneousGesture(DragGesture(minimumDistance: 24).onEnded { drag in
+                        let dx = drag.translation.width, dy = drag.translation.height
+                        guard !lifted, abs(dx) > 60, abs(dx) > abs(dy) * 1.6 else { return }
+                        step(dx < 0 ? 1 : -1)
+                    })
                 } else {
                     habitsPage
                 }
@@ -133,6 +132,21 @@ struct OverviewView: View {
                     daySelection = DaySelection(habit: h, day: day)
                 }
             }
+        }
+    }
+    /// The bottom bar's buttons in order: the habit layouts (Streaks, List, Rings and Year share the last), Dashboard, Explore.
+    private static let stops: [Layout] = [.cards, .compact, .month, .streaks]
+    private static func stop(_ layout: Layout) -> Int { stops.firstIndex(of: streakViews.contains(layout) ? .streaks : layout) ?? 0 }
+    private func step(_ direction: Int) {
+        let current = page == .habits ? Self.stop(store.settings.layout) : Self.stops.count + (page == .dashboard ? 0 : 1)
+        let next = current + direction
+        guard (0..<Self.stops.count + 2).contains(next) else { return }
+        withAnimation(.snappy(duration: 0.25)) {
+            if next >= Self.stops.count { page = next == Self.stops.count ? .dashboard : .explore; return }
+            page = .habits
+            let target = Self.stops[next]
+            // The last stop keeps whichever of its views was chosen.
+            if !(target == .streaks && Self.streakViews.contains(store.settings.layout)), store.settings.layout != target { store.change { $0.settings.layout = target } }
         }
     }
     private var habitsPage: some View {
