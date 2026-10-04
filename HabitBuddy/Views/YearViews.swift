@@ -44,7 +44,7 @@ struct YearHistoryView: View {
 /// A year of days in reading order, 21 to a row; the current year stops at today.
 struct YearDots: View {
     let habit: Habit
-    let data: BuddyData
+    @ViewData var data: BuddyData
     let year: Int
     var today = Day()
     let palette: WidgetPalette
@@ -114,7 +114,7 @@ struct SharedImage: Identifiable { let id = UUID(); let url: URL }
 
 struct YearPoster: View {
     let habit: Habit
-    let data: BuddyData
+    @ViewData var data: BuddyData
     let year: Int
     let scheme: ColorScheme
     var body: some View {

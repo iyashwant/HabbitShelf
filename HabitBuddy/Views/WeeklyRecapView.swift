@@ -59,7 +59,7 @@ struct WeeklyRecapView: View {
 
 struct RecapPoster: View {
     let recap: WeekRecap
-    let data: BuddyData
+    @ViewData var data: BuddyData
     let scheme: ColorScheme
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 24, style: .continuous), palette = WidgetPalette(.automatic, scheme: scheme, tint: Accent(data.settings.accent).color)

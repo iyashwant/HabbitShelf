@@ -124,6 +124,15 @@ struct HabitVersion: Equatable {
     var habit = 0
 }
 
+/// The habit data as a view keeps it: `@ViewData var data: BuddyData`. To decide what to redraw, SwiftUI compares
+/// each view it rebuilds with the one before, using `==` for a property that has it, and `BuddyData`'s `==` reads every
+/// record once a change has copied them: with thirty five-year habits, three quarters of a check-in (iOS 27 simulator).
+/// This asks only whether it is the same snapshot (`isSameSnapshot`), so every new snapshot counts as a change.
+@propertyWrapper struct ViewData: Equatable {
+    var wrappedValue: BuddyData
+    static func == (a: ViewData, b: ViewData) -> Bool { a.wrappedValue.isSameSnapshot(as: b.wrappedValue) }
+}
+
 extension EnvironmentValues {
     /// The store's cache in the app; computes directly in widgets.
     @Entry var summaries = HabitSummaries.direct

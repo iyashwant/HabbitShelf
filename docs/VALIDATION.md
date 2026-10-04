@@ -224,3 +224,23 @@ Not checked:
 - the zoom transition frame by frame, with Reduce Motion, or opened from the dashboard;
 - widget reloads on a real Home Screen (the UI tests skip widget reloads), and Instruments traces of launch, check-ins or the GPU;
 - Release builds, other iPhones and iOS 26.
+
+## Check-ins with long histories, 5 October 2026 (local Mac)
+
+Checked with **Xcode 27.0 (27A266a)** on a dedicated **iPhone 18 Pro simulator, iOS 27**, from a separate worktree on top of `83d71d1` (another session was working in the shared folder). Other work kept the Mac loaded (load average 5–20). Not measured on an iPhone: the owner asked not to test on their phone.
+
+- `swift test`: **96 core tests passed, 0 failures**, including the new `testSameSnapshotMeansACopyNotEqualRecords`. `python3 scripts/check-project.py` passed. The optimized app, widget and UI test build produced no compiler warnings from source files.
+- **Cause.** Time Profiler attached to the app during `testCheckInLarge` (Debug build with `-O`): of 466 main-thread samples inside the 11 "Check-in" intervals, 361 (77%) were `BuddyData`'s `==`, mostly the records dictionary's. SwiftUI's AttributeGraph called it while comparing view values: the cards the overview's `ForEach` rebuilt (183), the views whose bodies ran (97) and the drag-to-reorder branch around each card (46); Observation's setter for `AppStore.data` added 35. With `ViewData` and the hand-observed `data`, a trace of the same test had no samples in `BuddyData`'s `==`; the largest piece of the store's own work left was copying the records for the change (about 2.5 ms per tap).
+- **Check-in, tap until its screen update has run** (`PerformanceUITests`, Debug build with `-O`, 10 taps per run, two runs of each build alternating):
+
+| | Before (`83d71d1`) | After |
+|---|---|---|
+| Sample fixture | 24 ms and 10 ms (8–45) | 11 ms and 9 ms (7–20) |
+| Large fixture (thirty five-year habits) | 29 ms and 32 ms (25–39) | 12 ms and 12 ms (9–19) |
+
+- A first tap after launch, which XCTest leaves out of its average, took 0.1–0.5 s in the traces before and after; most of it was the main thread waiting rather than working, and its work was one-time type setup.
+- Profiling note: Time Profiler symbolicates the app only when attached to it (`xctrace record --attach <pid>`); a recording of all processes on the simulator left the app's frames as addresses.
+
+Not checked:
+- the iPhone figures (116 ms before), other devices, iOS 26 and Release builds;
+- the full UI test suite on this change; only `PerformanceUITests`' check-in tests ran against it.

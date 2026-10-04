@@ -10,8 +10,10 @@ import os
 /// check-in, and one that reads `data` redraws for every change.
 @MainActor @Observable final class AppStore {
     /// What the screens show: the latest saved snapshot with any changes still being saved applied on top.
-    /// Set only through `publish`, which records which habits changed.
-    private(set) var data = BuddyData()
+    /// Set only through `publish`, which records which habits changed. Observed by hand: Observation's own setter
+    /// compares the old and new snapshots, reading every record.
+    var data: BuddyData { access(keyPath: \.data); return snapshot }
+    @ObservationIgnored private var snapshot = BuddyData()
     /// `data.settings`, replaced only when the settings change.
     private(set) var settings = BuddyData().settings
     var error: String?
@@ -153,7 +155,7 @@ import os
             summaries.reset()
         }
         if settings != next.settings { settings = next.settings }
-        data = next
+        withMutation(keyPath: \.data) { snapshot = next }
         revision &+= 1
         if !summaries.staleHabits.isEmpty { scheduleSummaryRefresh() }
     }

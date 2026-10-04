@@ -390,7 +390,7 @@ struct ColorPalette: View {
 struct CompletionBadge: View {
     @Environment(\.colorScheme) private var scheme
     let habit:Habit
-    let data:BuddyData
+    @ViewData var data:BuddyData
     var day=Day()
     var size:CGFloat=48
     var body:some View {

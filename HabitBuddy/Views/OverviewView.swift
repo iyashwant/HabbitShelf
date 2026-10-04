@@ -545,7 +545,7 @@ extension Day {
 }
 struct MiniMonth: View {
     let habit: Habit
-    let data: BuddyData
+    @ViewData var data: BuddyData
     let month: Day
     var body: some View {
         let first = month.startOfWeek(data.settings.weekStart)
@@ -561,7 +561,7 @@ struct MiniMonth: View {
 
 struct MonthHabitCard: View, Equatable {
     let habit:Habit
-    let data:BuddyData
+    @ViewData var data:BuddyData
     /// The store's version of this habit; with one, the card redraws only when it, the habit or the day changes.
     var version:HabitVersion?
     var today=Day()
@@ -584,7 +584,7 @@ struct MonthHabitCard: View, Equatable {
 }
 struct MonthIndicator:View {
     let habit:Habit
-    let data:BuddyData
+    @ViewData var data:BuddyData
     var body:some View {
         let p=Engine.progress(habit,day:Day(),data:data),c=BuddyStyle.color(habit.color)
         Group {
@@ -599,7 +599,7 @@ struct MonthIndicator:View {
 struct CompactRow<Menu: View>: View, Equatable {
     @Environment(\.colorScheme) private var scheme
     let habit: Habit
-    let data: BuddyData
+    @ViewData var data: BuddyData
     let version: HabitVersion
     let days: [Day]
     let today: Day
@@ -635,7 +635,7 @@ struct StreakListRow: View, Equatable {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.summaries) private var summaries
     let habit: Habit
-    let data: BuddyData
+    @ViewData var data: BuddyData
     let version: HabitVersion
     var today = Day()
     var onCheck: () -> Void

@@ -344,6 +344,15 @@ public struct BuddyData: Codable, Equatable, Sendable {
         for (order, id) in all.enumerated() { if let i = habits.firstIndex(where: { $0.id == id }) { habits[i].order = order } }
     }
     public func record(_ id: UUID, _ day: Day) -> Record { records[Record.key(id, day)] ?? Record(habitID: id, day: day) }
+    /// Whether `other` is this snapshot or a copy of it, without reading the records: true only when they share the
+    /// same storage, which a change to any record replaces. Equal records in separate storage count as different.
+    /// Takes about as long as comparing the habits, however many days are logged; `==` compares every record.
+    public func isSameSnapshot(as other: BuddyData) -> Bool {
+        // A dictionary is one reference to its storage, so equal bytes mean the same storage.
+        let sameRecords = withUnsafeBytes(of: records) { a in withUnsafeBytes(of: other.records) { b in a.elementsEqual(b) } }
+        return sameRecords && schemaVersion == other.schemaVersion && habits == other.habits && categories == other.categories
+            && routines == other.routines && settings == other.settings
+    }
 }
 public enum BuddyError: LocalizedError {
     case invalidAmount, invalidData(String), unavailable, future, locked, storage(String), notFreezable, noFreezesLeft

@@ -84,7 +84,7 @@ struct CompactHabitsWidgetView: View {
 struct WidgetHabitAction: View {
     let habit: Habit
     let day: Day
-    let data: BuddyData
+    @ViewData var data: BuddyData
     var compact = false
     var body: some View {
         let goal = habit.goal(on: day), p = Engine.progress(habit, day: day, data: data)

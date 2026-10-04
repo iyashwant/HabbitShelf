@@ -61,7 +61,7 @@ struct StreakBadge: View {
 /// or opens the app where a numeric total needs editing.
 struct HabitCheck: View {
     let habit: Habit
-    let data: BuddyData
+    @ViewData var data: BuddyData
     var today = Day()
     var size: CGFloat = 44
     let palette: WidgetPalette
@@ -89,7 +89,7 @@ struct HabitCheck: View {
 /// The current week as lettered squares, with "done / 7".
 struct WeekStrip: View {
     let habit: Habit
-    let data: BuddyData
+    @ViewData var data: BuddyData
     var today = Day()
     let palette: WidgetPalette
     var cell: CGFloat = 15
@@ -114,7 +114,7 @@ struct WeekStrip: View {
 /// One month as a seven-column grid that fits its frame.
 struct MonthDots: View {
     let habit: Habit
-    let data: BuddyData
+    @ViewData var data: BuddyData
     let month: Day
     var today = Day()
     let palette: WidgetPalette
@@ -145,7 +145,7 @@ struct MonthDots: View {
 /// The last weeks as columns, with lettered weekday squares on the leading edge.
 struct WeekColumns: View {
     let habit: Habit
-    let data: BuddyData
+    @ViewData var data: BuddyData
     var weeks = 20
     var today = Day()
     let palette: WidgetPalette
@@ -182,7 +182,7 @@ struct HabitWidgetContent: View {
     /// One of the design's sizes; nil uses its default.
     var size: WidgetSize?
     let habit: Habit?
-    let data: BuddyData
+    @ViewData var data: BuddyData
     /// The habits a multi-habit design shows.
     var habits: [Habit] = []
     var routine: Routine?
@@ -367,7 +367,7 @@ extension HabitWidgetContent: Equatable {
 /// One arc per habit around a ring, in the habit's color: solid when done, faint when open.
 struct TodayRing: View {
     let habits: [Habit]
-    let data: BuddyData
+    @ViewData var data: BuddyData
     var today = Day()
     let palette: WidgetPalette
     var line: CGFloat = 9

@@ -338,7 +338,7 @@ struct GoalProgress {
 /// A calendar year as columns of weeks, with month names beneath.
 struct YearWeeks: View {
     let habit: Habit
-    let data: BuddyData
+    @ViewData var data: BuddyData
     let year: Int
     var today = Day()
     let palette: WidgetPalette
@@ -371,7 +371,7 @@ struct YearWeeks: View {
 /// The last days as a row of thin bars, oldest first.
 struct RecentDays: View {
     let habit: Habit
-    let data: BuddyData
+    @ViewData var data: BuddyData
     var days = 30
     var today = Day()
     let palette: WidgetPalette
@@ -391,7 +391,7 @@ struct RecentDays: View {
 /// One month as a calendar of numbered days, with weekday letters on top.
 struct MonthCalendar: View {
     let habit: Habit
-    let data: BuddyData
+    @ViewData var data: BuddyData
     let month: Day
     var today = Day()
     let palette: WidgetPalette

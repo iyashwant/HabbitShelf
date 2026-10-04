@@ -4,7 +4,7 @@ struct HabitCard<Menu: View>: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.summaries) private var summaries
     let habit: Habit
-    let data: BuddyData
+    @ViewData var data: BuddyData
     /// The store's version of this habit; with one, the card redraws only when it, the habit or the day changes.
     var version: HabitVersion?
     var appearance: CardAppearance?

@@ -224,6 +224,18 @@ final class BuddyCoreTests: XCTestCase {
         XCTAssertEqual(data.active.map(\.name), ["D", "B", "C", "A"]); XCTAssertEqual(data.active.map(\.order), [0, 1, 2, 3])
         data.reorder(data.active.map(\.id).reversed()); XCTAssertEqual(data.active.map(\.name), ["A", "C", "B", "D"])
     }
+    func testSameSnapshotMeansACopyNotEqualRecords() throws {
+        var (data, h) = fixture(); try log(1_000, "2026-10-02", h, &data)
+        let copy = data
+        XCTAssertTrue(copy.isSameSnapshot(as: data)); XCTAssertTrue(BuddyData().isSameSnapshot(as: BuddyData()))
+        var logged = data; try log(1_000, "2026-10-03", h, &logged)
+        XCTAssertFalse(logged.isSameSnapshot(as: data), "A check-in replaces the records")
+        var renamed = data; renamed.habits[0].name = "Write"
+        XCTAssertFalse(renamed.isSameSnapshot(as: data)); XCTAssertTrue(renamed.records == data.records)
+        var themed = data; themed.settings.theme = .light; XCTAssertFalse(themed.isSameSnapshot(as: data))
+        var rebuilt = data; rebuilt.records = Dictionary(uniqueKeysWithValues: data.records.map { ($0.key, $0.value) })
+        XCTAssertEqual(rebuilt, data); XCTAssertFalse(rebuilt.isSameSnapshot(as: data), "Equal records in separate storage count as a change")
+    }
     func testStreakFreezeBridgesOneMissedDailyDay() throws {
         var (data, h) = fixture(start: "2026-09-25")
         for d in ["2026-09-28", "2026-09-29", "2026-10-01", "2026-10-02"] { try log(1_000, d, h, &data) }

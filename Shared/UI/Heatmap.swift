@@ -22,7 +22,7 @@ struct TileShade {
 
 struct Heatmap: View {
     let habit: Habit
-    let data: BuddyData
+    @ViewData var data: BuddyData
     var weeks = 24
     var end: Day = Day()
     var labels = true
@@ -85,7 +85,7 @@ struct DayTile: View {
     @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiate
     let habit: Habit
     let day: Day
-    let data: BuddyData
+    @ViewData var data: BuddyData
     var size: CGFloat = 30
     var showNumber = false
     var body: some View {
@@ -112,7 +112,7 @@ struct DayTile: View {
 struct ContributionHistory: View {
     @Environment(\.colorScheme) private var scheme
     let habit: Habit
-    let data: BuddyData
+    @ViewData var data: BuddyData
     var start: Day?
     var end = Day()
     var monthLabels = true
@@ -166,7 +166,7 @@ struct ContributionHistory: View {
 /// A few weeks of a contribution history, drawn only while near the visible part of the scroller.
 private struct HeatmapChunk: View {
     let habit: Habit
-    let data: BuddyData
+    @ViewData var data: BuddyData
     let first: Day
     let columns: Range<Int>
     let pitch: CGFloat
@@ -191,7 +191,7 @@ struct CalendarDay: View {
     @Environment(\.colorScheme) private var scheme
     let habit: Habit
     let day: Day
-    let data: BuddyData
+    @ViewData var data: BuddyData
     var inMonth = true
     var body: some View {
         let today = Day(), p = Engine.progress(habit, day: day, data: data, today: today), c = BuddyStyle.color(habit.color)

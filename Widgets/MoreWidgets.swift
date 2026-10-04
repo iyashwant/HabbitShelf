@@ -83,7 +83,7 @@ struct HabitLockView: View {
 /// This week as seven small squares: filled when done, hollow ahead.
 struct WeekDots: View {
     let habit: Habit
-    let data: BuddyData
+    @ViewData var data: BuddyData
     let today: Day
     var body: some View {
         let start = today.startOfWeek(data.settings.weekStart)

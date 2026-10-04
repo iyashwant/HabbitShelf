@@ -199,7 +199,7 @@ struct DashboardView: View {
 struct DashboardTile: View {
     @Environment(\.colorScheme) private var scheme
     let widget: DashboardWidget
-    let data: BuddyData
+    @ViewData var data: BuddyData
     /// In the app, the versions of the habits the widget shows (see `HabitWidgetContent.versions`).
     var versions: [HabitVersion]?
     var onCheck: ((Habit) -> Void)?
