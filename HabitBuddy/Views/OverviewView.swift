@@ -156,7 +156,7 @@ struct OverviewView: View {
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if store.loaded, !habits.isEmpty, Self.streakViews.contains(store.settings.layout) {
-                streakListToggle.padding(.bottom, store.settings.showLayoutSwitcher ? 14 : 26)
+                HStack(spacing: 0) { Spacer(minLength: 0); streakListToggle }.padding(.trailing, 16).padding(.bottom, store.settings.showLayoutSwitcher ? 14 : 26)
             }
         }
         .sensoryFeedback(.selection, trigger: arranged) { old, new in old != nil && new != nil && store.settings.haptics }
