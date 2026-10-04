@@ -8,7 +8,6 @@ struct OverviewView: View {
     @Environment(\.glass) private var glass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var switcher
-    @State private var toggleOpen = false
     /// A habit opens by zooming out of the card, row or tile that was tapped.
     @Namespace private var zoom
     @State private var path: [OverviewRoute] = []
@@ -207,27 +206,16 @@ struct OverviewView: View {
     }
     /// Switches the merged Streaks and List view between its two-column tiles and its rows.
     private var streakListToggle: some View {
-        let current = store.settings.layout
-        return HStack(spacing: 2) {
-            if toggleOpen {
-                ForEach(Self.toggleViews, id: \.self) { item in
-                    let on = current == item
-                    Button {
-                        if !on { store.change { $0.settings.layout = item } }
-                        withAnimation(.snappy(duration: 0.25)) { toggleOpen = false }
-                    } label: {
-                        toggleGlyph(item).foregroundStyle(on ? accent.foreground : .primary)
-                            .frame(width: 44, height: 32)
-                            .background { if on { Capsule().fill(accent.color) } }
-                            .contentShape(Capsule())
-                    }.buttonStyle(.plain).accessibilityLabel(item.title)
-                        .accessibilityAddTraits(on ? .isSelected : [])
-                }
-            } else {
-                Button { withAnimation(.snappy(duration: 0.25)) { toggleOpen = true } } label: {
-                    toggleGlyph(current).foregroundStyle(.primary)
-                        .frame(width: 44, height: 32).contentShape(Capsule())
-                }.buttonStyle(.plain).accessibilityLabel("Switch between \(Self.toggleViews.map(\.title).joined(separator: ", "))")
+        HStack(spacing: 2) {
+            ForEach(Self.streakViews, id: \.self) { item in
+                let on = store.settings.layout == item
+                Button { if !on { store.change { $0.settings.layout = item } } } label: {
+                    toggleGlyph(item).foregroundStyle(on ? accent.foreground : .primary)
+                        .frame(width: 44, height: 32)
+                        .background { if on { Capsule().fill(accent.color) } }
+                        .contentShape(Capsule())
+                }.buttonStyle(.plain).accessibilityLabel(item.title)
+                    .accessibilityAddTraits(on ? .isSelected : [])
             }
         }
         .padding(3).opacity(lifted ? 0 : 1).allowsHitTesting(!lifted)
@@ -356,8 +344,6 @@ struct OverviewView: View {
     }
     /// The views that share the bottom switcher's one streak button; the toggle above it moves between them.
     static let streakViews: [Layout] = [.streaks, .list, .rings, .weeks, .year]
-    /// The views the expanded toggle offers; Weeks stays a valid saved layout but is no longer listed.
-    static let toggleViews: [Layout] = [.streaks, .list, .rings, .year]
     /// One widget design per habit in a grid: streak tiles and goal rings in two columns, 20 weeks and the year in one.
     private func tileGrid(_ kind: DashboardKind, columns: Int = 2) -> some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: columns), spacing: 12) {
