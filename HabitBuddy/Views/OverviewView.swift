@@ -635,7 +635,7 @@ struct HideHabitsView: View {
         .accessibilityIdentifier("hide-habit")
     }
 }
-/// The switcher's Dashboard and Explore icons, two equal boxes side by side and a compass drawn in the layout icons' thin stroke.
+/// The switcher's Dashboard and Explore icons, two small squares side by side and a compass drawn in the layout icons' thin stroke.
 struct PageGlyph: View {
     let page: HomePage
     var body: some View {
@@ -644,7 +644,7 @@ struct PageGlyph: View {
             switch page {
             case .habits: break
             case .dashboard:
-                for x: CGFloat in [0.5, 10.5] { p.addRoundedRect(in: CGRect(x: x, y: 2.5, width: 8, height: 14), cornerSize: CGSize(width: 1.6, height: 1.6)) }
+                for x: CGFloat in [1, 10.5] { p.addRoundedRect(in: CGRect(x: x, y: 5.75, width: 7.5, height: 7.5), cornerSize: CGSize(width: 1.8, height: 1.8)) }
             case .explore:
                 p.addEllipse(in: CGRect(x: 0.5, y: 0.5, width: 18, height: 18))
                 p.addLines([CGPoint(x: 13.3, y: 5.7), CGPoint(x: 11.4, y: 11.4), CGPoint(x: 5.7, y: 13.3), CGPoint(x: 7.6, y: 7.6)]); p.closeSubpath()
