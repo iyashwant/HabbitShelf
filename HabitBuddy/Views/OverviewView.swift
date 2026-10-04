@@ -142,9 +142,8 @@ struct OverviewView: View {
                     case .cards: LazyVStack(spacing: 15.3) { ForEach(habits) { habit in card(habit) } }
                     case .compact: compact
                     case .month: monthGrid
-                    case .streaks: tileGrid(.streak)
+                    case .streaks, .weeks: tileGrid(.streak)
                     case .rings: tileGrid(.ring)
-                    case .weeks: tileGrid(.weeks, columns: 1)
                     case .year: tileGrid(.year, columns: 1)
                     case .list: streakList
                     }
@@ -191,7 +190,7 @@ struct OverviewView: View {
             // Streaks and List share one button, shown with the List icon; the toggle at the bottom of that view switches between them.
             ForEach(Layout.allCases.filter { !Self.streakViews.contains($0) || $0 == .list }, id: \.self) { item in
                 let merged = item == .list, selected = shown == .habits && (layout == item || (merged && Self.streakViews.contains(layout)))
-                switcherButton(item.rawValue, label: merged ? "Streaks, list, rings, weeks and year views" : "\(item.rawValue) view", selected: selected) {
+                switcherButton(item.rawValue, label: merged ? "Streaks, list, rings and year views" : "\(item.rawValue) view", selected: selected) {
                     page = .habits
                     if layout != item && !(merged && Self.streakViews.contains(layout)) { store.change { $0.settings.layout = item } }
                 } glyph: { LayoutGlyph(layout: item) }
@@ -241,7 +240,6 @@ struct OverviewView: View {
     @ViewBuilder private func toggleGlyph(_ item: Layout) -> some View {
         switch item {
         case .rings: LucideIcon("circle-gauge", size: 18)
-        case .weeks: LucideIcon("grid-3x3", size: 18)
         case .year: LucideIcon("calendar-days", size: 18)
         default: LayoutGlyph(layout: item)
         }
@@ -360,7 +358,7 @@ struct OverviewView: View {
         }
     }
     /// The views that share the bottom switcher's one streak button; the toggle above it moves between them.
-    static let streakViews: [Layout] = [.streaks, .list, .rings, .weeks, .year]
+    static let streakViews: [Layout] = [.streaks, .list, .rings, .year]
     /// One widget design per habit in a grid: streak tiles and goal rings in two columns, 20 weeks and the year in one.
     private func tileGrid(_ kind: DashboardKind, columns: Int = 2) -> some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: columns), spacing: 12) {
@@ -803,7 +801,7 @@ struct LayoutGlyph: View {
                 context.stroke(p,with:.foreground,style:StrokeStyle(lineWidth:1.1,lineCap:.round,lineJoin:.round))
                 context.fill(Path(ellipseIn:CGRect(x:2.1,y:13.7,width:1.9,height:1.9)),with:.foreground)
             case .streaks:
-                for x:CGFloat in [0.5,10.5] { p.addRoundedRect(in:CGRect(x:x,y:5.75,width:7.5,height:7.5),cornerSize:CGSize(width:1.8,height:1.8)) }
+                for y:CGFloat in [0.5,10.5] { for x:CGFloat in [0.5,10.5] { p.addRoundedRect(in:CGRect(x:x,y:y,width:7.5,height:7.5),cornerSize:CGSize(width:1.8,height:1.8)) } }
                 context.stroke(p,with:.foreground,style:thin)
             case .list:
                 for y:CGFloat in [2,8,14] { p.addEllipse(in:CGRect(x:0.5,y:y-1.8,width:3.6,height:3.6));p.move(to:CGPoint(x:7,y:y));p.addLine(to:CGPoint(x:18,y:y)) }
