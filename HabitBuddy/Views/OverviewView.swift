@@ -635,7 +635,7 @@ struct HideHabitsView: View {
         .accessibilityIdentifier("hide-habit")
     }
 }
-/// The switcher's Dashboard and Explore icons, two small squares side by side and a compass drawn in the layout icons' thin stroke.
+/// The switcher's Dashboard and Explore icons, a dashboard layout and a compass drawn in the layout icons' thin stroke.
 struct PageGlyph: View {
     let page: HomePage
     var body: some View {
@@ -644,7 +644,8 @@ struct PageGlyph: View {
             switch page {
             case .habits: break
             case .dashboard:
-                for x: CGFloat in [1, 10.5] { p.addRoundedRect(in: CGRect(x: x, y: 5.75, width: 7.5, height: 7.5), cornerSize: CGSize(width: 1.8, height: 1.8)) }
+                // Lucide's layout-dashboard: a tall box beside two stacked ones, a short one above a tall one.
+                for r in [CGRect(x: 0.5, y: 0.5, width: 7.5, height: 9.5), CGRect(x: 11, y: 0.5, width: 7.5, height: 5.5), CGRect(x: 11, y: 9.5, width: 7.5, height: 9), CGRect(x: 0.5, y: 13.5, width: 7.5, height: 5)] { p.addRoundedRect(in: r, cornerSize: CGSize(width: 1.6, height: 1.6)) }
             case .explore:
                 p.addEllipse(in: CGRect(x: 0.5, y: 0.5, width: 18, height: 18))
                 p.addLines([CGPoint(x: 13.3, y: 5.7), CGPoint(x: 11.4, y: 11.4), CGPoint(x: 5.7, y: 13.3), CGPoint(x: 7.6, y: 7.6)]); p.closeSubpath()
@@ -673,7 +674,7 @@ struct LayoutGlyph: View {
                 context.stroke(p,with:.foreground,style:StrokeStyle(lineWidth:1.1,lineCap:.round,lineJoin:.round))
                 context.fill(Path(ellipseIn:CGRect(x:2.1,y:13.7,width:1.9,height:1.9)),with:.foreground)
             case .streaks:
-                for y:CGFloat in [0.5,9.9] { for x:CGFloat in [0.5,9.9] { p.addRoundedRect(in:CGRect(x:x,y:y,width:7.6,height:7.6),cornerSize:CGSize(width:2,height:2)) } }
+                for x:CGFloat in [0.5,10.5] { p.addRoundedRect(in:CGRect(x:x,y:5.75,width:7.5,height:7.5),cornerSize:CGSize(width:1.8,height:1.8)) }
                 context.stroke(p,with:.foreground,style:thin)
             case .list:
                 for y:CGFloat in [2,8,14] { p.addEllipse(in:CGRect(x:0.5,y:y-1.8,width:3.6,height:3.6));p.move(to:CGPoint(x:7,y:y));p.addLine(to:CGPoint(x:18,y:y)) }
