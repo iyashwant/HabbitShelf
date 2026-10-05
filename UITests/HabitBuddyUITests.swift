@@ -53,6 +53,19 @@ final class HabitBuddyUITests:XCTestCase {
         app.buttons["Back"].firstMatch.tap();XCTAssertTrue(app.buttons["explore-timer"].waitForExistence(timeout:5),"Back returns to Explore")
         app.buttons["cards view"].tap();XCTAssertTrue(app.buttons["Log progress for Gym Day"].waitForExistence(timeout:5));XCTAssertTrue(app.buttons["cards view"].isSelected);XCTAssertFalse(dashboard.isSelected)
     }
+    /// The pages pushed over the overview draw their own top bar; swiping in from the left edge still goes back.
+    func testSwipingFromTheLeftEdgeGoesBack() {
+        let app=launch("cards"),explore=app.buttons["Explore"]
+        XCTAssertTrue(explore.waitForExistence(timeout:20));explore.tap();XCTAssertTrue(app.buttons["explore-timer"].waitForExistence(timeout:5))
+        func edgeSwipe() { app.coordinate(withNormalizedOffset:CGVector(dx:0.005,dy:0.5)).press(forDuration:0.05,thenDragTo:app.coordinate(withNormalizedOffset:CGVector(dx:0.85,dy:0.5)),withVelocity:.default,thenHoldForDuration:0) }
+        for page in ["Insights","Calendar","Routines"] {
+            app.buttons.matching(NSPredicate(format:"label BEGINSWITH %@",page)).firstMatch.tap();XCTAssertTrue(app.buttons["Back"].firstMatch.waitForExistence(timeout:5),"\(page) opens")
+            edgeSwipe();XCTAssertTrue(app.buttons["Back"].firstMatch.waitForNonExistence(timeout:5),"Swiping from the left edge leaves \(page)");XCTAssertTrue(app.buttons["explore-timer"].isHittable,"and returns to Explore")
+        }
+        app.buttons["cards view"].tap();let card=app.buttons.matching(NSPredicate(format:"label BEGINSWITH 'Gym Day'")).firstMatch
+        XCTAssertTrue(card.waitForExistence(timeout:5));card.tap();XCTAssertTrue(app.buttons["Back"].firstMatch.waitForExistence(timeout:5))
+        edgeSwipe();XCTAssertTrue(app.buttons["Back"].firstMatch.waitForNonExistence(timeout:5),"A habit opened from a card swipes back too");XCTAssertTrue(app.buttons["cards view"].isSelected)
+    }
     func testCompletionPersistsAfterRelaunch() {
         let app=launch("cards"),button=app.buttons["Log progress for Gym Day"]
         XCTAssertTrue(button.waitForExistence(timeout:20));XCTAssertEqual(button.value as? String,"0");button.tap();XCTAssertEqual(button.value as? String,"1")

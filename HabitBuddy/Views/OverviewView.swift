@@ -81,6 +81,7 @@ struct OverviewView: View {
                         }
                 }
             }
+            .background { EdgeSwipeBack() }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if store.settings.showLayoutSwitcher {
                     BottomSwitcher(pager: pager) { pager.go(to: $0, animated: true) } exploreMoved: { exploreMidX = $0 }
@@ -527,6 +528,23 @@ private extension View {
 }
 /// A habit's card, row or tile on one page. Each page has its own, so the zoom into a habit starts from the page shown.
 private struct ZoomSource: Hashable { let stop: Int; let habit: UUID }
+
+/// The pages pushed over the overview hide the navigation bar to draw their own top bars, and a hidden bar turns off
+/// iOS's swipe in from the left edge to go back. This turns it on again for every page pushed on the stack.
+private struct EdgeSwipeBack: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> Controller { Controller() }
+    func updateUIViewController(_ controller: Controller, context: Context) {}
+    final class Controller: UIViewController, UIGestureRecognizerDelegate {
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            navigationController?.interactivePopGestureRecognizer?.delegate = self
+        }
+        func gestureRecognizerShouldBegin(_ gesture: UIGestureRecognizer) -> Bool {
+            guard let navigation = navigationController else { return false }
+            return navigation.viewControllers.count > 1 && navigation.transitionCoordinator == nil
+        }
+    }
+}
 
 /// The bottom bar: the habit layouts (Streaks, List, Rings and Year share the last button), then Dashboard and
 /// Explore. Each opens in place; the selection follows the pages as they're swiped.

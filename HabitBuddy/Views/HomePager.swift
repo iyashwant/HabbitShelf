@@ -15,12 +15,17 @@ import UIKit
     /// Where the pages are, in page widths: a page's slot minus this is how far it is from the screen.
     private(set) var position: CGFloat = 0
     /// Where the items at each depth of a page have got to: each follows `position` on its own spring, the deeper the
-    /// looser, so lower items trail the page and catch up with a little wobble. Depth 0 moves with the page.
+    /// looser, so lower items trail the page by a few points and catch up as it lands. Depth 0 moves with the page.
     private(set) var trail = Array(repeating: CGFloat(0), count: HomePager.depths)
     /// The page being swiped from, or the one a swipe or tap is heading to.
     private(set) var destination = 0
-    /// The page the pager is resting on; nil while it moves.
+    /// The page the pager is resting on; nil until the page and every item on it have stopped, so the work of
+    /// committing a page never lands in a frame that's still moving.
     private(set) var rest: Int? = 0
+    /// What the top bar's controls follow: `segment`, held still between two habit layouts, whose controls are the
+    /// same, so the bar isn't redrawn every frame of a swipe that doesn't change it.
+    private(set) var bar = Segment(from: 0, to: 1, progress: 0)
+    struct Segment: Equatable { var from: Int, to: Int, progress: CGFloat }
     /// The pages kept built: the one shown and its neighbours, so a swipe starts without building one.
     private(set) var pages = [0]
     private(set) var bridge: Bridge?
@@ -53,7 +58,7 @@ import UIKit
     /// How far an item at `depth` is behind its page.
     func lag(_ depth: Int) -> CGFloat { (position - trail[min(max(depth, 0), Self.depths - 1)]) * width }
     /// The two pages the pager is between and how far it is from the first to the second, below 0 or above 1 while it
-    /// stretches past the first or last page. The bars follow this.
+    /// stretches past the first or last page. The bottom bar's selection follows this.
     var segment: (from: Int, to: Int, progress: CGFloat) {
         if let bridge { return (bridge.from, bridge.to, (position - CGFloat(bridge.from)) * CGFloat(bridge.direction)) }
         let lower = min(max(Int(position.rounded(.down)), 0), Self.count - 2)
@@ -75,8 +80,9 @@ import UIKit
         rest = nil
         include(Array(max(0, near - 1)...min(Self.count - 1, near + 1)))
         run()
+        followBar()
     }
-    func drag(_ translation: CGFloat) { position = band(start - translation / width) }
+    func drag(_ translation: CGFloat) { position = band(start - translation / width); followBar() }
     /// Lets go: a flick goes on to the next page in its direction, a slow release to the nearer one.
     func end(velocity: CGFloat) {
         dragging = false
@@ -98,7 +104,7 @@ import UIKit
             halt(); settling = false; dragging = false; bridge = nil; velocity = 0
             position = CGFloat(stop); destination = stop; rest = stop
             trail = Array(repeating: position, count: Self.depths); trailVelocity = Array(repeating: 0, count: Self.depths)
-            include([stop]); prepare(stop)
+            include([stop]); prepare(stop); followBar()
             return
         }
         guard stop != destination else { return }
@@ -129,10 +135,13 @@ import UIKit
         if x > bounds.upperBound { return bounds.upperBound + (1 - 1 / ((x - bounds.upperBound) * 0.55 + 1)) }
         return x
     }
+    /// A touch of overshoot, so the page lands with a little give rather than sliding past its neighbour's edge and back.
     private var spring: Spring {
-        reduceMotion ? Spring(response: 0.38, dampingRatio: 1) : Spring(response: 0.5, dampingRatio: tapped ? 0.76 : 0.68)
+        reduceMotion ? Spring(response: 0.38, dampingRatio: 1) : Spring(response: 0.44, dampingRatio: tapped ? 0.9 : 0.84)
     }
-    private func follow(_ depth: Int) -> Spring { Spring(response: 0.1 + 0.035 * Double(depth), dampingRatio: 0.62) }
+    /// How quickly the items at a depth catch up with the page. They never overshoot it, so a row trails a few points
+    /// while the page moves and arrives with it, rather than wobbling on its own once the page has stopped.
+    private func catchUp(_ depth: Int) -> Double { 2 * .pi / (0.035 + 0.012 * Double(depth)) }
     private func run() {
         guard link == nil else { return }
         lastFrame = 0
@@ -160,27 +169,34 @@ import UIKit
         next[0] = position
         for depth in 1..<Self.depths {
             if reduceMotion { next[depth] = position; continue }
-            var value = next[depth], speed = trailVelocity[depth]
-            follow(depth).update(value: &value, velocity: &speed, target: position, deltaTime: step)
-            if abs(value - position) < 0.00025, abs(speed) < 0.005 { value = position; speed = 0 } else { still = false }
+            // A critically damped spring, solved exactly for the frame so it stays steady at any frame rate.
+            let w = catchUp(depth), x = next[depth] - position, v = trailVelocity[depth]
+            let decay = CGFloat(exp(-w * step)), c = v + CGFloat(w) * x
+            var value = position + (x + c * CGFloat(step)) * decay, speed = (v - CGFloat(w) * c * CGFloat(step)) * decay
+            if abs(value - position) < 0.0002, abs(speed) < 0.004 { value = position; speed = 0 } else { still = false }
             next[depth] = value; trailVelocity[depth] = speed
         }
         if next != trail { trail = next }
-        if still, !settling, !dragging { halt() }
+        followBar()
+        if still, !settling, !dragging { halt(); rest = destination; prepare(destination) }
+    }
+    private func followBar() {
+        let segment = segment
+        let next = segment.from <= 3 && segment.to <= 3 ? Segment(from: destination <= 3 ? destination : 0, to: destination <= 3 ? destination : 0, progress: 0)
+            : Segment(from: segment.from, to: segment.to, progress: (segment.progress * 500).rounded() / 500)
+        if next != bar { bar = next }
     }
     private func arrive() {
         settling = false
         if let bridge { move(by: CGFloat(bridge.to) - goal); self.bridge = nil }
         position = goal
         velocity = 0
-        rest = destination
-        prepare(destination)
     }
-    /// Builds the new neighbours once the page has settled, rather than in the frame it lands.
+    /// Builds the new neighbours once the page and its items are still, so the build can't stall the landing.
     private func prepare(_ stop: Int) {
         preparing?.cancel()
         preparing = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(120))
+            try? await Task.sleep(for: .milliseconds(60))
             guard let self, !Task.isCancelled, self.rest == stop else { return }
             let wanted = Array(max(0, stop - 1)...min(Self.count - 1, stop + 1))
             if self.pages != wanted { self.pages = wanted }
@@ -247,8 +263,9 @@ private struct PageSlot: ViewModifier {
     }
 }
 
-/// An item on a page trails the page's sideways move, the lower and further right the more, so the page flows in
-/// and out like something elastic rather than sliding as one sheet. Nothing moves while the page rests.
+/// An item on a page trails the page's sideways move a little, the lower the more, so the page flows in and out
+/// rather than sliding as one sheet. Items side by side share a depth, so a row moves as one and never overlaps.
+/// Nothing moves while the page rests.
 private struct PageFlow: ViewModifier {
     @Environment(HomePager.self) private var pager: HomePager?
     @Environment(\.homeStop) private var stop
@@ -258,9 +275,8 @@ private struct PageFlow: ViewModifier {
     func body(content: Content) -> some View {
         content
             .onGeometryChange(for: Int.self) { proxy in
-                let frame = proxy.frame(in: .scrollView), width = proxy.bounds(of: .scrollView)?.width ?? 0
-                let row = Int(max(0, frame.minY - 90) / 120), column = width > 0 ? Int(max(0, frame.minX) / (width / 3)) : 0
-                return min(row + column + after, HomePager.depths - 1)
+                let row = Int(max(0, proxy.frame(in: .scrollView).minY - 90) / 120)
+                return min(row + after, HomePager.depths - 1)
             } action: { depth = $0 }
             .offset(x: stop == nil ? 0 : pager?.lag(depth) ?? 0)
     }
@@ -304,7 +320,7 @@ struct HomeBarControls: View {
     let pager: HomePager
     let buttons: (Int) -> [BarButton?]
     var body: some View {
-        let segment = pager.segment, progress = min(max(segment.progress, 0), 1)
+        let segment = pager.bar, progress = min(max(segment.progress, 0), 1)
         let from = buttons(segment.from), to = buttons(segment.to)
         ForEach(0..<max(from.count, to.count), id: \.self) { i in
             MorphControl(from: i < from.count ? from[i] : nil, to: i < to.count ? to[i] : nil, progress: progress)
@@ -410,9 +426,11 @@ struct PageSwipe: UIGestureRecognizerRepresentable {
     func handleUIGestureRecognizerAction(_ recognizer: UIPanGestureRecognizer, context: Context) {
         switch recognizer.state {
         case .began:
+            // Like a scroll view, the page takes up the finger from where it is now rather than jumping over the
+            // distance the swipe needed to be told apart from a scroll.
             context.coordinator.holdScrolling()
+            recognizer.setTranslation(.zero, in: recognizer.view)
             pager.begin()
-            pager.drag(recognizer.translation(in: recognizer.view).x)
         case .changed: pager.drag(recognizer.translation(in: recognizer.view).x)
         case .ended: pager.end(velocity: recognizer.velocity(in: recognizer.view).x)
         case .cancelled, .failed: pager.end(velocity: 0)
