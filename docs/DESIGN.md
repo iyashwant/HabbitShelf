@@ -122,3 +122,7 @@ Below the middle, the slider uses clear glass with the control color inside it a
 **Tint** is None (the default), Match Accent, a palette color or a custom color. A Strength slider (10–80%, default 35%) appears once a tint is chosen. The tint colors the neutral controls and the switcher. Create Habit, Save and the other prominent actions are regular glass carrying the accent at full strength, like Apple's prominent glass buttons; clear glass turned the accent a deep, saturated blue.
 
 Reduce Transparency always gives regular glass without the control-color layer. The sliders and the custom tint save 0.3 s after they stop changing. A preview of habit tiles under real controls shows the result at once. iOS draws the half-height sheet glass itself, so transparency and tint don't apply to it.
+
+## Visible app name
+
+At the owner's request, the visible product name is **HabbitShelf**. The repository remains `habbit-buddy`. Existing bundle IDs, App Group, storage directory, widget kinds and `habitbuddy` deep links stay unchanged so the renamed app can update the installed app and reuse its data. App and widget display names, in-app copy, share branding and suggested export filenames use the new name.

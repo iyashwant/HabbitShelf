@@ -33,7 +33,7 @@ import UserNotifications
         }
         if let end = session.end {
             let content = UNMutableNotificationContent()
-            content.title = habit.name; content.body = "Time's up. Open Habit Buddy to log it."; content.sound = .default
+            content.title = habit.name; content.body = "Time's up. Open HabbitShelf to log it."; content.sound = .default
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, end.timeIntervalSinceNow), repeats: false)
             UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: TimerSessions.notification, content: content, trigger: trigger))
         }

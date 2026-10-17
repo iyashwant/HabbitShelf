@@ -1,4 +1,4 @@
-# Habit Buddy
+# HabbitShelf
 
 A native **iOS 26+** habit tracker built in SwiftUI, with HabitKit's public screens and documented behavior as the reference. Work is on **`dev`**. Open **`HabitBuddy.xcodeproj`** in **Xcode 27** (or Xcode 26) on your Mac.
 

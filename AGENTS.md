@@ -1,6 +1,6 @@
-# Habit Buddy working rules
+# HabbitShelf working rules
 
-Build a native SwiftUI iPhone app targeting iOS 26 and later (deployment target 26.0). The user's requested direction is a close visual and functional match to HabitKit, anchored to the public screenshots and docs in `research/habitkit/`. Keep the product name Habit Buddy and the repository name `habbit-buddy`.
+Build a native SwiftUI iPhone app targeting iOS 26 and later (deployment target 26.0). The user's requested direction is a close visual and functional match to HabitKit, anchored to the public screenshots and docs in `research/habitkit/`. Keep the visible product name HabbitShelf and the repository name `habbit-buddy`. Preserve existing bundle IDs, App Group, storage paths and deep links when changing branding.
 
 Read `docs/DESIGN.md`, `docs/PARITY.md`, and `docs/ARCHITECTURE.md` before changing UI or domain behavior. These record actual decisions and outstanding verification. Do not silently reinterpret recorded local dates or historical goals. Use the shared engine for app, widget, and Shortcut writes. Keep imports transactional and preserve recoverable data.
 

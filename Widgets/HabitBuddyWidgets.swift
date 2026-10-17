@@ -21,7 +21,7 @@ struct BuddyEntry: TimelineEntry {
         active = shown.active
         hidden = data.habits.contains { $0.id == habitID && $0.isHidden } || (routineID != nil && data.routines.contains { $0.id == routineID } && !shown.routines.contains { $0.id == routineID })
     }
-    static let hiddenMessage = "Hidden in Habit Buddy."
+    static let hiddenMessage = "Hidden in HabbitShelf."
     var selectedHabits: [Habit] {
         guard let selectedIDs, !selectedIDs.isEmpty else { return active }
         let byID = Dictionary(active.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
@@ -40,7 +40,7 @@ struct BuddyProvider: AppIntentTimelineProvider {
     private func entry(_ id: UUID?,theme:WidgetAppearance = .system) -> BuddyEntry {
         guard AppEnvironment.hasSharedContainer else { return BuddyEntry(date: Date(), data: BuddyData(), habitID: id, error: "Configure App Group storage in Xcode.") }
         do { return BuddyEntry(date: Date(), data: try AppEnvironment.repository.load(), habitID: id, error: nil,theme:theme) }
-        catch { return BuddyEntry(date: Date(), data: BuddyData(), habitID: id, error: "Open Habit Buddy to recover your data.") }
+        catch { return BuddyEntry(date: Date(), data: BuddyData(), habitID: id, error: "Open HabbitShelf to recover your data.") }
     }
 }
 struct SingleHabitWidgetView: View {
@@ -66,7 +66,7 @@ struct CompactHabitsWidgetView: View {
     var body: some View {
         let count = family == .systemLarge ? 8 : 3
         let days = family == .systemLarge ? 11 : 10
-        if entry.selectedHabits.isEmpty { Text(entry.error ?? "Create habits in Habit Buddy.").font(.caption).widgetURL(URL(string: "habitbuddy://home")) }
+        if entry.selectedHabits.isEmpty { Text(entry.error ?? "Create habits in HabbitShelf.").font(.caption).widgetURL(URL(string: "habitbuddy://home")) }
         else {
             VStack(spacing: 6) {
                 ForEach(entry.selectedHabits.prefix(count)) { habit in
@@ -105,8 +105,8 @@ struct CompactBuddyProvider: AppIntentTimelineProvider {
     func snapshot(for configuration:ChooseCompactHabitsIntent,in context:Context) async->BuddyEntry { entry(configuration.habits?.map(\.id),configuration.theme) }
     func timeline(for configuration:ChooseCompactHabitsIntent,in context:Context) async->Timeline<BuddyEntry> {Timeline(entries:[entry(configuration.habits?.map(\.id),configuration.theme)],policy:.after(nextRefresh()))}
     private func entry(_ ids:[UUID]?,_ theme:WidgetAppearance)->BuddyEntry {
-        guard AppEnvironment.hasSharedContainer else{return BuddyEntry(date:Date(),data:BuddyData(),habitID:nil,error:"Open Habit Buddy to set up widgets.",selectedIDs:ids,theme:theme)}
-        do{return BuddyEntry(date:Date(),data:try AppEnvironment.repository.load(),habitID:nil,error:nil,selectedIDs:ids,theme:theme)}catch{return BuddyEntry(date:Date(),data:BuddyData(),habitID:nil,error:"Open Habit Buddy to recover your data.",selectedIDs:ids,theme:theme)}
+        guard AppEnvironment.hasSharedContainer else{return BuddyEntry(date:Date(),data:BuddyData(),habitID:nil,error:"Open HabbitShelf to set up widgets.",selectedIDs:ids,theme:theme)}
+        do{return BuddyEntry(date:Date(),data:try AppEnvironment.repository.load(),habitID:nil,error:nil,selectedIDs:ids,theme:theme)}catch{return BuddyEntry(date:Date(),data:BuddyData(),habitID:nil,error:"Open HabbitShelf to recover your data.",selectedIDs:ids,theme:theme)}
     }
 }
 struct WidgetSurface<Content:View>:View {
@@ -148,7 +148,7 @@ struct DashboardHomeWidget: View {
         Group {
             if let error = entry.error { message(error, palette) }
             else if kind.needsHabit && habit == nil { message(entry.hidden ? BuddyEntry.hiddenMessage : "Create a habit, then choose it in Edit Widget.", palette) }
-            else if kind == .routine && routine == nil { message(entry.hidden ? BuddyEntry.hiddenMessage : "Create a routine in Habit Buddy, then choose it in Edit Widget.", palette) }
+            else if kind == .routine && routine == nil { message(entry.hidden ? BuddyEntry.hiddenMessage : "Create a routine in HabbitShelf, then choose it in Edit Widget.", palette) }
             else { HabitWidgetContent(kind: kind, size: size, habit: habit, data: entry.data, habits: entry.selectedHabits, routine: routine, today: today, palette: palette) }
         }
         .containerBackground(for: .widget) { palette.background(Rectangle()) }

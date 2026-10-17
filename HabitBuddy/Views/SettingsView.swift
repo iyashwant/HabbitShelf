@@ -59,7 +59,7 @@ struct SettingsView: View {
                     }
                     SettingsGroup("About") {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("Habit Buddy").font(BuddyFont.text(16, .semibold))
+                            Text("HabbitShelf").font(BuddyFont.text(16, .semibold))
                             Text("Offline. No account. Your habits stay on this device.").font(BuddyFont.text(13)).foregroundStyle(BuddyStyle.secondaryText(scheme))
                             Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0") · iOS 26+ · Native SwiftUI").font(BuddyFont.mono(11)).foregroundStyle(BuddyStyle.tertiaryText(scheme))
                             if !store.sharedStorageAvailable { Text("App Group storage is not configured. The app uses private local storage; widgets and Shortcuts need the shared group. Export your data before changing signing or the App Group.").font(BuddyFont.text(12)).foregroundStyle(.orange) }
@@ -72,7 +72,7 @@ struct SettingsView: View {
             .toolbar(.hidden, for: .navigationBar)
             .topBar(backdrop: 0.94) { SheetHeader(title: "Settings") }
             .navigationDestination(for: SettingsPage.self) { page in self.page(page) }
-            .fileExporter(isPresented: $exporting, document: document, contentType: .json, defaultFilename: "habit-buddy-\(Day().rawValue)") { outcome in
+            .fileExporter(isPresented: $exporting, document: document, contentType: .json, defaultFilename: "habbitshelf-\(Day().rawValue)") { outcome in
                 switch outcome { case .success: result = "Backup exported."; case .failure(let error): if (error as NSError).code != NSUserCancelledError { result = error.localizedDescription } }
             }
             .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { outcome in
@@ -93,7 +93,7 @@ struct SettingsView: View {
                     if let id = deleteHabit?.id { store.change { Engine.deleteHabit(id, data: &$0) } }; deleteHabit = nil
                 }
             }
-            .alert("Habit Buddy", isPresented: Binding(get: { result != nil }, set: { if !$0 { result = nil } })) { Button("OK") { result = nil } } message: { Text(result ?? "") }
+            .alert("HabbitShelf", isPresented: Binding(get: { result != nil }, set: { if !$0 { result = nil } })) { Button("OK") { result = nil } } message: { Text(result ?? "") }
             .sheet(item:$categoryEditor){CategoryEditorView(category:$0).buddySheet()}
             .sheet(isPresented: $reorder) { ReorderView() }
             .sheet(isPresented: $hiding) { HideHabitsView().buddySheet() }

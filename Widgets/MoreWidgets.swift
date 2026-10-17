@@ -11,9 +11,9 @@ func nextRefresh(now: Date = Date(), calendar: Calendar = .current) -> Date {
     return min(now.addingTimeInterval(900), midnight.addingTimeInterval(60))
 }
 func loadEntry(habitID: UUID? = nil, selectedIDs: [UUID]? = nil, routineID: UUID? = nil, theme: WidgetAppearance = .system) -> BuddyEntry {
-    guard AppEnvironment.hasSharedContainer else { return BuddyEntry(date: Date(), data: BuddyData(), habitID: habitID, error: "Open Habit Buddy to set up widgets.", selectedIDs: selectedIDs, theme: theme, routineID: routineID) }
+    guard AppEnvironment.hasSharedContainer else { return BuddyEntry(date: Date(), data: BuddyData(), habitID: habitID, error: "Open HabbitShelf to set up widgets.", selectedIDs: selectedIDs, theme: theme, routineID: routineID) }
     do { return BuddyEntry(date: Date(), data: try AppEnvironment.repository.load(), habitID: habitID, error: nil, selectedIDs: selectedIDs, theme: theme, routineID: routineID) }
-    catch { return BuddyEntry(date: Date(), data: BuddyData(), habitID: habitID, error: "Open Habit Buddy to recover your data.", selectedIDs: selectedIDs, theme: theme, routineID: routineID) }
+    catch { return BuddyEntry(date: Date(), data: BuddyData(), habitID: habitID, error: "Open HabbitShelf to recover your data.", selectedIDs: selectedIDs, theme: theme, routineID: routineID) }
 }
 
 // MARK: Home Screen and StandBy

@@ -37,7 +37,7 @@ struct ShareHabitView:View {
     }
     private var shareCard:some View {
         var a=habit.cardAppearance(store.settings);a.description=description;a.streak=streak;a.goal=streak;a.indicator=indicator;a.monthLabels=false;a.weekdayLabels=false
-        return VStack(alignment:.trailing,spacing:12){HabitCard(habit:habit,data:store.data,appearance:a,interactive:false);Label("Habit Buddy",systemImage:"square.grid.3x3.fill").font(.system(size:10,weight:.semibold)).foregroundStyle(.white)}.padding(20).background(BuddyStyle.color(color)).environment(\.colorScheme,dark ? .dark:.light)
+        return VStack(alignment:.trailing,spacing:12){HabitCard(habit:habit,data:store.data,appearance:a,interactive:false);Label("HabbitShelf",systemImage:"square.grid.3x3.fill").font(.system(size:10,weight:.semibold)).foregroundStyle(.white)}.padding(20).background(BuddyStyle.color(color)).environment(\.colorScheme,dark ? .dark:.light)
     }
     @MainActor private func render(){
         guard !rendering else{return}

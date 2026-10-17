@@ -102,7 +102,7 @@ struct RecapPoster: View {
                     }
                 }
             }
-            HStack { Spacer(); Text("Habit Buddy").font(BuddyFont.text(11, .semibold)).foregroundStyle(palette.secondary) }
+            HStack { Spacer(); Text("HabbitShelf").font(BuddyFont.text(11, .semibold)).foregroundStyle(palette.secondary) }
         }
         .padding(20).background(palette.background(shape)).overlay { shape.strokeBorder(BuddyStyle.border(scheme, 0.08), lineWidth: 1) }
     }
