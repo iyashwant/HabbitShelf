@@ -23,8 +23,7 @@ struct ExploreView: View {
     var body: some View {
         let data = store.visible, recap = summary?.kept ?? DayRate(), notes = summary?.notes ?? 0, badges = summary?.badges ?? 0
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Explore").font(BuddyFont.text(32, .heavy)).foregroundStyle(BuddyStyle.text(scheme)).padding(.top, 4).homeFlow()
+            VStack(alignment: .leading, spacing: 12) {
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
                     tile(.insights, "Insights", "sparkles", "violet", "Best and worst days, times and trends")
                     tile(.calendar, "Calendar", "calendar-days", "sky", "Every habit on one month")
@@ -35,7 +34,7 @@ struct ExploreView: View {
                     tile(.challenges, "Challenges", "flag", "indigo", data.challenges.isEmpty ? "Build a 7, 14 or 30-day streak" : "\(data.challenges.count) active \(data.challenges.count == 1 ? "challenge" : "challenges")")
                     Button { timing = true } label: { label("Timer", "timer", "coral", timer.session == nil ? "Time a session and log it" : "A timer is running") }
                         .buttonStyle(FlatButtonStyle()).accessibilityIdentifier("explore-timer").homeFlow()
-                }
+                }.padding(.top, 4)
             }.padding(.horizontal, 16).padding(.bottom, 40)
         }
         .scrollIndicators(.hidden).pageClip()
