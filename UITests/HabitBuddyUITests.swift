@@ -3,9 +3,8 @@ import UIKit
 
 final class HabitBuddyUITests:XCTestCase {
     override func setUpWithError() throws {continueAfterFailure=false}
-    private func launch(_ screen:String,theme:String="dark",environment:[String:String]=[:])->XCUIApplication {
+    private func launch(_ screen:String,theme:String="dark")->XCUIApplication {
         let app=XCUIApplication();app.launchEnvironment=["BUDDY_VISUAL_SCREEN":screen,"BUDDY_VISUAL_DATE":"2026-08-18","BUDDY_VISUAL_THEME":theme]
-        app.launchEnvironment.merge(environment) { _, new in new }
         app.launchArguments=["-AppleLanguages","(en)","-AppleLocale","en_US"];app.launch();XCTAssertTrue(app.wait(for:.runningForeground,timeout:15));return app
     }
     private func capture(_ app:XCUIApplication,_ name:String) {
@@ -235,31 +234,6 @@ final class HabitBuddyUITests:XCTestCase {
         app.terminate();app.launchEnvironment["BUDDY_VISUAL_RESET"]="false";app.launch()
         XCTAssertTrue(today().waitForExistence(timeout:20));XCTAssertFalse(todayFirst(),"The new order is saved")
         today().press(forDuration:1.2);XCTAssertTrue(app.buttons["Duplicate"].waitForExistence(timeout:5),"Holding without moving still opens the widget's menu");XCTAssertFalse(todayFirst())
-    }
-    func testDashboardListFitsItsHabits() {
-        let names = ["Gym Day", "Push-Ups", "Journal", "Deep Work", "Drink Water", "Read"]
-        var previousHeight: CGFloat = 0
-        for count in [1, 3, 6] {
-            let app = launch("dashboard", environment: ["BUDDY_VISUAL_LIST_COUNT": "\(count)"])
-            XCTAssertTrue(app.buttons["Edit Dashboard"].waitForExistence(timeout: 20))
-            let first = app.buttons["Log progress for Gym Day"], last = app.buttons["Log progress for \(names[count - 1])"]
-            XCTAssertTrue(first.waitForExistence(timeout: 10)); XCTAssertTrue(last.exists)
-            XCTAssertGreaterThanOrEqual(first.frame.height, 44, "Dashboard checks have a full touch target")
-            if count > 1 {
-                XCTAssertLessThan((last.frame.midY - first.frame.midY) / CGFloat(count - 1), 80, "A short list doesn't spread across an oversized widget")
-            }
-            let next = app.otherElements.matching(NSPredicate(format: "label BEGINSWITH 'This Week, '")).firstMatch
-            XCTAssertTrue(next.exists)
-            XCTAssertGreaterThan(next.frame.minY, last.frame.maxY, "The next widget clears the list's content")
-            XCTAssertLessThan(next.frame.minY - last.frame.maxY, 70, "The list ends shortly after its last row")
-            XCTAssertGreaterThan(next.frame.minY, previousHeight, "More rows grow the card")
-            previousHeight = next.frame.minY
-            capture(app, "dashboard-list-\(count)")
-            app.terminate()
-        }
-        let light = launch("dashboard", theme: "light", environment: ["BUDDY_VISUAL_LIST_COUNT": "3"])
-        XCTAssertTrue(light.buttons["Log progress for Journal"].waitForExistence(timeout: 20))
-        capture(light, "dashboard-list-light")
     }
     /// Every dashboard design, size and option, captured a screen at a time.
     func testDashboardWidgetCaptures() {

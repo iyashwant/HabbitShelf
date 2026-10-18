@@ -2,7 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 /// A board of habit widgets laid out like the home screen: small widgets take half a row, medium a full row
-/// and large a full row at double height. Today lists fit their visible rows.
+/// and large a full row at double height.
 struct DashboardView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.colorScheme) private var scheme
@@ -95,8 +95,6 @@ struct DashboardView: View {
             .background { if arranged != nil && dragged == widget.id { RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(BuddyStyle.border(scheme, 0.2), style: StrokeStyle(lineWidth: 1.5, dash: [6, 5])) } }
             .homeFlow()
             .containerValue(\.widgetSize, widget.resolvedSize)
-            .containerValue(\.widgetFitsContent, widget.kind == .list)
-            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { [board] in board.heights[widget.id] = $0 }
     }
     @ViewBuilder private func menu(_ widget: DashboardWidget) -> some View {
         Button("Edit Widget", systemImage: "slider.horizontal.3") { configuring = widget }
@@ -159,7 +157,7 @@ struct DashboardView: View {
         if let lastMove, hypot(location.x - lastMove.x, location.y - lastMove.y) < 12 { return }
         guard let from = order.firstIndex(of: dragged) else { return }
         let boardFrame = board.frame, point = CGPoint(x: location.x - boardFrame.minX, y: location.y - boardFrame.minY)
-        let frames = DashboardGrid.frames(shown.map(\.resolvedSize), width: boardFrame.width, heights: shown.map { board.heights[$0.id] })
+        let frames = DashboardGrid.frames(shown.map(\.resolvedSize), width: boardFrame.width)
         let offset: Int
         if point.y < 0 { offset = 0 }
         else if let hit = frames.firstIndex(where: { $0.contains(point) }) { offset = hit > from ? hit + 1 : hit }
@@ -213,7 +211,7 @@ struct DashboardTile: View {
         let shape = RoundedRectangle(cornerRadius: 22, style: .continuous), habits = widget.habits(in: data)
         let palette = WidgetPalette(widget.style, scheme: scheme, tint: widget.tint(data))
         HabitWidgetContent(kind: widget.kind, size: widget.resolvedSize, habit: widget.kind.needsHabit ? habits.first : nil, data: data, habits: habits,
-                           routine: data.routines.first { $0.id == widget.routineID }, title: widget.title, palette: palette, versions: versions, inDashboard: true, onCheck: onCheck, onRoutine: onRoutine)
+                           routine: data.routines.first { $0.id == widget.routineID }, title: widget.title, palette: palette, versions: versions, onCheck: onCheck, onRoutine: onRoutine)
             .equatable().frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(palette.background(shape))
             .overlay { shape.strokeBorder(palette.dark ? Color.white.opacity(0.07) : Color.black.opacity(scheme == .dark ? 0 : 0.06), lineWidth: 1) }
@@ -222,7 +220,6 @@ struct DashboardTile: View {
 
 /// Lays widgets out like the home screen: wide widgets take a full row and consecutive small widgets pair up. The
 /// widgets are one flat list of views, so each keeps its identity and slides to its new place when the order changes.
-/// Lists report their natural height; the other designs retain their home-screen proportions.
 struct DashboardGrid: SwiftUI.Layout {
     var spacing: CGFloat = 16
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
@@ -234,22 +231,18 @@ struct DashboardGrid: SwiftUI.Layout {
             subview.place(at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY), proposal: ProposedViewSize(frame.size))
         }
     }
-    private func frames(_ subviews: Subviews, width: CGFloat) -> [CGRect] {
-        let heights: [CGFloat?] = subviews.map { $0.containerValues.widgetFitsContent ? $0.sizeThatFits(ProposedViewSize(width: width, height: nil)).height : nil }
-        return Self.frames(subviews.map(\.containerValues.widgetSize), width: width, spacing: spacing, heights: heights)
-    }
-    static func frames(_ sizes: [WidgetSize], width: CGFloat, spacing: CGFloat = 16, heights: [CGFloat?] = []) -> [CGRect] {
+    private func frames(_ subviews: Subviews, width: CGFloat) -> [CGRect] { Self.frames(subviews.map(\.containerValues.widgetSize), width: width, spacing: spacing) }
+    static func frames(_ sizes: [WidgetSize], width: CGFloat, spacing: CGFloat = 16) -> [CGRect] {
         let side = (width - spacing) / 2
         var frames: [CGRect] = [], y: CGFloat = 0, left = true
-        for (index, size) in sizes.enumerated() {
+        for size in sizes {
             if size == .small {
                 frames.append(CGRect(x: left ? 0 : side + spacing, y: y, width: side, height: side))
                 if !left { y += side + spacing }
                 left.toggle()
             } else {
                 if !left { y += side + spacing; left = true }
-                let standardHeight = size == .large ? side * 2 + spacing : side
-                let height = heights.indices.contains(index) ? heights[index] ?? standardHeight : standardHeight
+                let height = size == .large ? side * 2 + spacing : side
                 frames.append(CGRect(x: 0, y: y, width: width, height: height))
                 y += height + spacing
             }
@@ -265,10 +258,7 @@ struct DashboardGrid: SwiftUI.Layout {
 }
 
 /// The board's frame on the page, read only while a widget is dragged, so it's kept where setting it doesn't redraw.
-private final class BoardFrame {
-    var frame = CGRect.zero
-    var heights: [UUID: CGFloat] = [:]
-}
+private final class BoardFrame { var frame = CGRect.zero }
 
 /// Follows a widget dragged over the page; dropping it saves the order.
 private struct BoardDrop: DropDelegate {
@@ -284,8 +274,6 @@ private struct BoardDrop: DropDelegate {
 extension ContainerValues {
     /// A dashboard widget's size, which places it in `DashboardGrid`.
     @Entry var widgetSize = WidgetSize.small
-    /// Lists fit their rows in the app instead of spreading them across a WidgetKit-sized square.
-    @Entry var widgetFitsContent = false
 }
 
 enum DashboardLayout {
@@ -382,7 +370,15 @@ struct WidgetConfigurator: View {
             SheetHeader(title: isNew ? "Add Widget" : "Edit Widget")
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    preview
+                    GeometryReader { proxy in
+                        let side = (proxy.size.width - 16) / 2
+                        DashboardTile(widget: widget, data: store.visible)
+                            .frame(width: widget.wide ? proxy.size.width : side, height: DashboardLayout.height(widget, side: side))
+                            .allowsHitTesting(false)
+                            .frame(maxWidth: .infinity)
+                            .animation(.snappy(duration: 0.25), value: widget.resolvedSize)
+                    }
+                    .aspectRatio(widget.resolvedSize == .large ? 1 : 2.09, contentMode: .fit)
                     .accessibilityElement(children: .ignore).accessibilityLabel("Preview of the \(widget.kind.title) widget")
                     section("Widget") {
                         SegmentedChoice(selection: Binding(get: { group }, set: { index in withAnimation(.snappy(duration: 0.3)) { group = index; page = index } }), options: Self.groups.indices.map { ($0, Self.groups[$0].0) })
@@ -431,23 +427,6 @@ struct WidgetConfigurator: View {
         .overlay(alignment: .bottom) {
             PrimaryAction(title: isNew ? "Add Widget" : "Save") { save() }
                 .disabled(!valid).accessibilityIdentifier("save-widget").padding(.horizontal, 24).padding(.bottom, 6)
-        }
-    }
-    @ViewBuilder private var preview: some View {
-        if widget.kind == .list {
-            DashboardTile(widget: widget, data: store.visible)
-                .fixedSize(horizontal: false, vertical: true)
-                .allowsHitTesting(false)
-        } else {
-            GeometryReader { proxy in
-                let side = (proxy.size.width - 16) / 2
-                DashboardTile(widget: widget, data: store.visible)
-                    .frame(width: widget.wide ? proxy.size.width : side, height: DashboardLayout.height(widget, side: side))
-                    .allowsHitTesting(false)
-                    .frame(maxWidth: .infinity)
-                    .animation(.snappy(duration: 0.25), value: widget.resolvedSize)
-            }
-            .aspectRatio(widget.resolvedSize == .large ? 1 : 2.09, contentMode: .fit)
         }
     }
     private func save() {

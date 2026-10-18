@@ -244,11 +244,3 @@ Checked with **Xcode 27.0 (27A266a)** on a dedicated **iPhone 18 Pro simulator, 
 Not checked:
 - the iPhone figures (116 ms before), other devices, iOS 26 and Release builds;
 - the full UI test suite on this change; only `PerformanceUITests`' check-in tests ran against it.
-
-## Dashboard Today List density, 18 October 2026 (local Mac)
-
-- Xcode **27.1 (27A9275)**, simulator SDK **27.1**, deployment target **26.0**: unsigned app and widget builds passed for arm64 and x86_64. Existing HomePager actor-isolation and OverviewView `UIScreen.main` warnings remain.
-- `python3 scripts/check-project.py` and `git diff --check` passed.
-- `bash scripts/check-ios.sh` stopped at the existing `IconSuggesterTests.testSuggestingIsFast` benchmark: 95 of 96 core tests passed; 3,000 suggestions took 6.00 seconds against its 3-second limit. Isolated retries also exceeded that limit (3.57 and 14.64 seconds) on this loaded Mac. No icon-suggestion or core behavior was changed.
-- The UI test target compiled, including `testDashboardListFitsItsHabits`, which checks one-, three- and six-habit lists, check-button size, row spacing, the following widget's placement, and dark/light captures. `BUDDY_VISUAL_LIST_COUNT` selects those synthetic lists only within the existing debug audit store.
-- Native visual and interaction verification is pending: the iPhone 18 Pro simulator booted but app installation and diagnostic process spawning stalled, including after restarting it. The existing Switcher SE3 simulator installed the app but stalled on launch. The selected dashboard UI run was interrupted before any test case executed. A simulator Home Screen screenshot is not app UI evidence; no screenshot parity is claimed.

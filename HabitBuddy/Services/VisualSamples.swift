@@ -76,12 +76,6 @@ data.settings.onboarding=screen != "welcome";data.settings.theme=ProcessInfo.pro
         data.settings.glass=ProcessInfo.processInfo.environment["BUDDY_VISUAL_GLASS"].flatMap(visualGlass)
         data.settings.layout=Layout(rawValue:screen) ?? (screen=="compact-settings" ? .compact:.cards)
         if screen=="today-ring" { data.settings.dashboard=[DashboardWidget(kind:.today,style:.dark),DashboardWidget(kind:.today,style:.light),DashboardWidget(kind:.today,style:.tinted),DashboardWidget(kind:.streak,habitID:data.habits[6].id,style:.automatic)] }
-        // Isolated list sizes for the dashboard's density and content-height checks.
-        if screen == "dashboard", let count = ProcessInfo.processInfo.environment["BUDDY_VISUAL_LIST_COUNT"].flatMap(Int.init) {
-            var list = DashboardWidget(kind: .list, size: .large)
-            list.habitIDs = data.active.prefix(max(1, min(6, count))).map(\.id)
-            data.settings.dashboard = [list, DashboardWidget(kind: .week)]
-        }
         // Every design in the sizes and options the default dashboard doesn't show.
         if screen=="widgets", data.habits.count>=8, let routine=data.routines.first {
             func habit(_ kind:DashboardKind,_ n:Int,_ style:WidgetStyle,_ size:WidgetSize?=nil)->DashboardWidget { DashboardWidget(kind:kind,habitID:data.habits[n].id,style:style,size:size) }
