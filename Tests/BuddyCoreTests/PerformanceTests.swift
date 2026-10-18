@@ -153,12 +153,21 @@ final class PerformanceTests: XCTestCase {
         return (data, habit)
     }
 
-    /// The streak and rate rules as written before the one-pass rewrite.
+    /// The day-by-day reference, with no-goal history included once Daily is enabled.
     static func referenceStats(_ habit: Habit, data: BuddyData, today: Day, weekStart: Int?) -> HabitStats {
         func progress(_ day: Day) -> BuddyCore.Progress { Engine.progress(habit, day: day, data: data, today: today) }
         func frozen(_ day: Day) -> Bool { data.records[Record.key(habit.id, day)]?.frozen == true }
         let end = min(today, habit.archived ?? today)
         guard habit.created <= end else { return HabitStats() }
+        func cadence(_ index: Int) -> Cadence {
+            let rule = habit.goals[index]
+            guard rule.cadence == .none else { return rule.cadence }
+            for later in habit.goals.dropFirst(index + 1) {
+                if later.from > end || later.mode != rule.mode { return .none }
+                if later.cadence != .none { return later.cadence == .daily ? .daily : .none }
+            }
+            return .none
+        }
         var result = HabitStats()
         for day in Day.range(habit.created, end) where habit.goal(on: day).mode == .build && habit.available(on: day, today: today) {
             let success = progress(day).success
@@ -170,9 +179,9 @@ final class PerformanceTests: XCTestCase {
             let next = index + 1 < habit.goals.count ? habit.goals[index + 1].from.adding(-1) : end
             let segmentEnd = min(end, next)
             guard rule.from <= segmentEnd else { continue }
-            if index > 0, rule.cadence != habit.goals[index - 1].cadence || rule.mode != habit.goals[index - 1].mode { run = 0 }
-            if rule.cadence == .none { run = 0; continue }
-            if rule.cadence == .daily || rule.mode == .quit {
+            if index > 0, cadence(index) != cadence(index - 1) || rule.mode != habit.goals[index - 1].mode { run = 0 }
+            if cadence(index) == .none { run = 0; continue }
+            if cadence(index) == .daily || rule.mode == .quit {
                 for day in Day.range(rule.from, segmentEnd) {
                     if progress(day).success { run += 1 } else if day < today && !frozen(day) { run = 0 }
                     best = max(best, run)

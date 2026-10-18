@@ -54,7 +54,8 @@ public enum Engine {
                         frozen: available && !success && record?.frozen == true)
     }
     static func frozen(_ habit: Habit, _ day: Day, _ data: BuddyData) -> Bool { data.records[Record.key(habit.id, day)]?.frozen == true }
-    /// Cadence changes start a new streak segment. Period targets are capped to tracked days.
+    /// Enabling Daily includes preceding no-goal history. Other cadence changes start a new segment.
+    /// Period targets are capped to tracked days.
     public static func stats(_ habit: Habit, data: BuddyData, today: Day = Day(), weekStart: Int? = nil) -> HabitStats {
         history(habit, data: data, today: today, weekStart: weekStart).stats
     }
@@ -88,17 +89,29 @@ public enum Engine {
             let first = max(from, start), last = min(through, end)
             return first > last ? 0 : (start.distance(to: first)...start.distance(to: last)).reduce(0) { $0 + (succeeded[$1] ? 1 : 0) }
         }
+        // None disables the counter, not the saved check-ins. Once Daily is enabled, include preceding
+        // no-goal versions in that daily run without changing their dates, modes or completion targets.
+        // Resolve backwards so multiple no-goal edits are included, but never cross another cadence,
+        // a mode change, or a goal that hasn't taken effect at the end of this history.
+        var cadences = habit.goals.map(\.cadence)
+        for index in habit.goals.indices.reversed() where index + 1 < habit.goals.count {
+            let rule = habit.goals[index], next = habit.goals[index + 1]
+            if rule.cadence == .none, next.from <= end, rule.mode == next.mode, cadences[index + 1] == .daily {
+                cadences[index] = .daily
+            }
+        }
         var run = 0, best = 0
         for (index, rule) in habit.goals.enumerated() {
+            let cadence = cadences[index]
             let next = index + 1 < habit.goals.count ? habit.goals[index + 1].from.adding(-1) : end
             let segmentEnd = min(end, next)
             guard max(rule.from, start) <= segmentEnd else { continue }
-            if index > 0, rule.cadence != habit.goals[index - 1].cadence || rule.mode != habit.goals[index - 1].mode {
+            if index > 0, cadence != cadences[index - 1] || rule.mode != habit.goals[index - 1].mode {
                 run = 0
             }
-            if rule.cadence == .none { run = 0; continue }
+            if cadence == .none { run = 0; continue }
             // Daily rules can span target edits; period rules are processed once across adjacent versions.
-            if rule.cadence == .daily || rule.mode == .quit {
+            if cadence == .daily || rule.mode == .quit {
                 for offset in start.distance(to: max(rule.from, start))...start.distance(to: segmentEnd) {
                     if succeeded[offset] { run += 1 }
                     else if start.adding(offset) < today && !frozenDays[offset] { run = 0 }

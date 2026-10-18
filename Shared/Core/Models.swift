@@ -93,7 +93,7 @@ public struct Goal: Codable, Equatable, Sendable {
     public var mode: HabitMode = .build
     public var tracking: Tracking = .yesNo
     public var target: Int64 = 1_000
-    public var cadence: Cadence = .none
+    public var cadence: Cadence = .daily
     public var days: Int = 1
     public var unit: String = ""
     public var tap: TapAction = .addOne

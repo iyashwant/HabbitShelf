@@ -244,3 +244,11 @@ Checked with **Xcode 27.0 (27A266a)** on a dedicated **iPhone 18 Pro simulator, 
 Not checked:
 - the iPhone figures (116 ms before), other devices, iOS 26 and Release builds;
 - the full UI test suite on this change; only `PerformanceUITests`' check-in tests ran against it.
+
+## Daily streak history recovery, 18 October 2026 (local Mac)
+
+- Reproduced the reported failure before the fix: enabling Daily after ten or twelve consecutive successful days returned zero; completing today returned one. The new regression suite failed with 21 assertions on that implementation.
+- `swift test`: all 96 existing XCTest tests and 11 new Swift Testing tests passed (the enable-Daily test has both ten-day and twelve-day cases). Coverage includes already-enabled histories loaded from JSON, historical numeric targets, missed days, pauses, disabling/re-enabling, mode and weekly boundaries, the new Daily default, and preserving an existing None choice after decode. The randomized day-by-day reference was updated for the intentional daily-history rule.
+- `python3 scripts/generate-project.py` and `python3 scripts/check-project.py` passed. `bash scripts/check-ios.sh` built the app and widget extension with Xcode 27.1 (27A9275), deployment target iOS 26.0. Existing `HomePager.swift` warnings about `UIScreen.main` and actor isolation remain outside this change.
+- Installed the rebuilt app on the iPhone 18 Pro simulator (iOS 27.0) and launched the isolated `streak-history` fixture on the detail screen, with `BUDDY_VISUAL_DATE=2026-10-18`. The screenshot visibly shows **12** and **Daily**, successful dates October 6–17 and unfinished October 18. Unit tests also verify today's completion advances the count to 13. The fixture uses generic synthetic data in `VisualAudit-streak-history`, not the owner's app storage.
+- No physical-device install or test was performed. This validation does not claim weekly/monthly display consistency, midnight refresh, or full HabitKit parity.

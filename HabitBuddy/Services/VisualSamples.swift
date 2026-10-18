@@ -39,6 +39,7 @@ enum VisualSamples {
             ("No dope","lu:activity","coral","2026-09-13",[day("2026-09-13")...day("2026-10-01")])]
         for (n,item) in habits.enumerated() {
             var h=Habit(name:item.0,created:day(item.3));h.id=UUID(uuidString:String(format:"00000000-0000-0000-0001-%012d",n+1))!;h.symbol=item.1;h.color=item.2;h.order=n
+            h.goals[0].cadence = .none // Preserve the original reference fixture when new-habit defaults change.
             if n==1 { h.goals[0].cadence = .weekly;h.goals[0].days=5 }
             data.habits.append(h)
             for range in item.4 { for d in Day.range(range.lowerBound,range.upperBound) {
@@ -68,9 +69,27 @@ enum VisualSamples {
             for offset in 0...1_826 where (offset*13+n*7)%11<8 { var r=Record(habitID:h.id,day:Day().adding(-offset));r.amount=1_000;data.records[r.key]=r }
         }
     }
+    /// Synthetic regression: twelve successes through yesterday, Daily enabled only today.
+    /// Uses the isolated VisualAudit store, never the owner's habit data.
+    static func streakHistory(_ data: inout BuddyData) {
+        let today = Day()
+        var habit = Habit(name: "Streak history", created: today.adding(-20))
+        habit.id = UUID(uuidString: "00000000-0000-0000-0005-000000000001")!
+        habit.symbol = "lu:leaf"; habit.color = "green"
+        habit.goals[0].cadence = .none
+        var daily = habit.currentGoal
+        daily.from = today; daily.cadence = .daily
+        habit.goals.append(daily)
+        data.habits = [habit]
+        for offset in Array(1...12) + Array(17...20) {
+            var record = Record(habitID: habit.id, day: today.adding(-offset))
+            record.amount = 1_000
+            data.records[record.key] = record
+        }
+    }
     static func audit(_ screen:String)->BuddyData {
         var data=BuddyData()
-        switch ProcessInfo.processInfo.environment["BUDDY_VISUAL_FIXTURE"] { case "reference": reference(&data); case "large": large(&data); default: populate(&data) }
+        switch ProcessInfo.processInfo.environment["BUDDY_VISUAL_FIXTURE"] { case "reference": reference(&data); case "large": large(&data); case "streak-history": streakHistory(&data); default: populate(&data) }
 data.settings.onboarding=screen != "welcome";data.settings.theme=ProcessInfo.processInfo.environment["BUDDY_VISUAL_THEME"] == "light" ? .light:.dark
         data.settings.accent=ProcessInfo.processInfo.environment["BUDDY_VISUAL_ACCENT"].flatMap{$0.isEmpty ? nil:$0}
         data.settings.glass=ProcessInfo.processInfo.environment["BUDDY_VISUAL_GLASS"].flatMap(visualGlass)
