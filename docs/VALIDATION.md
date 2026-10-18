@@ -252,3 +252,10 @@ Not checked:
 - `python3 scripts/generate-project.py` and `python3 scripts/check-project.py` passed. `bash scripts/check-ios.sh` built the app and widget extension with Xcode 27.1 (27A9275), deployment target iOS 26.0. Existing `HomePager.swift` warnings about `UIScreen.main` and actor isolation remain outside this change.
 - Installed the rebuilt app on the iPhone 18 Pro simulator (iOS 27.0) and launched the isolated `streak-history` fixture on the detail screen, with `BUDDY_VISUAL_DATE=2026-10-18`. The screenshot visibly shows **12** and **Daily**, successful dates October 6–17 and unfinished October 18. Unit tests also verify today's completion advances the count to 13. The fixture uses generic synthetic data in `VisualAudit-streak-history`, not the owner's app storage.
 - No physical-device install or test was performed. This validation does not claim weekly/monthly display consistency, midnight refresh, or full HabitKit parity.
+
+## Card header streak badge, 18 October 2026 (local Mac)
+
+- Moved the existing classic-card streak capsule beside the name, before the completion button, and removed its footer copy. Show Streak, per-habit appearance and sharing options still apply. The day count uses the same shared calculation; goal labels and category icons retain their footer layout.
+- `bash scripts/check-ios.sh` passed: 96 XCTest tests plus 11 Swift Testing tests, project checks, and the app/widget simulator build. The signed Release device build also passed with Xcode 27.1.
+- Visually checked the isolated `streak-history` fixture on an iPhone 18 Pro simulator in dark and light themes. The header shows the green flame and 12, the name and completion control fit, and the grid has no streak footer or leftover gap. Large Dynamic Type and long-name stress cases were not separately exercised.
+- Installed the signed update in place on the owner's iPhone 15 Pro and launched it successfully. Physical-device visual inspection was unavailable because iPhone Mirroring reported that the phone was in use. No habit records or appearance settings were modified by this code change.

@@ -44,6 +44,8 @@ Intentional differences: no PRO button, FocusKit promotion, Language row or What
 
 Owner correction, 18 October 2026: New Habit selects Daily for Streak Goal. Enabling Daily on an existing habit immediately shows its saved consecutive successes, including days logged while Streak Goal was None. Twelve successful days through yesterday show 12 while today is unfinished, then 13 after today's check-in. The appearance switch still controls only visibility. This corrects the earlier zero-at-enable behavior without changing layout or the saved history.
 
+Owner card-placement correction, 18 October 2026: When Show Streak is enabled, the classic card puts its existing habit-colored flame-and-count capsule in the header, between the name/description and the completion button. The capsule keeps its width while long names truncate. The streak no longer appears beneath the contribution grid, and there is no empty footer when goal/category content is absent. Goal labels and existing category icons keep their footer positions; the appearance and sharing switches still control streak visibility.
+
 Added at the owner's request from five reference images of a light, pastel tracker (Today tiles and list, a widget board, yearly cards and a 12-month year page). Existing screens are unchanged; the new views use the same tokens, Figtree and SF symbols for flames and checks.
 
 - Overview layouts **Streaks** (two-column tiles: streak count with unit, today's check, name, lettered week strip with done/7) and **List** (one row per habit) join Cards, Compact and Month in the view switcher. Both use the tinted style: pastel washes in light mode, tinted dark surfaces in dark mode.

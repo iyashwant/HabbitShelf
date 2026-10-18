@@ -28,6 +28,13 @@ struct HabitCard<Menu: View>: View {
                             Text(habit.name).font(BuddyFont.text(17.3,.semibold)).foregroundStyle(BuddyStyle.text(scheme)).lineLimit(1)
                             if a.description && !habit.detail.isEmpty { Text(habit.detail).font(BuddyFont.text(13)).foregroundStyle(BuddyStyle.secondaryText(scheme)).lineLimit(1) }
                         }.frame(maxWidth:.infinity,alignment:.leading)
+                        if a.streak && habit.currentGoal.cadence != .none {
+                            let streak = summaries.stats(habit,data:data,today:today).currentStreak
+                            MetricChip(symbol:"flame",text:String(streak),color:c)
+                                .fixedSize(horizontal:true,vertical:false)
+                                .accessibilityElement(children:.ignore)
+                                .accessibilityLabel("Streak: \(streak) \(streak == 1 ? "day" : "days")")
+                        }
                     }.contentShape(Rectangle())
                 }.buttonStyle(.plain).contextMenu(menuItems:menu)
                 if a.indicator { Button(action:onComplete){CompletionBadge(habit:habit,data:data)}.buttonStyle(FlatButtonStyle()).contextMenu(menuItems:menu).accessibilityLabel("Log progress for \(habit.name)").accessibilityValue(Amount.text(data.record(habit.id,Day()).amount)) }
@@ -39,9 +46,8 @@ struct HabitCard<Menu: View>: View {
                 }
                 else { Heatmap(habit:habit,data:data,monthLabels:a.monthLabels,weekdayLabels:a.weekdayLabels,pitch:13,fit:true) }
             }.padding(.leading,interactive && !a.weekdayLabels ? 0:15).padding(.trailing,15).padding(.top,12)
-            if (a.streak || a.goal) && habit.currentGoal.cadence != .none {
+            if (a.goal || (a.streak && a.categoryIcons && !habit.categories.isEmpty)) && habit.currentGoal.cadence != .none {
                 HStack(spacing:8) {
-                    if a.streak { MetricChip(symbol:"flame",text:String(summaries.stats(habit,data:data).currentStreak),color:c) }
                     if a.goal { MetricChip(symbol:"target",text:habit.currentGoal.summary,color:c) }
                     Spacer()
                     if a.categoryIcons { ForEach(data.categories.filter{habit.categories.contains($0.id)}){BuddyGlyph(symbol:$0.symbol,size:14).foregroundStyle(c)} }

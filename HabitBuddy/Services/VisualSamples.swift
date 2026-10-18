@@ -72,6 +72,7 @@ enum VisualSamples {
     /// Synthetic regression: twelve successes through yesterday, Daily enabled only today.
     /// Uses the isolated VisualAudit store, never the owner's habit data.
     static func streakHistory(_ data: inout BuddyData) {
+        data.settings.showStreak = true
         let today = Day()
         var habit = Habit(name: "Streak history", created: today.adding(-20))
         habit.id = UUID(uuidString: "00000000-0000-0000-0005-000000000001")!
