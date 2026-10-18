@@ -193,11 +193,44 @@ final class BuddyCoreTests: XCTestCase {
         XCTAssertTrue(data.habits.isEmpty); XCTAssertTrue(data.records.isEmpty); XCTAssertEqual(data.routines[0].habitIDs, [])
         XCTAssertNoThrow(try DataValidation.validate(data, today: today))
     }
+    func testChallengesRoundTripDecodeAndValidate() throws {
+        var (data, habit) = fixture()
+        var challenge = Challenge(name: "Morning", start: today, duration: 14); challenge.habitIDs = [habit.id]
+        data.challenges = [challenge]
+        XCTAssertEqual(try DataValidation.decode(DataValidation.encode(data), today: today), data)
+        var older = try JSONSerialization.jsonObject(with: DataValidation.encode(data)) as! [String: Any]
+        older.removeValue(forKey: "challenges")
+        var withoutChallenges = data; withoutChallenges.challenges = []
+        XCTAssertEqual(try DataValidation.decode(JSONSerialization.data(withJSONObject: older), today: today), withoutChallenges)
+        data.challenges[0].duration = 6; XCTAssertThrowsError(try DataValidation.validate(data, today: today))
+        data.challenges[0].duration = 7; data.challenges[0].habitIDs.append(habit.id); XCTAssertThrowsError(try DataValidation.validate(data, today: today))
+        data.challenges[0].habitIDs = [UUID()]; XCTAssertThrowsError(try DataValidation.validate(data, today: today))
+    }
+    func testChallengeProgressRequiresEveryHabitAndCountsExistingLogs() throws {
+        let start = Day(rawValue: "2026-09-27")!
+        var (data, first) = fixture(start: start.rawValue)
+        var second = Habit(name: "Stretch", created: start); second.order = 1
+        data.habits.append(second)
+        var challenge = Challenge(name: "A week", start: start, duration: 7)
+        challenge.habitIDs = [first.id, second.id]
+        data.challenges = [challenge]
+        try log(1_000, start.rawValue, first, &data)
+        XCTAssertEqual(ChallengeProgress(challenge: challenge, data: data, today: today).completedDays, 0, "One completed habit is not a completed challenge day")
+        for day in Day.range(start.adding(1), today) {
+            try Engine.setAmount(1_000, habitID: first.id, day: day, data: &data, today: today)
+            try Engine.setAmount(1_000, habitID: second.id, day: day, data: &data, today: today)
+        }
+        try Engine.setAmount(1_000, habitID: second.id, day: start, data: &data, today: today)
+        let progress = ChallengeProgress(challenge: challenge, data: data, today: today)
+        XCTAssertEqual(progress.completedDays, 7)
+        XCTAssertTrue(progress.completed)
+    }
     func testHiddenHabitsLeaveScreensButKeepTheirData() throws {
         var (data, h) = fixture()
         var g = Habit(name: "Smoke-free", created: Day(rawValue: "2026-09-28")!); g.order = 1; data.habits.append(g)
         try log(1_000, "2026-10-02", h, &data); try log(1_000, "2026-10-02", g, &data); try Engine.note("private", habitID: g.id, day: today, data: &data, today: today)
         var routine = Routine(name: "Evening"); routine.habitIDs = [h.id, g.id]; var alone = Routine(name: "Quiet"); alone.habitIDs = [g.id]; data.routines = [routine, alone]
+        var challenge = Challenge(name: "Together", start: today); challenge.habitIDs = [h.id, g.id]; data.challenges = [challenge]
         data.settings.dashboard = [DashboardWidget(kind: .streak, habitID: g.id), DashboardWidget(kind: .streak, habitID: h.id)]
         XCTAssertFalse(String(decoding: try DataValidation.encode(data), as: UTF8.self).contains("hidden"), "A shown habit writes no flag, so files stay as before")
         XCTAssertEqual(data.withoutHidden, data)
@@ -206,6 +239,8 @@ final class BuddyCoreTests: XCTestCase {
         XCTAssertEqual(try DataValidation.decode(DataValidation.encode(data), today: today), data)
         let shown = data.withoutHidden
         XCTAssertEqual(shown.active.map(\.id), [h.id])
+        XCTAssertEqual(shown.challenges.map(\.habitIDs), [[h.id]])
+        XCTAssertEqual(data.challenges[0].habitIDs, [h.id, g.id], "The visible snapshot does not remove a hidden challenge member from saved data")
         XCTAssertEqual(shown.records, data.records, "Records stay; only their habit finds them, and copying them would slow each check-in")
         XCTAssertEqual(shown.routines.map(\.habitIDs), [[h.id, g.id]], "Routines keep the hidden habit; one with only hidden habits is left out")
         XCTAssertFalse(shown.settings.dashboard![0].visible(in: shown)); XCTAssertTrue(shown.settings.dashboard![1].visible(in: shown))

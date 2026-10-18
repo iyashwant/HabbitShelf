@@ -155,6 +155,18 @@ public struct Routine: Codable, Identifiable, Equatable, Sendable {
     public var habitIDs: [UUID] = []
     public init(name: String) { self.name = name }
 }
+/// A fixed-length challenge measured by days when every chosen habit succeeds.
+public struct Challenge: Codable, Identifiable, Equatable, Sendable {
+    public var id = UUID()
+    public var name: String
+    public var start: Day
+    public var duration: Int
+    public var habitIDs: [UUID] = []
+    public var end: Day { start.adding(duration - 1) }
+    public init(name: String, start: Day = Day(), duration: Int = 7) {
+        self.name = name; self.start = start; self.duration = duration
+    }
+}
 public struct Category: Codable, Identifiable, Equatable, Sendable {
     public var id = UUID()
     public var name: String
@@ -304,10 +316,11 @@ public struct BuddyData: Codable, Equatable, Sendable {
     public var records: [String: Record] = [:]
     public var categories: [Category] = []
     public var routines: [Routine] = []
+    public var challenges: [Challenge] = []
     public var settings = Settings()
     public init() {}
-    enum CodingKeys: String, CodingKey { case schemaVersion, habits, records, categories, routines, settings }
-    /// Routines were added within schema 1, so older files decode with none.
+    enum CodingKeys: String, CodingKey { case schemaVersion, habits, records, categories, routines, challenges, settings }
+    /// Routines and challenges were added within schema 1, so older files decode with none.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         schemaVersion = try c.decode(Int.self, forKey: .schemaVersion)
@@ -315,6 +328,7 @@ public struct BuddyData: Codable, Equatable, Sendable {
         records = try c.decode([String: Record].self, forKey: .records)
         categories = try c.decode([Category].self, forKey: .categories)
         routines = try c.decodeIfPresent([Routine].self, forKey: .routines) ?? []
+        challenges = try c.decodeIfPresent([Challenge].self, forKey: .challenges) ?? []
         settings = try c.decode(Settings.self, forKey: .settings)
     }
     public var active: [Habit] { habits.filter { $0.archived == nil }.sorted { $0.order < $1.order } }
@@ -333,6 +347,10 @@ public struct BuddyData: Codable, Equatable, Sendable {
             let members = routine.habitIDs.compactMap(activeHabit)
             return !members.isEmpty && members.allSatisfy(\.isHidden)
         }
+        for index in data.challenges.indices {
+            data.challenges[index].habitIDs.removeAll { id in habits.first(where: { $0.id == id })?.isHidden == true }
+        }
+        data.challenges.removeAll { $0.habitIDs.isEmpty }
         return data
     }
     /// Puts the active habits in `ids` in that order. Active habits left out (such as hidden ones) keep their places.
@@ -351,7 +369,7 @@ public struct BuddyData: Codable, Equatable, Sendable {
         // A dictionary is one reference to its storage, so equal bytes mean the same storage.
         let sameRecords = withUnsafeBytes(of: records) { a in withUnsafeBytes(of: other.records) { b in a.elementsEqual(b) } }
         return sameRecords && schemaVersion == other.schemaVersion && habits == other.habits && categories == other.categories
-            && routines == other.routines && settings == other.settings
+            && routines == other.routines && challenges == other.challenges && settings == other.settings
     }
 }
 public enum BuddyError: LocalizedError {

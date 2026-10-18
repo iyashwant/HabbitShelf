@@ -296,11 +296,13 @@ public enum Engine {
         try increment(amount, habitID: habitID, day: day, data: &data, today: today)
         return amount
     }
-    /// Permanently removes a habit, its records and its routine memberships.
+    /// Permanently removes a habit, its records and its routine or challenge memberships.
     public static func deleteHabit(_ id: UUID, data: inout BuddyData) {
         data.habits.removeAll { $0.id == id }
         data.records = data.records.filter { $0.value.habitID != id }
         for i in data.routines.indices { data.routines[i].habitIDs.removeAll { $0 == id } }
+        for i in data.challenges.indices { data.challenges[i].habitIDs.removeAll { $0 == id } }
+        data.challenges.removeAll { $0.habitIDs.isEmpty }
     }
     public static func deleteCategory(_ id: UUID, data: inout BuddyData) {
         data.categories.removeAll { $0.id == id }

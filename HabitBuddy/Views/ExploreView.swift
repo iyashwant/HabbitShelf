@@ -32,6 +32,7 @@ struct ExploreView: View {
                     if data.settings.notes { tile(.notes, "Notes", "notebook-pen", "amber", notes == 0 ? "Every day note in one place" : "\(notes) \(notes == 1 ? "note" : "notes"), searchable") }
                     tile(.milestones(nil), "Milestones", "trophy", "orange", badges == 0 ? "Streak and check-in badges" : "\(badges) \(badges == 1 ? "badge" : "badges") earned")
                     tile(.routines, "Routines", "list-todo", "teal", data.routines.isEmpty ? "Check off habits together" : "\(data.routines.count) \(data.routines.count == 1 ? "routine" : "routines")")
+                    tile(.challenges, "Challenges", "flag", "indigo", data.challenges.isEmpty ? "Build a 7, 14 or 30-day streak" : "\(data.challenges.count) active \(data.challenges.count == 1 ? "challenge" : "challenges")")
                     Button { timing = true } label: { label("Timer", "timer", "coral", timer.session == nil ? "Time a session and log it" : "A timer is running") }
                         .buttonStyle(FlatButtonStyle()).accessibilityIdentifier("explore-timer").homeFlow()
                 }

@@ -107,6 +107,7 @@ struct OverviewView: View {
                 case .notes: NotesTimelineView()
                 case .milestones(let id): MilestonesView(habitID: id)
                 case .routines: RoutinesView()
+                case .challenges: ChallengesView()
                 }
             }
             .sheet(item: $editor) { HabitEditorView(habit: $0).buddySheet() }
@@ -457,7 +458,7 @@ struct OverviewView: View {
     }
 }
 
-enum OverviewRoute: Hashable { case habit(UUID), dashboard, explore, insights, calendar, recap, notes, milestones(UUID?), routines }
+enum OverviewRoute: Hashable { case habit(UUID), dashboard, explore, insights, calendar, recap, notes, milestones(UUID?), routines, challenges }
 /// What the bottom switcher shows: the habits in the chosen layout, the Dashboard or Explore.
 enum HomePage: String { case habits, dashboard, explore
     var title: String { rawValue.capitalized }

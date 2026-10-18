@@ -62,6 +62,12 @@ public enum DataValidation {
             try require(!routine.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && routine.name.count <= 100, "invalid routine name")
             try require(Set(routine.habitIDs).count == routine.habitIDs.count && Set(routine.habitIDs).isSubset(of: habitIDs), "invalid routine habits")
         }
+        try require(data.challenges.count <= 100 && Set(data.challenges.map(\.id)).count == data.challenges.count, "invalid challenges")
+        for challenge in data.challenges {
+            try require(!challenge.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && challenge.name.count <= 100, "invalid challenge name")
+            try require([7, 14, 30].contains(challenge.duration) && challenge.start <= today, "invalid challenge dates")
+            try require(!challenge.habitIDs.isEmpty && challenge.habitIDs.count <= 20 && Set(challenge.habitIDs).count == challenge.habitIDs.count && Set(challenge.habitIDs).isSubset(of: habitIDs), "invalid challenge habits")
+        }
         let prefixes = byID.mapValues { Record.keyPrefix($0.id) }
         for (key, record) in data.records {
             guard let habit = byID[record.habitID], let prefix = prefixes[record.habitID] else { throw BuddyError.invalidData("orphaned record") }
