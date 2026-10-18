@@ -26,14 +26,14 @@ struct ExploreView: View {
             VStack(alignment: .leading, spacing: 12) {
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
                     tile(.insights, "Insights", "sparkles", "violet", "Best and worst days, times and trends")
-                    tile(.calendar, "Calendar", "calendar-days", "sky", "Every habit on one month")
-                    tile(.recap, "Weekly Recap", "calendar-check", "green", recap.eligible == 0 ? "Your week at a glance" : "This week \(Int((recap.rate * 100).rounded()))% kept")
                     if data.settings.notes { tile(.notes, "Notes", "notebook-pen", "amber", notes == 0 ? "Every day note in one place" : "\(notes) \(notes == 1 ? "note" : "notes"), searchable") }
-                    tile(.milestones(nil), "Milestones", "trophy", "orange", badges == 0 ? "Streak and check-in badges" : "\(badges) \(badges == 1 ? "badge" : "badges") earned")
-                    tile(.routines, "Routines", "list-todo", "teal", data.routines.isEmpty ? "Check off habits together" : "\(data.routines.count) \(data.routines.count == 1 ? "routine" : "routines")")
-                    tile(.challenges, "Challenges", "flag", "indigo", data.challenges.isEmpty ? "Build a 7, 14 or 30-day streak" : "\(data.challenges.count) active \(data.challenges.count == 1 ? "challenge" : "challenges")")
+                    tile(.recap, "Weekly Recap", "calendar-check", "green", recap.eligible == 0 ? "Your week at a glance" : "This week \(Int((recap.rate * 100).rounded()))% kept")
+                    tile(.calendar, "Calendar", "calendar-days", "sky", "Every habit on one month")
                     Button { timing = true } label: { label("Timer", "timer", "coral", timer.session == nil ? "Time a session and log it" : "A timer is running") }
                         .buttonStyle(FlatButtonStyle()).accessibilityIdentifier("explore-timer").homeFlow()
+                    tile(.routines, "Routines", "list-todo", "teal", data.routines.isEmpty ? "Check off habits together" : "\(data.routines.count) \(data.routines.count == 1 ? "routine" : "routines")")
+                    tile(.milestones(nil), "Milestones", "trophy", "orange", badges == 0 ? "Streak and check-in badges" : "\(badges) \(badges == 1 ? "badge" : "badges") earned")
+                    tile(.challenges, "Challenges", "flag", "indigo", data.challenges.isEmpty ? "Build a 7, 14 or 30-day streak" : "\(data.challenges.count) active \(data.challenges.count == 1 ? "challenge" : "challenges")")
                 }.padding(.top, 4)
             }.padding(.horizontal, 16).padding(.bottom, 40)
         }
