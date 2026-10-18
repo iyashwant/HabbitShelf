@@ -58,7 +58,7 @@ struct ExploreView: View {
             Text(title).font(BuddyFont.text(17, .semibold)).foregroundStyle(BuddyStyle.text(scheme)).lineLimit(1)
             Text(detail).font(BuddyFont.text(12.5)).foregroundStyle(BuddyStyle.secondaryText(scheme)).lineLimit(detailLines, reservesSpace: true).multilineTextAlignment(.leading).padding(.top, 3)
         }
-        .padding(14).frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
+        .padding(14).frame(maxWidth: .infinity, minHeight: 144, alignment: .topLeading)
         .surface(padding: 0, radius: 22, tint: BuddyStyle.color(color))
         .contentShape(RoundedRectangle(cornerRadius: 22, style: .circular))
         .accessibilityElement(children: .combine).accessibilityAddTraits(.isButton)
