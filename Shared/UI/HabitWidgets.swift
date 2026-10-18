@@ -325,6 +325,8 @@ struct HabitWidgetContent: View {
     }
     private var list: some View {
         let medium = resolvedSize == .medium
+        // Enlarge only a short, large Today List in the dashboard, within its existing widget frame.
+        let largeRows = !medium && onCheck != nil && habits.count <= 3
         return VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline) {
                 Text(heading("Today")).font(BuddyFont.text(medium ? 19 : 22, .heavy)).foregroundStyle(palette.primary).lineLimit(1)
@@ -334,14 +336,14 @@ struct HabitWidgetContent: View {
             if habits.isEmpty { Text("Create habits in HabbitShelf.").font(BuddyFont.text(13)).foregroundStyle(palette.secondary).frame(maxWidth: .infinity, maxHeight: .infinity) }
             ForEach(habits.prefix(medium ? 3 : 6)) { habit in
                 let streak = summaries.streak(habit, data: data, today: today), rowPalette = rowPalette(habit)
-                HStack(spacing: 10) {
-                    HabitCheck(habit: habit, data: data, today: today, size: medium ? 28 : 30, palette: rowPalette, onTap: onCheck.map { action in { action(habit) } })
-                    VStack(alignment: .leading, spacing: medium ? 3 : 4) {
-                        Text(habit.name).font(BuddyFont.text(14, .semibold)).foregroundStyle(palette.primary).lineLimit(1)
-                        WeekStrip(habit: habit, data: data, today: today, palette: rowPalette, cell: medium ? 11 : 12)
+                HStack(spacing: largeRows ? 12 : 10) {
+                    HabitCheck(habit: habit, data: data, today: today, size: largeRows ? 48 : medium ? 28 : 30, palette: rowPalette, onTap: onCheck.map { action in { action(habit) } })
+                    VStack(alignment: .leading, spacing: largeRows ? 6 : medium ? 3 : 4) {
+                        Text(habit.name).font(BuddyFont.text(largeRows ? 20 : 14, .semibold)).foregroundStyle(palette.primary).lineLimit(1)
+                        WeekStrip(habit: habit, data: data, today: today, palette: rowPalette, cell: largeRows ? 16 : medium ? 11 : 12)
                     }
                     Spacer(minLength: 4)
-                    StreakBadge(summary: streak, palette: rowPalette, size: medium ? 15 : 17, trailing: true)
+                    StreakBadge(summary: streak, palette: rowPalette, size: largeRows ? 26 : medium ? 15 : 17, trailing: true)
                 }.frame(maxHeight: .infinity)
             }
         }.padding(14)
