@@ -338,21 +338,25 @@ private struct MorphControl: View {
     var body: some View {
         let current = progress < 0.5 ? from : to, chrome = current ?? from ?? to
         let presence = from == nil ? progress : to == nil ? 1 - progress : 1
-        let filled = chrome?.filled ?? false
-        Button { current?.action() } label: {
-            ZStack {
-                // An icon both pages share stays; one with no counterpart goes with the whole control.
-                if let from { icon(from, shown: to == nil || to?.symbol == from.symbol ? 1 : 1 - progress) }
-                if let to, to.symbol != from?.symbol { icon(to, shown: from == nil ? 1 : progress) }
+        // Glass renders in its own layer: opacity alone can leave a disabled circle or glyph behind on Explore.
+        // Remove the entire control at the absent endpoint, including its glass effect.
+        if presence > 0, let chrome {
+            let filled = chrome.filled
+            Button { current?.action() } label: {
+                ZStack {
+                    // An icon both pages share stays; one with no counterpart goes with the whole control.
+                    if let from { icon(from, shown: to == nil || to?.symbol == from.symbol ? 1 : 1 - progress) }
+                    if let to, to.symbol != from?.symbol { icon(to, shown: from == nil ? 1 : progress) }
+                }
+                .frame(width: 42, height: 42)
+                .glassChrome(in: Circle(), prominent: filled, fill: filled ? accent.color : BuddyStyle.control(scheme), border: filled ? nil : AnyShapeStyle(BuddyStyle.controlBorder(scheme)))
+                .foregroundStyle(filled ? accent.foreground : BuddyStyle.text(scheme)).contentShape(Circle())
             }
-            .frame(width: 42, height: 42)
-            .glassChrome(in: Circle(), prominent: filled, fill: filled ? accent.color : BuddyStyle.control(scheme), border: filled ? nil : AnyShapeStyle(BuddyStyle.controlBorder(scheme)))
-            .foregroundStyle(filled ? accent.foreground : BuddyStyle.text(scheme)).contentShape(Circle())
+            .buttonStyle(.plain).disabled(current?.disabled ?? true)
+            .scaleEffect(reduceMotion ? 1 : 0.55 + 0.45 * presence).opacity(Double(presence))
+            .allowsHitTesting(current != nil)
+            .accessibilityLabel(current?.label ?? "").accessibilityHidden(current == nil)
         }
-        .buttonStyle(.plain).disabled(current?.disabled ?? true)
-        .scaleEffect(reduceMotion ? 1 : 0.55 + 0.45 * presence).opacity(Double(presence))
-        .allowsHitTesting(current != nil)
-        .accessibilityLabel(current?.label ?? "").accessibilityHidden(current == nil)
     }
     /// The icon blurs and turns as it gives way to the other page's, like an SF Symbol replace.
     private func icon(_ button: BarButton, shown: CGFloat) -> some View {

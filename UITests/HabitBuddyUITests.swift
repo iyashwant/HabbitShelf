@@ -3,8 +3,9 @@ import UIKit
 
 final class HabitBuddyUITests:XCTestCase {
     override func setUpWithError() throws {continueAfterFailure=false}
-    private func launch(_ screen:String,theme:String="dark")->XCUIApplication {
+    private func launch(_ screen:String,theme:String="dark",environment:[String:String]=[:])->XCUIApplication {
         let app=XCUIApplication();app.launchEnvironment=["BUDDY_VISUAL_SCREEN":screen,"BUDDY_VISUAL_DATE":"2026-08-18","BUDDY_VISUAL_THEME":theme]
+        app.launchEnvironment.merge(environment) { _, value in value }
         app.launchArguments=["-AppleLanguages","(en)","-AppleLocale","en_US"];app.launch();XCTAssertTrue(app.wait(for:.runningForeground,timeout:15));return app
     }
     private func capture(_ app:XCUIApplication,_ name:String) {
@@ -52,6 +53,55 @@ final class HabitBuddyUITests:XCTestCase {
         app.buttons.matching(NSPredicate(format:"label BEGINSWITH 'Insights'")).firstMatch.tap();XCTAssertTrue(app.buttons["Back"].firstMatch.waitForExistence(timeout:5));XCTAssertFalse(explore.isHittable,"Pages pushed from Explore cover the switcher")
         app.buttons["Back"].firstMatch.tap();XCTAssertTrue(app.buttons["explore-timer"].waitForExistence(timeout:5),"Back returns to Explore")
         app.buttons["cards view"].tap();XCTAssertTrue(app.buttons["Log progress for Gym Day"].waitForExistence(timeout:5));XCTAssertTrue(app.buttons["cards view"].isSelected);XCTAssertFalse(dashboard.isSelected)
+    }
+    /// Glass can remain visible after opacity reaches zero, even though accessibility sees no button.
+    func testExploreRemovesDashboardControls() throws {
+        for (theme, glass) in [("dark", ""), ("dark", "on"), ("light", "on")] {
+            let app = launch("cards", theme: theme, environment: ["BUDDY_VISUAL_GLASS": glass, "BUDDY_VISUAL_ACCENT": "lime"])
+            XCTAssertTrue(app.buttons["Dashboard"].waitForExistence(timeout: 20))
+            app.buttons["Dashboard"].tap()
+            XCTAssertTrue(app.buttons["Edit Dashboard"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.buttons["Add Widget"].isHittable)
+            app.buttons["Explore"].tap()
+            XCTAssertTrue(app.buttons["explore-timer"].waitForExistence(timeout: 5))
+            sleep(1)
+            XCTAssertFalse(app.buttons["Edit Dashboard"].exists)
+            XCTAssertFalse(app.buttons["Add Widget"].exists)
+            try assertExploreToolbarIsEmpty(app)
+            capture(app, "explore-toolbar-\(theme)-\(glass.isEmpty ? "flat" : "glass")")
+            app.buttons["Settings"].tap()
+            XCTAssertTrue(app.buttons["Close Settings"].waitForExistence(timeout: 5))
+            app.buttons["Close Settings"].tap()
+            app.buttons["Dashboard"].tap()
+            XCTAssertTrue(app.buttons["Edit Dashboard"].waitForExistence(timeout: 5))
+            app.buttons["Edit Dashboard"].tap()
+            XCTAssertTrue(app.buttons["Close Edit Dashboard"].waitForExistence(timeout: 5))
+            app.buttons["Close Edit Dashboard"].tap()
+            app.buttons["Explore"].tap()
+            XCTAssertTrue(app.buttons["explore-timer"].waitForExistence(timeout: 5))
+            sleep(1)
+            try assertExploreToolbarIsEmpty(app)
+            app.terminate()
+        }
+    }
+    private func assertExploreToolbarIsEmpty(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) throws {
+        let image = try XCTUnwrap(app.screenshot().image.cgImage)
+        let settings = app.buttons["Settings"].frame
+        let scale = CGFloat(image.width) / app.frame.width
+        // Below the status bar and above the tiles: only the canvas belongs in the trailing two button slots.
+        let region = CGRect(x: app.frame.width - 112, y: settings.minY, width: 102, height: settings.height)
+        let crop = try XCTUnwrap(image.cropping(to: region.applying(CGAffineTransform(scaleX: scale, y: scale))))
+        let width = crop.width, height = crop.height
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        let context = try XCTUnwrap(CGContext(data: &pixels, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+                                             space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        context.draw(crop, in: CGRect(x: 0, y: 0, width: width, height: height))
+        let background = Array(pixels[0..<3]).map(Int.init)
+        let marks = stride(from: 0, to: pixels.count, by: 4).filter { offset in
+            (0..<3).contains { abs(Int(pixels[offset + $0]) - background[$0]) > 30 }
+        }.count
+        XCTAssertLessThan(Double(marks) / Double(width * height), 0.001,
+                          "Explore must not leave disabled dashboard glyphs or glass circles on screen", file: file, line: line)
     }
     /// The pages pushed over the overview draw their own top bar; swiping in from the left edge still goes back.
     func testSwipingFromTheLeftEdgeGoesBack() {

@@ -259,3 +259,10 @@ Not checked:
 - `bash scripts/check-ios.sh` passed: 96 XCTest tests plus 11 Swift Testing tests, project checks, and the app/widget simulator build. The signed Release device build also passed with Xcode 27.1.
 - Visually checked the isolated `streak-history` fixture on an iPhone 18 Pro simulator in dark and light themes. The header shows the green flame and 12, the name and completion control fit, and the grid has no streak footer or leftover gap. Large Dynamic Type and long-name stress cases were not separately exercised.
 - Installed the signed update in place on the owner's iPhone 15 Pro and launched it successfully. Physical-device visual inspection was unavailable because iPhone Mirroring reported that the phone was in use. No habit records or appearance settings were modified by this code change.
+
+## Explore toolbar cleanup, 19 October 2026 (local Mac)
+
+- The shared top bar now removes Dashboard's Edit Dashboard and Add Widget controls, including their Liquid Glass effects, when they reach zero presence on Explore. Their existing actions and transition behavior on Dashboard are retained.
+- `bash scripts/check-ios.sh` passed with Xcode 27.1: 98 XCTest tests and 11 Swift Testing tests, project checks, and the unsigned iOS 26.0 app/widget simulator build. The first run failed the existing icon-suggestion timing threshold while the simulator was starting; the recheck passed after it was stopped. Existing actor-isolation warnings in `HomePager.swift` are outside the edited control.
+- `build-for-testing` passed, including a new UI regression that checks the actual trailing toolbar pixels as well as accessibility in dark flat, dark glass and light glass appearances, and checks Settings and Edit Dashboard navigation after switching pages.
+- The targeted UI run stalled during simulator test startup and was interrupted. No completed UI test, before/after app screenshot, or physical-device validation is claimed for this change. The new visual regression still needs a completed simulator/device run. No physical-device update was installed.
