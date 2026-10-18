@@ -25,15 +25,15 @@ struct ExploreView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                    tile(.insights, "Insights", "sparkles", "violet", "Best and worst days, times and trends")
-                    if data.settings.notes { tile(.notes, "Notes", "notebook-pen", "amber", notes == 0 ? "Every day note in one place" : "\(notes) \(notes == 1 ? "note" : "notes"), searchable") }
+                    tile(.insights, "Insights", "sparkles", "violet", "Best and worst days, times and trends", detailLines: 2)
+                    if data.settings.notes { tile(.notes, "Notes", "notebook-pen", "amber", notes == 0 ? "Every day note in one place" : "\(notes) \(notes == 1 ? "note" : "notes"), searchable", detailLines: 2) }
                     tile(.recap, "Weekly Recap", "calendar-check", "green", recap.eligible == 0 ? "Your week at a glance" : "This week \(Int((recap.rate * 100).rounded()))% kept")
-                    tile(.calendar, "Calendar", "calendar-days", "sky", "Every habit on one month")
-                    Button { timing = true } label: { label("Timer", "timer", "coral", timer.session == nil ? "Time a session and log it" : "A timer is running") }
+                    tile(.calendar, "Calendar", "calendar-days", "sky", "Monthly overview")
+                    Button { timing = true } label: { label("Timer", "timer", "coral", timer.session == nil ? "Time a habit" : "Timer running") }
                         .buttonStyle(FlatButtonStyle()).accessibilityIdentifier("explore-timer").homeFlow()
-                    tile(.routines, "Routines", "list-todo", "teal", data.routines.isEmpty ? "Check off habits together" : "\(data.routines.count) \(data.routines.count == 1 ? "routine" : "routines")")
-                    tile(.milestones(nil), "Milestones", "trophy", "orange", badges == 0 ? "Streak and check-in badges" : "\(badges) \(badges == 1 ? "badge" : "badges") earned")
-                    tile(.challenges, "Challenges", "flag", "indigo", data.challenges.isEmpty ? "Build a 7, 14 or 30-day streak" : "\(data.challenges.count) active \(data.challenges.count == 1 ? "challenge" : "challenges")")
+                    tile(.routines, "Routines", "list-todo", "teal", data.routines.isEmpty ? "Check off together" : "\(data.routines.count) \(data.routines.count == 1 ? "routine" : "routines")")
+                    tile(.milestones(nil), "Milestones", "trophy", "orange", badges == 0 ? "Earn badges" : "\(badges) \(badges == 1 ? "badge" : "badges") earned")
+                    tile(.challenges, "Challenges", "flag", "indigo", data.challenges.isEmpty ? "7, 14 or 30 days" : "\(data.challenges.count) \(data.challenges.count == 1 ? "challenge" : "challenges")")
                 }.padding(.top, 4)
             }.padding(.horizontal, 16).padding(.bottom, 40)
         }
@@ -47,16 +47,16 @@ struct ExploreView: View {
             if let value = await offMain({ Summary(data: data, today: today) }) { summary = value }
         }
     }
-    private func tile(_ route: OverviewRoute, _ title: String, _ icon: String, _ color: String, _ detail: String) -> some View {
-        NavigationLink(value: route) { label(title, icon, color, detail) }.buttonStyle(FlatButtonStyle()).homeFlow()
+    private func tile(_ route: OverviewRoute, _ title: String, _ icon: String, _ color: String, _ detail: String, detailLines: Int = 1) -> some View {
+        NavigationLink(value: route) { label(title, icon, color, detail, detailLines: detailLines) }.buttonStyle(FlatButtonStyle()).homeFlow()
     }
-    private func label(_ title: String, _ icon: String, _ color: String, _ detail: String) -> some View {
+    private func label(_ title: String, _ icon: String, _ color: String, _ detail: String, detailLines: Int = 1) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             LucideIcon(icon, size: 21).foregroundStyle(BuddyStyle.color(color)).frame(width: 42, height: 42)
                 .background(BuddyStyle.color(color).opacity(0.14), in: RoundedRectangle(cornerRadius: 12, style: .circular))
             Spacer(minLength: 12)
             Text(title).font(BuddyFont.text(17, .semibold)).foregroundStyle(BuddyStyle.text(scheme)).lineLimit(1)
-            Text(detail).font(BuddyFont.text(12.5)).foregroundStyle(BuddyStyle.secondaryText(scheme)).lineLimit(2, reservesSpace: true).multilineTextAlignment(.leading).padding(.top, 3)
+            Text(detail).font(BuddyFont.text(12.5)).foregroundStyle(BuddyStyle.secondaryText(scheme)).lineLimit(detailLines, reservesSpace: true).multilineTextAlignment(.leading).padding(.top, 3)
         }
         .padding(14).frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
         .surface(padding: 0, radius: 22, tint: BuddyStyle.color(color))
