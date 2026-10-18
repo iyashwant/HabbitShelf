@@ -193,6 +193,8 @@ struct HabitWidgetContent: View {
     /// In the app, the store's versions of every habit shown, including a routine's. With them the design redraws
     /// only when one of those habits or its own options change, not each time another habit is logged.
     var versions: [HabitVersion]?
+    /// Dashboard lists size to their rows; WidgetKit keeps its compact, fixed-family layout.
+    var inDashboard = false
     /// Logs today in the app; nil on the home screen, where the check runs an intent.
     var onCheck: ((Habit) -> Void)?
     /// Completes a routine in the app; nil on the home screen, where the button runs an intent.
@@ -325,26 +327,35 @@ struct HabitWidgetContent: View {
     }
     private var list: some View {
         let medium = resolvedSize == .medium
-        return VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(heading("Today")).font(BuddyFont.text(medium ? 19 : 22, .heavy)).foregroundStyle(palette.primary).lineLimit(1)
-                Spacer()
-                Text(Day.longDay.string(from: today.date)).font(BuddyFont.text(11, .medium)).foregroundStyle(palette.secondary).lineLimit(1)
-            }.padding(.bottom, medium ? 4 : 8)
-            if habits.isEmpty { Text("Create habits in HabbitShelf.").font(BuddyFont.text(13)).foregroundStyle(palette.secondary).frame(maxWidth: .infinity, maxHeight: .infinity) }
+        return VStack(alignment: .leading, spacing: inDashboard ? 12 : 0) {
+            listHeader(medium: medium).padding(.bottom, inDashboard ? 2 : medium ? 4 : 8)
+            if habits.isEmpty { Text("Create habits in HabbitShelf.").font(BuddyFont.text(inDashboard ? 15 : 13)).foregroundStyle(palette.secondary).frame(maxWidth: .infinity, minHeight: inDashboard ? 60 : nil, maxHeight: inDashboard ? nil : .infinity) }
             ForEach(habits.prefix(medium ? 3 : 6)) { habit in
                 let streak = summaries.streak(habit, data: data, today: today), rowPalette = rowPalette(habit)
-                HStack(spacing: 10) {
-                    HabitCheck(habit: habit, data: data, today: today, size: medium ? 28 : 30, palette: rowPalette, onTap: onCheck.map { action in { action(habit) } })
-                    VStack(alignment: .leading, spacing: medium ? 3 : 4) {
-                        Text(habit.name).font(BuddyFont.text(14, .semibold)).foregroundStyle(palette.primary).lineLimit(1)
-                        WeekStrip(habit: habit, data: data, today: today, palette: rowPalette, cell: medium ? 11 : 12)
+                HStack(spacing: inDashboard ? 12 : 10) {
+                    HabitCheck(habit: habit, data: data, today: today, size: inDashboard ? 44 : medium ? 28 : 30, palette: rowPalette, onTap: onCheck.map { action in { action(habit) } })
+                    VStack(alignment: .leading, spacing: inDashboard ? 5 : medium ? 3 : 4) {
+                        Text(habit.name).font(BuddyFont.text(inDashboard ? 17 : 14, .semibold)).foregroundStyle(palette.primary).lineLimit(inDashboard ? 2 : 1)
+                        WeekStrip(habit: habit, data: data, today: today, palette: rowPalette, cell: inDashboard ? 14 : medium ? 11 : 12)
                     }
+                    .frame(maxWidth: inDashboard ? .infinity : nil, alignment: .leading)
                     Spacer(minLength: 4)
-                    StreakBadge(summary: streak, palette: rowPalette, size: medium ? 15 : 17, trailing: true)
-                }.frame(maxHeight: .infinity)
+                    StreakBadge(summary: streak, palette: rowPalette, size: inDashboard ? 22 : medium ? 15 : 17, trailing: true)
+                }.frame(minHeight: inDashboard ? 52 : nil, maxHeight: inDashboard ? nil : .infinity)
             }
-        }.padding(14)
+        }.padding(inDashboard ? 16 : 14)
+    }
+    @ViewBuilder private func listHeader(medium: Bool) -> some View {
+        let title = Text(heading("Today")).font(BuddyFont.text(inDashboard ? 22 : medium ? 19 : 22, .heavy)).foregroundStyle(palette.primary)
+        let date = Text(Day.longDay.string(from: today.date)).font(BuddyFont.text(inDashboard ? 12 : 11, .medium)).foregroundStyle(palette.secondary)
+        if inDashboard {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline) { title.fixedSize(); Spacer(minLength: 12); date.fixedSize() }
+                VStack(alignment: .leading, spacing: 4) { title; date }
+            }
+        } else {
+            HStack(alignment: .firstTextBaseline) { title.lineLimit(1); Spacer(); date.lineLimit(1) }
+        }
     }
     /// The widget's own title, or the design's default.
     func heading(_ fallback: String) -> String {
@@ -360,7 +371,7 @@ extension HabitWidgetContent: Equatable {
     static func == (a: HabitWidgetContent, b: HabitWidgetContent) -> Bool {
         guard let versions = a.versions, versions == b.versions else { return false }
         return a.kind == b.kind && a.size == b.size && a.habit == b.habit && a.habits == b.habits && a.routine == b.routine
-            && a.title == b.title && a.today == b.today && a.palette == b.palette
+            && a.title == b.title && a.today == b.today && a.palette == b.palette && a.inDashboard == b.inDashboard
     }
 }
 
