@@ -418,7 +418,7 @@ struct WidgetConfigurator: View {
                     if !isNew {
                         Button(role: .destructive) { DashboardLayout.save(store, DashboardLayout.current(store).filter { $0.id != widget.id }); dismiss() } label: { Text("Remove Widget").font(BuddyFont.text(15, .medium)).frame(maxWidth: .infinity, minHeight: 44) }
                     }
-                    Text("Every design is also a home screen widget, in the same sizes: touch and hold the home screen, tap Edit, then Add Widget and search for HabbitShelf. Home screen widgets choose their habits and theme in Edit Widget and keep each habit's color.")
+                    Text("Every design is also a home screen widget, in the same sizes: touch and hold the home screen, tap Edit, then Add Widget and search for HabitShelf. Home screen widgets choose their habits and theme in Edit Widget and keep each habit's color.")
                         .font(BuddyFont.text(12)).foregroundStyle(BuddyStyle.tertiaryText(scheme))
                 }.padding(16).padding(.bottom, 80)
             }.scrollIndicators(.hidden).scrollDismissesKeyboard(.interactively)

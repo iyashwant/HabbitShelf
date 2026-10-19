@@ -49,7 +49,7 @@ struct YearReviewView: View {
         VStack(alignment: .leading, spacing: format == "Compact" ? 12 : 20) {
             HStack(alignment: .lastTextBaseline) {
                 Text(String(year)).font(.system(size: format == "Poster" ? 72 : 42, weight: .bold)); Spacer()
-                VStack(alignment: .trailing, spacing: 2) { Text("HabbitShelf").font(.caption.weight(.semibold)); if count > 1 { Text("\(page + 1) of \(count)").font(.caption2).foregroundStyle(.secondary) } }
+                VStack(alignment: .trailing, spacing: 2) { Text("HabitShelf").font(.caption.weight(.semibold)); if count > 1 { Text("\(page + 1) of \(count)").font(.caption2).foregroundStyle(.secondary) } }
             }
             Text(total.map { "\($0) completions" } ?? " ").font(format == "Poster" ? .title2.bold() : .headline).foregroundStyle(accent.color).monospacedDigit()
             if format == "Grid" {
@@ -74,7 +74,7 @@ struct YearReviewView: View {
             do {
                 var files: [URL] = []
                 for (n, page) in pages.enumerated() {
-                    let name = pages.count == 1 ? "habbitshelf-\(year).png" : "habbitshelf-\(year)-\(n + 1).png"
+                    let name = pages.count == 1 ? "habitshelf-\(year).png" : "habitshelf-\(year)-\(n + 1).png"
                     files.append(try await ImageExport.png(review(page, page: n, of: pages.count), width: format == "Grid" ? 720 : 540, scale: 2, name: name))
                 }
                 outputs = files

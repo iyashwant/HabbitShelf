@@ -172,7 +172,7 @@ extension HabitWidgetContent {
                     caption("\(done)/\(habits.count) done")
                 }
             }
-            if habits.isEmpty { placeholder("Create habits in HabbitShelf.") }
+            if habits.isEmpty { placeholder("Create habits in HabitShelf.") }
             else {
                 Grid(horizontalSpacing: 4, verticalSpacing: size == .large ? 12 : names ? 8 : 10) {
                     ForEach(0..<rows, id: \.self) { row in

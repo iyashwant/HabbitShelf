@@ -66,7 +66,7 @@ struct TimerView: View {
                     }
                 }
                 if let habit { Text("\(TimerController.summary(habit)). It logs to the day the timer starts.").font(BuddyFont.text(12.5)).foregroundStyle(BuddyStyle.tertiaryText(scheme)) }
-                if !timer.liveActivitiesEnabled { Text("Live Activities are off for HabbitShelf, so the timer shows only in the app. Turn them on in Settings to see it on the Lock Screen.").font(BuddyFont.text(12.5)).foregroundStyle(BuddyStyle.tertiaryText(scheme)) }
+                if !timer.liveActivitiesEnabled { Text("Live Activities are off for HabitShelf, so the timer shows only in the app. Turn them on in Settings to see it on the Lock Screen.").font(BuddyFont.text(12.5)).foregroundStyle(BuddyStyle.tertiaryText(scheme)) }
             }.padding(.horizontal, 16).padding(.bottom, 110)
         }
         .scrollIndicators(.hidden)

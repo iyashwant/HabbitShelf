@@ -305,7 +305,7 @@ struct HabitWidgetContent: View {
                     ring.frame(maxHeight: .infinity)
                     VStack(alignment: .leading, spacing: 7) {
                         header.padding(.bottom, 1)
-                        if habits.isEmpty { Text("Create habits in HabbitShelf.").font(BuddyFont.text(13)).foregroundStyle(palette.secondary) }
+                        if habits.isEmpty { Text("Create habits in HabitShelf.").font(BuddyFont.text(13)).foregroundStyle(palette.secondary) }
                         else if open.isEmpty { Label("Everything's done", systemImage: "checkmark.circle.fill").font(BuddyFont.text(13.5, .medium)).foregroundStyle(palette.primary) }
                         ForEach(shown) { habit in
                             HStack(spacing: 8) {
@@ -333,7 +333,7 @@ struct HabitWidgetContent: View {
                 Spacer()
                 Text(Day.longDay.string(from: today.date)).font(BuddyFont.text(11, .medium)).foregroundStyle(palette.secondary).lineLimit(1)
             }.padding(.bottom, medium ? 4 : 8)
-            if habits.isEmpty { Text("Create habits in HabbitShelf.").font(BuddyFont.text(13)).foregroundStyle(palette.secondary).frame(maxWidth: .infinity, maxHeight: .infinity) }
+            if habits.isEmpty { Text("Create habits in HabitShelf.").font(BuddyFont.text(13)).foregroundStyle(palette.secondary).frame(maxWidth: .infinity, maxHeight: .infinity) }
             ForEach(habits.prefix(medium ? 3 : 6)) { habit in
                 let streak = summaries.streak(habit, data: data, today: today), rowPalette = rowPalette(habit)
                 HStack(spacing: largeRows ? 12 : 10) {

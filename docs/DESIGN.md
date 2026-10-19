@@ -131,4 +131,4 @@ Reduce Transparency always gives regular glass without the control-color layer. 
 
 ## Visible app name
 
-At the owner's request, the visible product name is **HabbitShelf**. The repository remains `habbit-buddy`. Existing bundle IDs, App Group, storage directory, widget kinds and `habitbuddy` deep links stay unchanged so the renamed app can update the installed app and reuse its data. App and widget display names, in-app copy, share branding and suggested export filenames use the new name.
+At the owner's request, the visible product name is **HabitShelf**. The repository remains `habbit-buddy`. Existing bundle IDs, App Group, storage directory, widget kinds and `habitbuddy` deep links stay unchanged so the renamed app can update the installed app and reuse its data. App and widget display names, in-app copy, share branding and suggested export filenames use the new name.

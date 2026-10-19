@@ -130,7 +130,7 @@ struct YearPoster: View {
                 VStack(alignment: .trailing, spacing: 3) {
                     Text("\(stats.completions) of \(stats.eligible) days • \(Int((stats.rate * 100).rounded()))%")
                     Text("\(stats.longestRun) days: longest streak")
-                    Text("HabbitShelf").foregroundStyle(palette.secondary)
+                    Text("HabitShelf").foregroundStyle(palette.secondary)
                 }.font(BuddyFont.text(12, .medium)).foregroundStyle(palette.primary).multilineTextAlignment(.trailing)
             }
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 18), count: 3), alignment: .leading, spacing: 20) {

@@ -315,7 +315,7 @@ final class HabitBuddyUITests:XCTestCase {
         XCTAssertTrue(app.buttons["Edit Dashboard"].waitForExistence(timeout:10));XCTAssertEqual(pushUps.count,before+2,"Duplicate adds a copy of the widget")
         capture(app,"dashboard-quick-check-added")
     }
-    /// Opt-in, on a simulator kept for it: loads the sample habits into the real store, pages through HabbitShelf's
+    /// Opt-in, on a simulator kept for it: loads the sample habits into the real store, pages through HabitShelf's
     /// widget gallery and adds widgets to the Home Screen. Widgets need the App Group, so build signed to run locally
     /// (without CODE_SIGNING_ALLOWED=NO) and pass TEST_RUNNER_BUDDY_HOME_WIDGETS=1.
     func testHomeScreenWidgetGallery() throws {
@@ -337,18 +337,18 @@ final class HabitBuddyUITests:XCTestCase {
             }
             springboard.buttons["Edit"].tap()
             let add=springboard.buttons["Add Widget"];guard add.waitForExistence(timeout:5) else{dump("no add widget");return false};add.tap()
-            let cell=springboard.cells["HabbitShelf"];guard cell.waitForExistence(timeout:8) else{dump("no app cell");return false}
+            let cell=springboard.cells["HabitShelf"];guard cell.waitForExistence(timeout:8) else{dump("no app cell");return false}
             for _ in 0..<4{if cell.isHittable{break};springboard.swipeUp()}
             cell.tap();return springboard.pageIndicators.firstMatch.waitForExistence(timeout:8)
         }
         let pager=springboard.pageIndicators.matching(NSPredicate(format:"value BEGINSWITH 'page '")).firstMatch
         func next(){springboard.coordinate(withNormalizedOffset:CGVector(dx:0.85,dy:0.6)).press(forDuration:0.05,thenDragTo:springboard.coordinate(withNormalizedOffset:CGVector(dx:0.15,dy:0.6)));sleep(2)}
-        /// The preview on screen, such as "HabbitShelf, Quick Check|Widget, Medium".
+        /// The preview on screen, such as "HabitShelf, Quick Check|Widget, Medium".
         func showing()->String {
-            let previews=springboard.buttons.matching(NSPredicate(format:"label BEGINSWITH 'HabbitShelf, '")).allElementsBoundByIndex
+            let previews=springboard.buttons.matching(NSPredicate(format:"label BEGINSWITH 'HabitShelf, '")).allElementsBoundByIndex
             return previews.first{$0.exists && $0.frame.minX>=0 && $0.frame.maxX<=springboard.frame.width}.map{"\($0.label)|\($0.value as? String ?? "")"} ?? ""
         }
-        guard openGallery() else{XCTFail("Couldn't open HabbitShelf's widget gallery");return}
+        guard openGallery() else{XCTFail("Couldn't open HabitShelf's widget gallery");return}
         sleep(2);var last=""
         for page in 0..<30 {
             let value=pager.value as? String ?? "";if value==last{break};last=value
@@ -360,7 +360,7 @@ final class HabitBuddyUITests:XCTestCase {
         for (name,size) in [("This Year","Medium"),("Goal Ring","Small"),("Routine","Small"),("Quick Check","Medium")] {
             guard openGallery() else{XCTFail("Couldn't reopen the gallery");return}
             sleep(1);var found=false
-            for _ in 0..<26 { if showing()=="HabbitShelf, \(name)|Widget, \(size)" {found=true;break};next() }
+            for _ in 0..<26 { if showing()=="HabitShelf, \(name)|Widget, \(size)" {found=true;break};next() }
             XCTAssertTrue(found,"\(name) \(size) is in the gallery");guard found else{continue}
             springboard.buttons[" Add Widget"].firstMatch.tap();sleep(2)
             if springboard.buttons["Done"].waitForExistence(timeout:5){springboard.buttons["Done"].tap()};sleep(2);XCUIDevice.shared.press(.home);sleep(1)
