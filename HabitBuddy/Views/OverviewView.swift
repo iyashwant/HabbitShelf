@@ -21,12 +21,14 @@ struct OverviewView: View {
     @State private var settings = false
     @State private var settingsStart: SettingsPage?
     @State private var compactSettings = false
+    @State private var calendarLayouts = false
     @State private var stats = false
     @State private var reorder = false
     @State private var routine: Routine?
     @State private var timing = false
     @State private var category: UUID?
     @State private var month = Day().startOfMonth
+    @State private var calendarYear = Day().yearNumber
     @State private var page = HomePage.habits
     /// The bottom bar's pages under the finger; `page` and the layout follow it once it settles.
     @State private var pager = HomePager()
@@ -74,6 +76,9 @@ struct OverviewView: View {
                     habitsPage(store.settings.layout, stop: Self.stop(store.settings.layout))
                         .home(canvas: scheme, feedback: arranged, haptics: store.settings.haptics)
                         .homeBar(settings: { settings = true }) {
+                            if store.settings.layout == .month {
+                                CircleControl(symbol: "layout-grid", label: "Change Calendar Layout") { calendarLayouts = true }
+                            }
                             CircleControl(symbol: "compass", label: "Explore") { open(.explore) }
                             CircleControl(symbol: "layout-dashboard", label: "Dashboard") { open(.dashboard) }
                             CircleControl(symbol: "stats", label: "Statistics") { stats = true }
@@ -120,6 +125,7 @@ struct OverviewView: View {
             // Settings takes the overview's scheme explicitly and follows a theme chosen while it is open.
             .sheet(isPresented: $settings) { SettingsView(start: settingsStart).buddySheet().preferredColorScheme(scheme) }
             .sheet(isPresented: $compactSettings) { CompactListSettingsView() }
+            .sheet(isPresented: $calendarLayouts) { CalendarLayoutPicker() }
             .sheet(isPresented: $stats) { StatisticsView().buddySheet() }
             .sheet(isPresented: $reorder) { ReorderView() }
             .sheet(item: $routine) { RoutineSheet(routineID: $0.id).buddySheet(partial: true).presentationDetents([.medium, .large]) }
@@ -169,10 +175,11 @@ struct OverviewView: View {
     /// The shared top bar's controls for each page.
     private func barButtons(_ stop: Int) -> [BarButton?] {
         switch stop {
-        case 4: [BarButton(symbol: "sliders-horizontal", label: "Edit Dashboard", glyph: 18) { dashboardEditing = true },
+        case 4: [nil, BarButton(symbol: "sliders-horizontal", label: "Edit Dashboard", glyph: 18) { dashboardEditing = true },
                  BarButton(symbol: "plus", label: "Add Widget", filled: true, glyph: 19, disabled: store.visible.active.isEmpty) { dashboardAdding = true }]
-        case 5: [nil, nil]
-        default: [BarButton(symbol: "stats", label: "Statistics", glyph: 21) { stats = true },
+        case 5: [nil, nil, nil]
+        default: [stop == 2 ? BarButton(symbol: "layout-grid", label: "Change Calendar Layout", glyph: 19) { calendarLayouts = true } : nil,
+                  BarButton(symbol: "stats", label: "Statistics", glyph: 21) { stats = true },
                   BarButton(symbol: "plus", label: "Create Habit", filled: true, glyph: 19) { editor = .draft() }]
         }
     }
@@ -210,7 +217,7 @@ struct OverviewView: View {
                     switch layout {
                     case .cards: LazyVStack(spacing: 15.3) { ForEach(habits) { habit in card(habit, stop: stop).homeFlow() } }
                     case .compact: compact(stop)
-                    case .month: monthGrid(stop)
+                    case .month: calendarPage(stop)
                     case .streaks, .weeks: tileGrid(.streak, stop: stop)
                     case .rings: tileGrid(.ring, stop: stop)
                     case .year: tileGrid(.year, columns: 1, stop: stop)
@@ -409,6 +416,49 @@ struct OverviewView: View {
         LazyVGrid(columns:Array(repeating:GridItem(.flexible(),spacing:8),count:3),spacing:10) {
             ForEach(habits) { habit in MonthHabitCard(habit:habit,data:store.data,version:store.version(habit.id),onOpen:{path.append(.habit(habit.id))},onComplete:{tap(habit,Day())}).equatable().matchedTransitionSource(id:ZoomSource(stop:stop,habit:habit.id),in:zoom){$0.clipShape(RoundedRectangle(cornerRadius:16,style:.circular))}.contextMenu{habitMenu(habit)}.homeFlow() }
         }
+    }
+    @ViewBuilder private func calendarPage(_ stop: Int) -> some View {
+        switch store.settings.calendarLayout ?? .grid {
+        case .grid: monthGrid(stop)
+        case .month:
+            calendarNavigation(yearly: false).homeFlow()
+            LazyVStack(spacing: 16) {
+                ForEach(habits) { habit in
+                    CalendarMonthCard(habit: habit, data: store.visible, version: store.version(habit.id), month: month,
+                                      onOpen: { path.append(.habit(habit.id)) }, onEdit: { daySelection = DaySelection(habit: habit, day: $0) })
+                        .equatable()
+                        .matchedTransitionSource(id: ZoomSource(stop: stop, habit: habit.id), in: zoom)
+                        .contextMenu { habitMenu(habit) }.homeFlow(after: 1)
+                }
+            }.padding(.horizontal, 8)
+        case .year:
+            calendarNavigation(yearly: true).homeFlow()
+            LazyVStack(spacing: 16) {
+                ForEach(habits) { habit in
+                    CalendarYearCard(habit: habit, data: store.visible, version: store.version(habit.id), year: calendarYear,
+                                     onOpen: { path.append(.habit(habit.id)) })
+                        .equatable()
+                        .matchedTransitionSource(id: ZoomSource(stop: stop, habit: habit.id), in: zoom)
+                        .contextMenu { habitMenu(habit) }.homeFlow(after: 1)
+                }
+            }.padding(.horizontal, 8)
+        }
+    }
+    private func calendarNavigation(yearly: Bool) -> some View {
+        let earliest = Day(rawValue: "1970-01-01")!
+        return HStack {
+            MonthArrow(next: false) { if yearly { calendarYear -= 1 } else { shiftMonth(-1) } }
+                .disabled(yearly ? calendarYear <= earliest.yearNumber : month <= earliest)
+                .accessibilityLabel(yearly ? "Previous year" : "Previous month")
+            Spacer()
+            Text(yearly ? String(calendarYear) : Day.fullMonthYear.string(from: month.date))
+                .font(BuddyFont.text(22, .bold)).foregroundStyle(BuddyStyle.text(scheme))
+                .accessibilityIdentifier("calendar-period")
+            Spacer()
+            MonthArrow(next: true) { if yearly { calendarYear += 1 } else { shiftMonth(1) } }
+                .disabled(yearly ? calendarYear >= Day().yearNumber : month >= Day().startOfMonth)
+                .accessibilityLabel(yearly ? "Next year" : "Next month")
+        }.padding(.horizontal, 8).padding(.top, 4)
     }
     @ViewBuilder private func habitMenu(_ habit: Habit) -> some View {
         Button("Edit Habit", systemImage: "pencil") { editor = habit }

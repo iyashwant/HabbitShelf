@@ -6,6 +6,8 @@ public enum Cadence: String, Codable, CaseIterable, Sendable { case none, daily,
 public enum TapAction: String, Codable, CaseIterable, Sendable { case addOne, enterTotal }
 public enum Theme: String, Codable, CaseIterable, Sendable { case system, light, dark }
 public enum Layout: String, Codable, CaseIterable, Sendable { case cards, compact, month, streaks, list, rings, weeks, year }
+/// The three presentations of the bottom bar's Month page; independent of the other habit layouts.
+public enum CalendarLayout: String, Codable, CaseIterable, Sendable { case grid, month, year }
 /// Widget sizes as on the home screen: small takes half a dashboard row, medium a full row, large a full row at double height.
 public enum WidgetSize: String, Codable, CaseIterable, Sendable { case small, medium, large }
 /// Dashboard and home-screen widget designs.
@@ -205,6 +207,8 @@ public struct CardAppearance: Codable, Equatable, Sendable {
 public struct Settings: Codable, Equatable, Sendable {
     public var theme: Theme = .dark
     public var layout: Layout = .cards
+    /// Nil preserves the original compact month grid for existing stores and backups.
+    public var calendarLayout: CalendarLayout?
     public var weekStart = 2
     public var recentDays = 5
     public var showToday = true
@@ -236,7 +240,7 @@ public struct Settings: Codable, Equatable, Sendable {
     /// Liquid Glass on the floating controls; nil has never been customized (off) and is not written.
     public var glass: GlassSettings?
     public init() {}
-    enum CodingKeys: String, CodingKey { case theme, accent, glass, layout, weekStart, recentDays, showToday, notes, haptics, showDescriptions, showStreak, showGoal, showCompletionIndicator, showMonthLabels, showWeekdayLabels, showCategoryIcons, showCategoryFilter, showLayoutSwitcher, compactNames, dragToReorder, onboarding, checkIn, checkInTitle, checkInBody, dashboard, freezesPerMonth, recapReminder }
+    enum CodingKeys: String, CodingKey { case theme, accent, glass, layout, calendarLayout, weekStart, recentDays, showToday, notes, haptics, showDescriptions, showStreak, showGoal, showCompletionIndicator, showMonthLabels, showWeekdayLabels, showCategoryIcons, showCategoryFilter, showLayoutSwitcher, compactNames, dragToReorder, onboarding, checkIn, checkInTitle, checkInBody, dashboard, freezesPerMonth, recapReminder }
     public init(from decoder: Decoder) throws {
         self.init()
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -244,6 +248,7 @@ public struct Settings: Codable, Equatable, Sendable {
         accent = try c.decodeIfPresent(String.self, forKey: .accent)
         glass = try c.decodeIfPresent(GlassSettings.self, forKey: .glass)
         layout = try c.decodeIfPresent(Layout.self, forKey: .layout) ?? layout
+        calendarLayout = try c.decodeIfPresent(CalendarLayout.self, forKey: .calendarLayout)
         weekStart = try c.decodeIfPresent(Int.self, forKey: .weekStart) ?? weekStart
         recentDays = try c.decodeIfPresent(Int.self, forKey: .recentDays) ?? recentDays
         showToday = try c.decodeIfPresent(Bool.self, forKey: .showToday) ?? showToday

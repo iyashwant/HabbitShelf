@@ -14,6 +14,64 @@ final class HabitBuddyUITests:XCTestCase {
         let size=24_576,total=(bytes.count+size-1)/size
         for i in 0..<total{let part=bytes.subdata(in:i*size..<min(bytes.count,(i+1)*size));print("BUDDY_CAPTURE|\(name)|\(i)|\(total)|\(part.base64EncodedString())")}
     }
+    func testThirdTabCalendarLayoutsAndPersistence() {
+        let app = launch("cards")
+        XCTAssertTrue(app.buttons["month view"].waitForExistence(timeout: 20))
+        app.buttons["month view"].tap()
+        let change = app.buttons["Change Calendar Layout"]
+        XCTAssertTrue(change.waitForExistence(timeout: 5))
+        change.tap()
+        XCTAssertTrue(app.buttons["calendar-layout-grid"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["calendar-layout-grid"].isSelected)
+        capture(app, "calendar-layout-picker")
+        app.buttons["calendar-layout-month"].tap()
+        XCTAssertTrue(app.staticTexts["calendar-period"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["calendar-period"].label, "August 2026")
+        let day = app.buttons["calendar-day-00000000-0000-0000-0000-000000000001-2026-08-18"]
+        XCTAssertTrue(day.waitForExistence(timeout: 5))
+        capture(app, "calendar-month-dark")
+        day.tap()
+        XCTAssertTrue(app.buttons["Save"].waitForExistence(timeout: 5), "A calendar day opens the shared editor")
+        app.buttons["Cancel"].tap()
+        app.buttons["Previous month"].tap()
+        XCTAssertEqual(app.staticTexts["calendar-period"].label, "July 2026")
+        app.buttons["Next month"].tap()
+        change.tap()
+        app.buttons["calendar-layout-year"].tap()
+        XCTAssertEqual(app.staticTexts["calendar-period"].label, "2026")
+        XCTAssertTrue(app.staticTexts["Jan"].firstMatch.exists)
+        XCTAssertTrue(app.staticTexts["Dec"].firstMatch.exists)
+        capture(app, "calendar-year-dark")
+        app.buttons["Previous year"].tap()
+        XCTAssertEqual(app.staticTexts["calendar-period"].label, "2025")
+        app.buttons["Next year"].tap()
+        app.buttons["cards view"].tap()
+        XCTAssertFalse(change.exists, "The extra control belongs only to the third tab")
+        app.buttons["month view"].tap()
+        XCTAssertEqual(app.staticTexts["calendar-period"].label, "2026")
+        app.terminate()
+        app.launchEnvironment["BUDDY_VISUAL_RESET"] = "false"
+        app.launch()
+        XCTAssertTrue(change.waitForExistence(timeout: 20))
+        XCTAssertEqual(app.staticTexts["calendar-period"].label, "2026", "The chosen layout survives relaunch")
+        change.tap()
+        XCTAssertTrue(app.buttons["calendar-layout-year"].isSelected)
+        app.buttons["calendar-layout-grid"].tap()
+        XCTAssertFalse(app.staticTexts["calendar-period"].exists, "The original grid remains available")
+    }
+
+    func testCalendarLayoutsInLightAndGlass() {
+        for layout in ["month", "year"] {
+            let app = launch("month", theme: "light", environment: ["BUDDY_VISUAL_CALENDAR_LAYOUT": layout, "BUDDY_VISUAL_GLASS": "on"])
+            XCTAssertTrue(app.buttons["Change Calendar Layout"].waitForExistence(timeout: 20))
+            XCTAssertTrue(app.staticTexts["calendar-period"].exists)
+            capture(app, "calendar-\(layout)-light-glass")
+            app.buttons["Change Calendar Layout"].tap()
+            XCTAssertTrue(app.buttons["calendar-layout-\(layout)"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.buttons["calendar-layout-\(layout)"].isSelected)
+            app.terminate()
+        }
+    }
     func testReferenceScreenCaptures() {
         for screen in ["cards","compact","compact-settings","month","streaks","list","dashboard","today-ring","explore","insights","calendar","recap","notes-timeline","milestones","habit-milestones","routines","routine","timer","years","year-calendar","detail","editor","new-habit","statistics","notes","appearance","day","settings","theme","share","welcome"] {
             let app=launch(screen)

@@ -95,6 +95,7 @@ data.settings.onboarding=screen != "welcome";data.settings.theme=ProcessInfo.pro
         data.settings.accent=ProcessInfo.processInfo.environment["BUDDY_VISUAL_ACCENT"].flatMap{$0.isEmpty ? nil:$0}
         data.settings.glass=ProcessInfo.processInfo.environment["BUDDY_VISUAL_GLASS"].flatMap(visualGlass)
         data.settings.layout=Layout(rawValue:screen) ?? (screen=="compact-settings" ? .compact:.cards)
+        data.settings.calendarLayout=ProcessInfo.processInfo.environment["BUDDY_VISUAL_CALENDAR_LAYOUT"].flatMap(CalendarLayout.init(rawValue:))
         if screen=="today-ring" { data.settings.dashboard=[DashboardWidget(kind:.today,style:.dark),DashboardWidget(kind:.today,style:.light),DashboardWidget(kind:.today,style:.tinted),DashboardWidget(kind:.streak,habitID:data.habits[6].id,style:.automatic)] }
         // Every design in the sizes and options the default dashboard doesn't show.
         if screen=="widgets", data.habits.count>=8, let routine=data.routines.first {

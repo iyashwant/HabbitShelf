@@ -119,6 +119,7 @@ struct MonthDots: View {
     var today = Day()
     let palette: WidgetPalette
     var gap: CGFloat = 3
+    var outlineToday = false
     var body: some View {
         let first = month.startOfMonth, offset = (first.weekday - data.settings.weekStart + 7) % 7
         let count = first.distance(to: first.endOfMonth) + 1, rows = (offset + count + 6) / 7
@@ -133,6 +134,9 @@ struct MonthDots: View {
                     let path = Path(roundedRect: rect, cornerRadius: cell * 0.28)
                     if mark == .future { context.stroke(Path(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), cornerRadius: cell * 0.28), with: .color(palette.outline), lineWidth: 1) }
                     else { context.fill(path, with: .color(mark.fill(palette))) }
+                    if outlineToday && data.settings.showToday && first.adding(n) == today {
+                        context.stroke(Path(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), cornerRadius: cell * 0.28), with: .color(palette.tint), lineWidth: 1)
+                    }
                 }
             }
         }

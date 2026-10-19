@@ -4,6 +4,7 @@ extension Day {
     /// Display formatters are costly to create, so tiles and rows share these.
     static let shortMonth = utcFormatter("MMM")
     static let monthYear = utcFormatter("MMM yyyy")
+    static let fullMonthYear = utcFormatter("MMMM yyyy")
     static let longDay = utcFormatter("EEE, MMM d, yyyy")
     private static func utcFormatter(_ format: String) -> DateFormatter {
         let f = DateFormatter(); f.locale = .autoupdatingCurrent; f.timeZone = TimeZone(secondsFromGMT: 0); f.dateFormat = format

@@ -1,5 +1,12 @@
 # Validation record
 
+## Month page layout choices, 19 October 2026
+
+- Added the third bottom-bar page's layout picker, preserving its compact grid and adding monthly and yearly habit cards from the owner's video.
+- `bash scripts/check-ios.sh`: the package portion passed **98 XCTest cases plus 13 Swift Testing cases**, with no failures, and project/research checks passed. The four new calendar cases cover old settings defaulting to the original grid and all three layout choices round-tripping with unchanged habit history.
+- The native simulator build was **stopped at the owner's request** because it was slowing down the Mac. Its partial compiler output is not a completed build. The simulator was shut down and no simulator devices remained running. No new screenshot or native UI result is claimed.
+- Added UI coverage for selecting all three layouts, opening a day, changing month/year, returning from another tab, relaunch persistence and light/glass presentation. These UI tests have **not been executed**. Native build, visual and interaction checks are deferred until the owner connects their physical iPhone; do not restart the simulator for this work.
+
 Cloud checks, 3 October 2026 (Asia/Kolkata):
 
 - Swift 6.2.3 on Linux, Swift 5 language mode: **41 XCTest cases passed, 0 failures**. Tests exercise the real shared engine, local-day/DST arithmetic, decimal precision, goal history, streaks, quit thresholds, notes, archive pauses, validation, concurrent increments, exports, failed transactions and corruption recovery.
