@@ -14,6 +14,26 @@ final class HabitBuddyUITests:XCTestCase {
         let size=24_576,total=(bytes.count+size-1)/size
         for i in 0..<total{let part=bytes.subdata(in:i*size..<min(bytes.count,(i+1)*size));print("BUDDY_CAPTURE|\(name)|\(i)|\(total)|\(part.base64EncodedString())")}
     }
+    func testDetailCompletionTotalCountsSeparateRunsAndUpdatesAfterLogging() {
+        let app = launch("detail", environment: ["BUDDY_VISUAL_FIXTURE": "streak-history", "BUDDY_VISUAL_DATE": "2026-10-18"])
+        let summary = app.staticTexts["habit-completion-summary"]
+        XCTAssertTrue(summary.waitForExistence(timeout: 20))
+        XCTAssertEqual(summary.label, "Completed 16 of 21 days")
+        capture(app, "detail-completion-total-dark")
+        app.buttons["2026-10-18, incomplete, 0"].tap()
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "identifier == %@ AND label == %@", "habit-completion-summary", "Completed 17 of 21 days")).firstMatch.waitForExistence(timeout: 5))
+        app.terminate()
+        app.launchEnvironment["BUDDY_VISUAL_RESET"] = "false"
+        app.launch()
+        XCTAssertTrue(summary.waitForExistence(timeout: 20))
+        XCTAssertEqual(summary.label, "Completed 17 of 21 days")
+        app.terminate()
+        let light = launch("detail", theme: "light", environment: ["BUDDY_VISUAL_FIXTURE": "streak-history", "BUDDY_VISUAL_DATE": "2026-10-18"])
+        XCTAssertTrue(light.staticTexts["habit-completion-summary"].waitForExistence(timeout: 20))
+        XCTAssertEqual(light.staticTexts["habit-completion-summary"].label, "Completed 16 of 21 days")
+        capture(light, "detail-completion-total-light")
+        light.terminate()
+    }
     func testThirdTabCalendarLayoutsAndPersistence() {
         let app = launch("cards")
         XCTAssertTrue(app.buttons["month view"].waitForExistence(timeout: 20))

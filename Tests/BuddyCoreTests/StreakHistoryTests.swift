@@ -26,6 +26,98 @@ struct StreakHistoryTests {
         #expect(Habit(name: "New habit").currentGoal.cadence == .daily)
     }
 
+    @Test func completionCountsAllSuccessesFromFirstEntryIncludingUnfinishedToday() throws {
+        var data = BuddyData()
+        let habit = Habit(name: "Read", created: today.adding(-30))
+        data.habits = [habit]
+        for offset in [-9, -8, -3, -2, -1] {
+            try Engine.complete(habit.id, day: today.adding(offset), data: &data, today: today)
+        }
+        let history = Engine.history(habit, data: data, today: today)
+        #expect(history.stats.currentStreak == 3)
+        #expect(history.completion.firstDay == today.adding(-9))
+        #expect(history.completion.completedDays == 5)
+        #expect(history.completion.totalDays == 10)
+        // The existing completion rate still uses creation and excludes unfinished today.
+        #expect(history.stats.eligibleDays == 30)
+        try Engine.complete(habit.id, day: today, data: &data, today: today)
+        #expect(Engine.history(habit, data: data, today: today).completion.completedDays == 6)
+        try Engine.setAmount(0, habitID: habit.id, day: today.adding(-9), data: &data, today: today)
+        let cleared = Engine.history(habit, data: data, today: today).completion
+        #expect(cleared.firstDay == today.adding(-9))
+        #expect(cleared.completedDays == 5)
+        #expect(cleared.totalDays == 10)
+    }
+
+    @Test func completionWithoutEntriesStartsAtZeroAndFirstEntryTodayCountsOneDay() throws {
+        var data = BuddyData()
+        let habit = Habit(name: "Read", created: today.adding(-30))
+        data.habits = [habit]
+        let empty = Engine.history(habit, data: data, today: today).completion
+        #expect(empty.firstDay == nil)
+        #expect(empty.completedDays == 0)
+        #expect(empty.totalDays == 0)
+        try Engine.complete(habit.id, day: today, data: &data, today: today)
+        let first = Engine.history(habit, data: data, today: today).completion
+        #expect(first.firstDay == today)
+        #expect(first.completedDays == 1)
+        #expect(first.totalDays == 1)
+    }
+
+    @Test func completionStartsWithPartialOrNoteEntryAndUsesHistoricalTargets() throws {
+        var data = BuddyData()
+        var habit = Habit(name: "Read", created: today.adding(-30))
+        habit.goals[0].tracking = .count; habit.goals[0].target = 2_000
+        var later = habit.currentGoal
+        later.from = today.adding(-2); later.target = 5_000
+        habit.goals.append(later); data.habits = [habit]
+        try Engine.note("Starting small", habitID: habit.id, day: today.adding(-9), data: &data, today: today)
+        try Engine.setAmount(1_000, habitID: habit.id, day: today.adding(-8), data: &data, today: today)
+        try Engine.setAmount(2_000, habitID: habit.id, day: today.adding(-3), data: &data, today: today)
+        try Engine.setAmount(2_000, habitID: habit.id, day: today.adding(-2), data: &data, today: today)
+        try Engine.setAmount(8_000, habitID: habit.id, day: today.adding(-1), data: &data, today: today)
+        let summary = Engine.history(habit, data: data, today: today).completion
+        #expect(summary.firstDay == today.adding(-9))
+        #expect(summary.completedDays == 2)
+        #expect(summary.totalDays == 10)
+        // A backfill extends the summary and the tracked start without losing existing days.
+        try Engine.complete(habit.id, day: today.adding(-40), data: &data, today: today)
+        let backfilled = Engine.history(data.habits[0], data: data, today: today).completion
+        #expect(backfilled.firstDay == today.adding(-40))
+        #expect(backfilled.completedDays == 3)
+        #expect(backfilled.totalDays == 41)
+    }
+
+    @Test func completionKeepsCalendarSpanButNeverCountsFrozenOrPausedDaysAsDone() throws {
+        var data = try fixture(days: 9)
+        var habit = data.habits[0]
+        habit.goals[0].cadence = .daily
+        habit.pauses = [Pause(from: today.adding(-5), through: today.adding(-4))]
+        data.habits[0] = habit
+        for offset in [-5, -4] { data.records[Record.key(habit.id, today.adding(offset))] = nil }
+        try Engine.setAmount(0, habitID: habit.id, day: today.adding(-2), data: &data, today: today)
+        data.settings.freezesPerMonth = 1
+        try Engine.setFreeze(true, habitID: habit.id, day: today.adding(-2), data: &data, today: today)
+        let summary = Engine.history(habit, data: data, today: today).completion
+        #expect(summary.completedDays == 6)
+        #expect(summary.totalDays == 10)
+        data.habits[0].archived = today.adding(-1)
+        let archived = Engine.history(data.habits[0], data: data, today: today.adding(10)).completion
+        #expect(archived.completedDays == 6)
+        #expect(archived.totalDays == 9)
+    }
+
+    @Test func quitCompletionIncludesDerivedCleanDaysAndExcludesSlips() throws {
+        var data = BuddyData()
+        var habit = Habit(name: "No smoking", created: today.adding(-9))
+        habit.goals[0].mode = .quit; data.habits = [habit]
+        try Engine.setAmount(1_000, habitID: habit.id, day: today.adding(-2), data: &data, today: today)
+        let summary = Engine.history(habit, data: data, today: today).completion
+        #expect(summary.firstDay == habit.created)
+        #expect(summary.completedDays == 9)
+        #expect(summary.totalDays == 10)
+    }
+
     @Test(arguments: [10, 12]) func enablingDailyIncludesSavedSuccesses(days: Int) throws {
         var data = try fixture(days: days)
         let records = data.records, oldGoals = data.habits[0].goals

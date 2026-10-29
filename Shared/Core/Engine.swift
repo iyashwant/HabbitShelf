@@ -29,9 +29,17 @@ public struct YearStats: Equatable, Sendable {
     public var longestRun = 0
     public var rate: Double { eligible == 0 ? 0 : Double(completions) / Double(eligible) }
 }
+/// Successful days out of calendar days since the first saved entry, including today.
+/// Quit habits start with their first tracked day even when no entry needs saving.
+public struct CompletionSummary: Equatable, Sendable {
+    public var firstDay: Day?
+    public var completedDays = 0
+    public var totalDays = 0
+}
 /// A habit's whole history in one pass: the stats, plus its successful days for milestones.
 public struct HabitHistory: Equatable, Sendable {
     public var stats = HabitStats()
+    public var completion = CompletionSummary()
     /// Successful days, build or quit.
     public var total = 0
     /// The day each milestone total was reached.
@@ -74,6 +82,11 @@ public enum Engine {
             let rule = habit.goals[goal], record = data.records[prefix + day.rawValue]
             let p = progress(habit, rule: rule, day: day, record: record, today: today)
             succeeded[offset] = p.success; frozenDays[offset] = record?.frozen == true
+            if result.completion.firstDay == nil, p.available, record != nil || rule.mode == .quit {
+                result.completion.firstDay = day
+                result.completion.totalDays = day.distance(to: end) + 1
+            }
+            if p.success, result.completion.firstDay != nil { result.completion.completedDays += 1 }
             if p.success {
                 result.total += 1
                 if Milestones.totalSteps.contains(result.total) { result.totalReached[result.total] = day }

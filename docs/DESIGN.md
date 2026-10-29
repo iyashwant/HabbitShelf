@@ -138,3 +138,7 @@ Reduce Transparency always gives regular glass without the control-color layer. 
 ## Visible app name
 
 At the owner's request, the visible product name is **HabitShelf**. The repository remains `habbit-buddy`. Existing bundle IDs, App Group, storage directory, widget kinds and `habitbuddy` deep links stay unchanged so the renamed app can update the installed app and reuse its data. App and widget display names, in-app copy, share branding and suggested export filenames use the new name.
+
+## Habit completion total
+
+Owner request, 29 October 2026: habit detail adds a secondary line directly below the streak and goal chips: **Completed X of Y days**. X counts all successful days, including separate runs; Y counts calendar days inclusively from the earliest saved entry through today. Creating a build habit before its first entry does not add days to this total. Partial progress, a note or a cleared saved entry establishes the first entry, but counts as completed only if that date's original goal succeeds. Backfilling an earlier entry extends the span. An empty build habit shows Completed 0 of 0 days. Quit habits begin with their first tracked day, since they do not need saved check-ins. Archived habits stop at the archive date; paused days stay in the calendar span but cannot count as completed. This owner extension uses the existing Figtree secondary text, wraps with Dynamic Type and leaves streak/rate semantics intact.

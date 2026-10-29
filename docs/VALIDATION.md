@@ -1,5 +1,13 @@
 # Validation record
 
+## Habit completion total, 29 October 2026
+
+- Added a separate **Completed X of Y days** line below the streak/goal chips in habit detail, using the existing cached history pass. The span starts at the first saved entry and includes today; quit habits use their tracked start because clean days need no saved entry.
+- `swift test` passed **98 XCTest cases and 18 Swift Testing cases**, zero failures. Five new completion cases cover separate streaks, a later first entry, unfinished/completed today, clearing, empty habits, historical numeric targets, partial/note entries, backfill, paused/frozen dates, archival and derived clean quit days. `python3 scripts/check-project.py` and `git diff --check` passed.
+- `scripts/check-ios.sh` completed its unsigned app/widget simulator compilation before the owner's no-simulator correction could stop it. No simulator was booted or used for interaction or screenshots. All subsequent native work targeted the connected physical iPhone 15 Pro with one build worker and one Swift compiler worker.
+- The signed Debug app/widget device build passed with Xcode 27.1; strict code-signature verification passed, and the app was updated in place on the iPhone 15 Pro running iOS 27.0.1. Direct physical-device captures use the isolated `streak-history` fixture dated 2026-10-18, separate from the owner's habit store. Visually inspected both dark and light captures: each shows streak **12**, **Daily**, and **Completed 16 of 21 days**, with the line fitting below the chips. The app was then relaunched normally against its ordinary store.
+- The focused UI test compiled, but its separate runner could not be installed because the phone already has the maximum number of apps permitted by its free developer profile. No apps were removed. The automated tap/relaunch assertions remain unexecuted; no simulator fallback was used. Largest Dynamic Type and VoiceOver interaction remain unverified.
+
 ## Month page layout choices, 19 October 2026
 
 - Added the third bottom-bar page's layout picker, preserving its compact grid and adding monthly and yearly habit cards from the owner's video.
