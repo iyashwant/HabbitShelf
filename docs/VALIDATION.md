@@ -1,5 +1,11 @@
 # Validation record
 
+## Habit detail metrics row, 31 October 2026
+
+- Replaced the completion sentence with one horizontal row ordered **goal tag**, **N streak**, **X/Y**, using the existing habit-colored metric capsules. There is no visible Completed or days label. Wide content scrolls horizontally to keep every metric in that row; VoiceOver retains an explanation of the completion ratio.
+- `python3 scripts/check-project.py` and `git diff --check` passed. The signed Debug app/widget build and `build-for-testing` passed for the physical iPhone 15 Pro with Xcode 27.1, one build worker and one Swift compiler worker. Strict code-signature verification passed, and the app was updated in place on the connected phone.
+- Updated the existing detail UI regression for the ratio, left-to-right order and shared vertical position. The UI test target compiled; the tests were not executed. The phone was locked, so fresh physical-screen inspection remains pending. No simulator build or launch was performed for this correction, as requested by the owner. No domain, storage or completion-counting rules changed.
+
 ## Habit completion total, 29 October 2026
 
 - Added a separate **Completed X of Y days** line below the streak/goal chips in habit detail, using the existing cached history pass. The span starts at the first saved entry and includes today; quit habits use their tracked start because clean days need no saved entry.

@@ -16,21 +16,29 @@ final class HabitBuddyUITests:XCTestCase {
     }
     func testDetailCompletionTotalCountsSeparateRunsAndUpdatesAfterLogging() {
         let app = launch("detail", environment: ["BUDDY_VISUAL_FIXTURE": "streak-history", "BUDDY_VISUAL_DATE": "2026-10-18"])
-        let summary = app.staticTexts["habit-completion-summary"]
+        let summary = app.descendants(matching: .any)["habit-completion-summary"].firstMatch
         XCTAssertTrue(summary.waitForExistence(timeout: 20))
-        XCTAssertEqual(summary.label, "Completed 16 of 21 days")
+        XCTAssertEqual(summary.label, "16/21")
+        let goal = app.descendants(matching: .any)["habit-goal-summary"].firstMatch
+        let streak = app.descendants(matching: .any)["habit-streak-summary"].firstMatch
+        XCTAssertTrue(streak.label.contains("12 streak"))
+        XCTAssertLessThan(goal.frame.maxX, streak.frame.minX)
+        XCTAssertLessThan(streak.frame.maxX, summary.frame.minX)
+        XCTAssertEqual(goal.frame.midY, streak.frame.midY, accuracy: 1)
+        XCTAssertEqual(streak.frame.midY, summary.frame.midY, accuracy: 1)
         capture(app, "detail-completion-total-dark")
         app.buttons["2026-10-18, incomplete, 0"].tap()
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "identifier == %@ AND label == %@", "habit-completion-summary", "Completed 17 of 21 days")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(format: "identifier == %@ AND label == %@", "habit-completion-summary", "17/21")).firstMatch.waitForExistence(timeout: 5))
         app.terminate()
         app.launchEnvironment["BUDDY_VISUAL_RESET"] = "false"
         app.launch()
         XCTAssertTrue(summary.waitForExistence(timeout: 20))
-        XCTAssertEqual(summary.label, "Completed 17 of 21 days")
+        XCTAssertEqual(summary.label, "17/21")
         app.terminate()
         let light = launch("detail", theme: "light", environment: ["BUDDY_VISUAL_FIXTURE": "streak-history", "BUDDY_VISUAL_DATE": "2026-10-18"])
-        XCTAssertTrue(light.staticTexts["habit-completion-summary"].waitForExistence(timeout: 20))
-        XCTAssertEqual(light.staticTexts["habit-completion-summary"].label, "Completed 16 of 21 days")
+        let lightSummary = light.descendants(matching: .any)["habit-completion-summary"].firstMatch
+        XCTAssertTrue(lightSummary.waitForExistence(timeout: 20))
+        XCTAssertEqual(lightSummary.label, "16/21")
         capture(light, "detail-completion-total-light")
         light.terminate()
     }

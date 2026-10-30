@@ -34,14 +34,7 @@ struct HabitDetailView: View {
                             ContributionHistory(habit:habit,data:store.data,shade:.detail,labelWidth:23.3,fade:15,shadeEdge:true)
                                 .padding(.leading,12.7).padding(.trailing,11).padding(.top,11).padding(.bottom,8)
                                 .surface(padding:0,radius:22,tint:c).padding(.top,16.7)
-                            HStack(spacing:8){MetricChip(symbol:"flame",text:String(history.stats.currentStreak),color:c);MetricChip(symbol:"target",text:habit.currentGoal.summary,color:c)}.padding(.top,12)
-                            Text("Completed \(history.completion.completedDays) of \(history.completion.totalDays) \(history.completion.totalDays == 1 ? "day":"days")")
-                                .font(BuddyFont.text(14,.medium)).monospacedDigit()
-                                .foregroundStyle(BuddyStyle.secondaryText(scheme))
-                                .frame(maxWidth:.infinity,alignment:.leading).fixedSize(horizontal:false,vertical:true)
-                                .padding(.top,10)
-                                .accessibilityIdentifier("habit-completion-summary")
-                                .accessibilityHint(history.completion.firstDay.map { "Since \($0.rawValue)" } ?? "Log your first entry to start tracking completed days")
+                            metrics(habit,history).padding(.top,12)
                             ForEach(months(habit),id:\.self){m in calendar(habit,m,proxy:proxy).padding(.top,20)}
                         }.padding(.horizontal,18).padding(.top,20.8).padding(.bottom,60)
                     }
@@ -81,6 +74,25 @@ struct HabitDetailView: View {
             }else{ContentUnavailableView("Habit unavailable",systemImage:"archivebox")}
         }.background(BuddyStyle.canvas(scheme)).toolbar(.hidden,for:.navigationBar)
             .sheet(item:$editor){HabitEditorView(habit:$0).buddySheet()}.sheet(item:$selection){DayEditorView(selection:$0)}
+    }
+    private func metrics(_ habit:Habit,_ history:HabitHistory)->some View {
+        let c=BuddyStyle.color(habit.color),completion=history.completion
+        return ScrollView(.horizontal) {
+            HStack(spacing:8) {
+                MetricChip(symbol:"target",text:habit.currentGoal.summary,color:c)
+                    .accessibilityElement(children:.combine)
+                    .accessibilityIdentifier("habit-goal-summary")
+                MetricChip(symbol:"flame",text:"\(history.stats.currentStreak) streak",color:c)
+                    .accessibilityElement(children:.combine)
+                    .accessibilityIdentifier("habit-streak-summary")
+                MetricChip(symbol:"check",text:"\(completion.completedDays)/\(completion.totalDays)",color:c)
+                    .accessibilityElement(children:.combine)
+                    .accessibilityLabel("\(completion.completedDays)/\(completion.totalDays)")
+                    .accessibilityValue("\(completion.completedDays) completed out of \(completion.totalDays) days")
+                    .accessibilityIdentifier("habit-completion-summary")
+                    .accessibilityHint(completion.firstDay.map { "Since \($0.rawValue)" } ?? "Log your first entry to start tracking completed days")
+            }.fixedSize(horizontal:true,vertical:false)
+        }.scrollIndicators(.hidden)
     }
     private func months(_ h:Habit)->[Day] {
         // History scrolls back to the start month; earlier months open one at a time for backfilling.
